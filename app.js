@@ -43,11 +43,22 @@ function createPermissions(req, res, permissions) {
         res.end()
       }
     })
-  } else {
-    res.writeHead(400, {'content-type': 'text/plain'});
-    res.write(err);
-    res.end();          
-  }
+  } else badRequest(res, err)
+}
+
+function getPermissions(req, res, subject) {
+  pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
+    if (err) badRequest(res, err)
+    else {
+      if (pg_res.rowCount == 0) notFound(res, req);
+      else {
+        var row = pg_res.rows[0]
+        res.writeHead(200, {'Location': '/permissions?' + subject, 'content-type': 'application/json', 'etag': row.etag})
+        res.write(JSON.stringify(row.data))
+        res.end()
+      }
+    }
+  })
 }
 
 function getPostBody(req, res, callback) {
@@ -72,33 +83,37 @@ function getPostBody(req, res, callback) {
   });
 }
 
-function methodNotAllowed(res) {
+function methodNotAllowed(res, req) {
   res.writeHead(405, {'content-type': 'text/plain'});
   res.write('Method not allowed. request-target: ' + req.url + ' method: ' + req.method + '\n');
   res.end();
 }
 
-function notFound(res) {
+function notFound(res, req) {
   res.writeHead(404, {'content-type': 'text/plain'});
   res.write('Not Found. request-target: ' + req.url + ' method: ' + req.method + '\n');
   res.end();
 }
+
+function badRequest(res, err) {
+  res.writeHead(400, {'content-type': 'text/plain'});
+  res.write(err);
+  res.end()
+}     
 
 var server = http.createServer(function(req, res) {
 
   if (req.url == '/permissions') {
     if (req.method == 'POST') {
       getPostBody(req, res, createPermissions)
-    } else methodNotAllowed(res)
+    } else methodNotAllowed(res, req)
   } else {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search != null) {
-      if (req.method == 'GET') {
-        res.writeHead(200, {'content-type': 'text/plain'});
-        res.write('GET '+ req_url.search.substring(1) + '\n' );
-        res.end();
-      } else methodNotAllowed(res)
-    } else notFound(res)
+      if (req.method == 'GET')
+        getPermissions(req, res, req_url.search.substring(1))
+      else methodNotAllowed(res, req)
+    } else notFound(res, req)
   }
 });
 
