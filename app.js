@@ -16,30 +16,36 @@ process.on('unhandledRejection', function(e) {
 
 var pool = new Pool(config)
 
-function createPermission(req, res, permissions) {
+function verifyPermissions(permissions) {
   if (permissions.hasOwnProperty('kind') && permissions.kind == 'Permissions') {
     if (permissions.hasOwnProperty('governs')) {
-      pool.query('INSERT INTO permissions (subject, data) values($1, $2)', [permissions.governs, permissions], function (err, pg_res) {
-        if (err) {
-          res.writeHead(400, {'content-type': 'text/plain'})
-          res.write(JSON.stringify(err))
-          res.end()
-        } else {
-          res.writeHead(201, {'Location': '/permissions?resource=%s' % permissions.governs, 'content-type': 'text/plain'})
-          res.write(JSON.stringify(err))
-          res.end()
-        }
-      })
+      return null
     } else {
       // no governs property
-      res.writeHead(400, {'content-type': 'text/plain'});
-      res.write('invalid JSON: "governs" property not set');
-      res.end();          
+      return 'invalid JSON: "governs" property not set'
     }
   } else {
     // not a Permissions body
+    return 'invalid JSON: "kind" property not set to "Permissions"'
+  }
+}
+
+function createPermissions(req, res, permissions) {
+  var err = verifyPermissions(permissions)
+  if (err == null) {
+    pool.query('INSERT INTO permissions (subject, data) values($1, $2)', [permissions.governs, permissions], function (err, pg_res) {
+      if (err) {
+        res.writeHead(400, {'content-type': 'text/plain'})
+        res.write(JSON.stringify(err))
+        res.end()
+      } else {
+        res.writeHead(201, {'Location': '/permissions?' + permissions.governs, 'content-type': 'text/plain'})
+        res.end()
+      }
+    })
+  } else {
     res.writeHead(400, {'content-type': 'text/plain'});
-    res.write('invalid JSON: "kind" property not set to "Permissions"');
+    res.write(err);
     res.end();          
   }
 }
@@ -66,20 +72,33 @@ function getPostBody(req, res, callback) {
   });
 }
 
+function methodNotAllowed(res) {
+  res.writeHead(405, {'content-type': 'text/plain'});
+  res.write('Method not allowed. request-target: ' + req.url + ' method: ' + req.method + '\n');
+  res.end();
+}
+
+function notFound(res) {
+  res.writeHead(404, {'content-type': 'text/plain'});
+  res.write('Not Found. request-target: ' + req.url + ' method: ' + req.method + '\n');
+  res.end();
+}
+
 var server = http.createServer(function(req, res) {
 
   if (req.url == '/permissions') {
     if (req.method == 'POST') {
-      getPostBody(req, res, createPermission)
-    } else {
-      res.writeHead(405, {'content-type': 'text/plain'});
-      res.write('Method not allowed. request-target: ' + req.url + ' method: ' + req.method + '\n');
-      res.end();
-    }
+      getPostBody(req, res, createPermissions)
+    } else methodNotAllowed(res)
   } else {
-    res.writeHead(404, {'content-type': 'text/plain'});
-    res.write('Not Found. request-target: ' + req.url + ' method: ' + req.method + '\n');
-    res.end();
+    var req_url = url.parse(req.url);
+    if (req_url.pathname == '/permissions' && req_url.search != null) {
+      if (req.method == 'GET') {
+        res.writeHead(200, {'content-type': 'text/plain'});
+        res.write('GET '+ req_url.search.substring(1) + '\n' );
+        res.end();
+      } else methodNotAllowed(res)
+    } else notFound(res)
   }
 });
 
