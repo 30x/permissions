@@ -2,6 +2,7 @@
 var http = require('http');
 var Pool = require('pg').Pool;
 var url = require('url')
+var querystring = require('querystring')
 
 var protocol = 'http';
 var config = {
@@ -57,13 +58,39 @@ function getPermissions(req, res, subject) {
       if (pg_res.rowCount == 0) notFound(res, req);
       else {
         var row = pg_res.rows[0];
-        res.writeHead(200, {'Location': '/permissions?' + subject, 'content-type': 'application/json', 'etag': row.etag});
-        internalize_urls(row.data, req.headers.host, protocol)
+        externalize_urls(row.data, req.headers.host, protocol)
+        res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/permissions?' + subject, 'content-type': 'application/json', 'etag': row.etag});
         res.write(JSON.stringify(row.data));
         res.end()
       }
     }
   })
+}
+
+function getAllowedActions(req, res, queryString) {
+  var queryParts = querystring.parse(queryString)
+  if (queryParts.user && queryParts.resource) {
+    pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [queryParts.resource], function (err, pg_res) {
+      if (err) badRequest(res, err)
+      else {
+        if (pg_res.rowCount == 0) notFound(res, req);
+        else {
+          var row = pg_res.rows[0];
+          externalize_urls(row.data, req.headers.host, protocol)
+          console.log(row.data)
+          var result = {};
+          var ops = ['create', 'read', 'update', 'delete'];
+          for (var i = 0; i < ops.length; i++)
+            if (row.data.hasOwnProperty(ops[i])) 
+              if (row.data[ops[i]].indexOf(queryParts.user) > -1) 
+                result[ops[i]] = true;
+          res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/allowed-actions?' + queryString, 'content-type': 'application/json'});
+          res.write(JSON.stringify(JSON.stringify(Object.keys(result))));
+          res.end()
+        }
+      }
+    })        
+  } else badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }
 
 // End functions specific to the 'business logic' of the permissions application
@@ -161,21 +188,22 @@ function externalize_urls(jsObject, authority, protocol) {
 
 // End generic http functions that could be moved to a library
 
-// Function specific to permissions HTTP resources
+// Permissions HTTP resources and methods.$1
 function requestHandler(req, res) {
-  if (req.url == '/permissions') {
+  if (req.url == '/permissions')
     if (req.method == 'POST') getPostBody(req, res, createPermissions);
     else methodNotAllowed(res, req);
-  } else {
+  else {
     var req_url = url.parse(req.url);
-    if (req_url.pathname == '/permissions' && req_url.search != null) {
+    if (req_url.pathname == '/permissions' && req_url.search != null) 
       if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
       else methodNotAllowed(res, req)
-    } else if (req_url.pathname == '/allowed-actions' && req_url.search != null) {
-
-    } else notFound(res, req)
+    else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
+      if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
+      else methodNotAllowed(res, req)
+    else notFound(res, req)
   }
-};
+}
 
 pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pg_res) {
   if(err) return console.error('error creating permissions table', err);

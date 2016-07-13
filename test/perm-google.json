@@ -1,4 +1,4 @@
 {"kind": "Permissions",
  "governs": "http://google.com/",
- "write": ["http://martin-nally.name"]
+ "update": ["http://martin-nally.name"]
 }
