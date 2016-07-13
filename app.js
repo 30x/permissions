@@ -16,6 +16,8 @@ process.on('unhandledRejection', function(e) {
 
 var pool = new Pool(config)
 
+// Begin functions specific to the 'business logic' of the permissions application
+
 function verifyPermissions(permissions) {
   if (permissions.hasOwnProperty('kind') && permissions.kind == 'Permissions') {
     if (permissions.hasOwnProperty('governs')) {
@@ -61,6 +63,11 @@ function getPermissions(req, res, subject) {
   })
 }
 
+// End functions specific to the 'business logic' of the permissions application
+//==============================================================================
+
+// Begin generic http functions that could be moved to a library
+
 function getPostBody(req, res, callback) {
   var body = '';
 
@@ -101,8 +108,10 @@ function badRequest(res, err) {
   res.end()
 }     
 
-var server = http.createServer(function(req, res) {
+// End generic http functions that could be moved to a library
 
+// Function specific to permissions HTTP resources
+function requestHandler(req, res) {
   if (req.url == '/permissions') {
     if (req.method == 'POST') {
       getPostBody(req, res, createPermissions)
@@ -115,12 +124,12 @@ var server = http.createServer(function(req, res) {
       else methodNotAllowed(res, req)
     } else notFound(res, req)
   }
-});
+};
 
 pool
   .query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);')
   .then(function() {
-    server.listen(3001, function() {
+    http.createServer(requestHandler).listen(3001, function() {
       console.log('server is listening on 3001')
     })
   })
