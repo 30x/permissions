@@ -126,10 +126,11 @@ function requestHandler(req, res) {
   }
 };
 
-pool
-  .query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);')
-  .then(function() {
+pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pg_res) {
+  if(err) return console.error('error creating permissions table', err);
+  else {
     http.createServer(requestHandler).listen(3001, function() {
       console.log('server is listening on 3001')
     })
-  })
+  }
+})
