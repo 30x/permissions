@@ -40,12 +40,17 @@ function createPermissions(req, res, permissions) {
     internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2)', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
-        res.writeHead(400, {'content-type': 'text/plain'});
+        res.writeHead(400, {'Content-Type': 'text/plain'});
         res.write(JSON.stringify(err));
         res.end()
       } else {
-        res.writeHead(201, {'Location': '/permissions?' + permissions.governs, 'content-type': 'text/plain'});
-        res.end()
+        var selfURL = protocol + '://' + req.headers.host + '/permissions?' + permissions.governs;
+        permissions['_self'] = selfURL;
+        var body = JSON.stringify(permissions)
+        res.writeHead(201, {'Location': selfURL, 
+                            'Content-Length': Buffer.byteLength(body),
+                            'Content-Type': 'text/plain'});
+        res.end(body)
       }
     })
   } else badRequest(res, err)
@@ -59,11 +64,13 @@ function getPermissions(req, res, subject) {
       else {
         var row = pg_res.rows[0];
         externalizeURLs(row.data, req.headers.host, protocol)
+        var selfURL = protocol + '://' + req.headers.host + '/permissions?' + subject;
+        row.data['_self'] = selfURL;
         var body = JSON.stringify(row.data)
-        res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/permissions?' + subject, 
-                            'content-type': 'application/json', 
+        res.writeHead(200, {'Content-Location': selfURL, 
+                            'Content-Type': 'application/json', 
                             'Content-Length': Buffer.byteLength(body),
-                            'etag': row.etag});
+                            'Etag': row.etag});
         res.write(body);
         res.end()
       }
@@ -95,7 +102,7 @@ function getAllowedActions(req, res, queryString) {
     var err = addAllowedActions(internalizeURL(queryParts.resource, req.headers.host), internalizeURL(queryParts.user, req.headers.host), result, function() {
       var body = JSON.stringify(Object.keys(result))
       res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/allowed-actions?' + queryString, 
-                          'content-type': 'application/json',
+                          'Content-Type': 'application/json',
                           'Content-Length': Buffer.byteLength(body)});
       res.end(body);
     })
@@ -121,7 +128,7 @@ function getPostBody(req, res, callback) {
       jso = JSON.parse(body);
     }
     catch (err) {
-      res.writeHead(400, {'content-type': 'text/plain'});
+      res.writeHead(400, {'Content-Type': 'text/plain'});
       res.write('invalid JSON: ' + err.message);
       res.end();          
     }
@@ -130,19 +137,19 @@ function getPostBody(req, res, callback) {
 }
 
 function methodNotAllowed(res, req) {
-  res.writeHead(405, {'content-type': 'text/plain'});
+  res.writeHead(405, {'Content-Type': 'text/plain'});
   res.write('Method not allowed. request-target: ' + req.url + ' method: ' + req.method + '\n');
   res.end();
 }
 
 function notFound(res, req) {
-  res.writeHead(404, {'content-type': 'text/plain'});
+  res.writeHead(404, {'Content-Type': 'text/plain'});
   res.write('Not Found. request-target: ' + req.url + ' method: ' + req.method + '\n');
   res.end();
 }
 
 function badRequest(res, err) {
-  res.writeHead(400, {'content-type': 'text/plain'});
+  res.writeHead(400, {'Content-Type': 'text/plain'});
   res.write(err);
   res.end()
 }   
