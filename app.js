@@ -122,8 +122,15 @@ function internalize_urls(jsObject, authority) {
         if (typeof val == 'string') {
           if (val.lastIndexOf(httpString) === 0) jsObject[key] = val.substring(httpString.length);
           else if (val.lastIndexOf(httpsString) === 0) jsObject[key] = val.substring(httpsString.length);
-        else internalize_urls(val, authority)
-        }
+        } else if (Array.isArray(val)) {
+          for (var i = 0; i < val.length; i++) {
+            var vali = val[i]
+            if (typeof vali == 'string') {
+              if (vali.lastIndexOf(httpString) === 0) val[i] = vali.substring(httpString.length);
+              else if (vali.lastIndexOf(httpsString) === 0) val[i] = vali.substring(httpsString.length);
+            } else internalize_urls(vali, authority)             
+          }
+        } else internalize_urls(val, authority)
       }
     }
   }
@@ -139,8 +146,14 @@ function externalize_urls(jsObject, authority, protocol) {
         var val = jsObject[key];
         if (typeof val == 'string') {
           if (val.lastIndexOf('/') === 0) jsObject[key] = prefix + val;
-        else internalize_urls(val, authority)
-        }
+        } else if (Array.isArray(val)) {
+          for (var i = 0; i < val.length; i++) {
+            var vali = val[i]
+            if (typeof vali == 'string') 
+              if (vali.lastIndexOf('/') === 0) val[i] = prefix + val;
+            else internalize_urls(vali, authority)             
+          }
+        } else internalize_urls(val, authority)
       }
     }
   }
@@ -156,9 +169,10 @@ function requestHandler(req, res) {
   } else {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search != null) {
-      if (req.method == 'GET')
-        getPermissions(req, res, req_url.search.substring(1))
+      if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
       else methodNotAllowed(res, req)
+    } else if (req_url.pathname == '/allowed-actions' && req_url.search != null) {
+
     } else notFound(res, req)
   }
 };
