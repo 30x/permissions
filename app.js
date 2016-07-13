@@ -3,6 +3,7 @@ var http = require('http');
 var Pool = require('pg').Pool;
 var url = require('url')
 
+var protocol = 'http';
 var config = {
   host: 'localhost',
   user: 'martinnally',
@@ -35,13 +36,14 @@ function verifyPermissions(permissions) {
 function createPermissions(req, res, permissions) {
   var err = verifyPermissions(permissions)
   if (err == null) {
+    internalize_urls(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2)', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
-        res.writeHead(400, {'content-type': 'text/plain'})
-        res.write(JSON.stringify(err))
+        res.writeHead(400, {'content-type': 'text/plain'});
+        res.write(JSON.stringify(err));
         res.end()
       } else {
-        res.writeHead(201, {'Location': '/permissions?' + permissions.governs, 'content-type': 'text/plain'})
+        res.writeHead(201, {'Location': '/permissions?' + permissions.governs, 'content-type': 'text/plain'});
         res.end()
       }
     })
@@ -54,9 +56,10 @@ function getPermissions(req, res, subject) {
     else {
       if (pg_res.rowCount == 0) notFound(res, req);
       else {
-        var row = pg_res.rows[0]
-        res.writeHead(200, {'Location': '/permissions?' + subject, 'content-type': 'application/json', 'etag': row.etag})
-        res.write(JSON.stringify(row.data))
+        var row = pg_res.rows[0];
+        res.writeHead(200, {'Location': '/permissions?' + subject, 'content-type': 'application/json', 'etag': row.etag});
+        internalize_urls(row.data, req.headers.host, protocol)
+        res.write(JSON.stringify(row.data));
         res.end()
       }
     }
@@ -106,16 +109,50 @@ function badRequest(res, err) {
   res.writeHead(400, {'content-type': 'text/plain'});
   res.write(err);
   res.end()
-}     
+}   
+
+function internalize_urls(jsObject, authority) {
+  //strip the http://authority or https://authority from the front of any urls
+  if (typeof jsObject == 'object') {
+    var httpString = 'http://' + authority
+    var httpsString = 'https://' + authority
+    for(var key in jsObject) {
+      if (jsObject.hasOwnProperty(key)) {
+        var val = jsObject[key]
+        if (typeof val == 'string') {
+          if (val.lastIndexOf(httpString) === 0) jsObject[key] = val.substring(httpString.length);
+          else if (val.lastIndexOf(httpsString) === 0) jsObject[key] = val.substring(httpsString.length);
+        else internalize_urls(val, authority)
+        }
+      }
+    }
+  }
+}  
+
+function externalize_urls(jsObject, authority, protocol) {
+  //add http://authority or https://authority to the front of any urls
+  if (typeof jsObject == 'object') {
+    protocol = protocol || 'http';
+    var prefix = protocol + '://' + authority;
+    for(var key in jsObject) {
+      if (jsObject.hasOwnProperty(key)) {
+        var val = jsObject[key];
+        if (typeof val == 'string') {
+          if (val.lastIndexOf('/') === 0) jsObject[key] = prefix + val;
+        else internalize_urls(val, authority)
+        }
+      }
+    }
+  }
+}  
 
 // End generic http functions that could be moved to a library
 
 // Function specific to permissions HTTP resources
 function requestHandler(req, res) {
   if (req.url == '/permissions') {
-    if (req.method == 'POST') {
-      getPostBody(req, res, createPermissions)
-    } else methodNotAllowed(res, req)
+    if (req.method == 'POST') getPostBody(req, res, createPermissions);
+    else methodNotAllowed(res, req);
   } else {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search != null) {
