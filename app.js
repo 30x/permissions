@@ -37,7 +37,7 @@ function verifyPermissions(permissions) {
 function createPermissions(req, res, permissions) {
   var err = verifyPermissions(permissions)
   if (err == null) {
-    internalize_urls(permissions, req.headers.host)
+    internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2)', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
         res.writeHead(400, {'content-type': 'text/plain'});
@@ -58,38 +58,47 @@ function getPermissions(req, res, subject) {
       if (pg_res.rowCount == 0) notFound(res, req);
       else {
         var row = pg_res.rows[0];
-        externalize_urls(row.data, req.headers.host, protocol)
-        res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/permissions?' + subject, 'content-type': 'application/json', 'etag': row.etag});
-        res.write(JSON.stringify(row.data));
+        externalizeURLs(row.data, req.headers.host, protocol)
+        var body = JSON.stringify(row.data)
+        res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/permissions?' + subject, 
+                            'content-type': 'application/json', 
+                            'Content-Length': Buffer.byteLength(body),
+                            'etag': row.etag});
+        res.write(body);
         res.end()
       }
     }
   })
 }
 
+function addAllowedActions(resource, user, result, callback) {
+  pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
+    if (err) return err
+    else 
+      if (pg_res.rowCount == 0) return 404;
+      else {
+        var row = pg_res.rows[0];
+        var ops = ['create', 'read', 'update', 'delete'];
+        for (var i = 0; i < ops.length; i++)
+          if (row.data.hasOwnProperty(ops[i])) 
+            if (row.data[ops[i]].indexOf(user) > -1) 
+              result[ops[i]] = true;
+        callback()
+      }
+  })
+}        
+
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   if (queryParts.user && queryParts.resource) {
-    pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [queryParts.resource], function (err, pg_res) {
-      if (err) badRequest(res, err)
-      else {
-        if (pg_res.rowCount == 0) notFound(res, req);
-        else {
-          var row = pg_res.rows[0];
-          externalize_urls(row.data, req.headers.host, protocol)
-          console.log(row.data)
-          var result = {};
-          var ops = ['create', 'read', 'update', 'delete'];
-          for (var i = 0; i < ops.length; i++)
-            if (row.data.hasOwnProperty(ops[i])) 
-              if (row.data[ops[i]].indexOf(queryParts.user) > -1) 
-                result[ops[i]] = true;
-          res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/allowed-actions?' + queryString, 'content-type': 'application/json'});
-          res.write(JSON.stringify(JSON.stringify(Object.keys(result))));
-          res.end()
-        }
-      }
-    })        
+    var result = {};
+    var err = addAllowedActions(internalizeURL(queryParts.resource, req.headers.host), internalizeURL(queryParts.user, req.headers.host), result, function() {
+      var body = JSON.stringify(Object.keys(result))
+      res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/allowed-actions?' + queryString, 
+                          'content-type': 'application/json',
+                          'Content-Length': Buffer.byteLength(body)});
+      res.end(body);
+    })
   } else badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }
 
@@ -138,14 +147,22 @@ function badRequest(res, err) {
   res.end()
 }   
 
-function internalize_urls(jsObject, authority) {
+function internalizeURL(anURL, authority) {
+  var httpString = 'http://' + authority;
+  var httpsString = 'https://' + authority;  
+  if (anURL.lastIndexOf(httpString) === 0) return anURL.substring(httpString.length);
+  else if (anURL.lastIndexOf(httpsString) === 0) return anURL.substring(httpsString.length);
+  else return anURL
+}
+
+function internalizeURLs(jsObject, authority) {
   //strip the http://authority or https://authority from the front of any urls
   if (typeof jsObject == 'object') {
-    var httpString = 'http://' + authority
-    var httpsString = 'https://' + authority
+    var httpString = 'http://' + authority;
+    var httpsString = 'https://' + authority;
     for(var key in jsObject) {
       if (jsObject.hasOwnProperty(key)) {
-        var val = jsObject[key]
+        var val = jsObject[key];
         if (typeof val == 'string') {
           if (val.lastIndexOf(httpString) === 0) jsObject[key] = val.substring(httpString.length);
           else if (val.lastIndexOf(httpsString) === 0) jsObject[key] = val.substring(httpsString.length);
@@ -155,15 +172,15 @@ function internalize_urls(jsObject, authority) {
             if (typeof vali == 'string') {
               if (vali.lastIndexOf(httpString) === 0) val[i] = vali.substring(httpString.length);
               else if (vali.lastIndexOf(httpsString) === 0) val[i] = vali.substring(httpsString.length);
-            } else internalize_urls(vali, authority)             
+            } else internalizeURLs(vali, authority)             
           }
-        } else internalize_urls(val, authority)
+        } else internalizeURLs(val, authority)
       }
     }
   }
 }  
 
-function externalize_urls(jsObject, authority, protocol) {
+function externalizeURLs(jsObject, authority, protocol) {
   //add http://authority or https://authority to the front of any urls
   if (typeof jsObject == 'object') {
     protocol = protocol || 'http';
@@ -178,9 +195,9 @@ function externalize_urls(jsObject, authority, protocol) {
             var vali = val[i]
             if (typeof vali == 'string') 
               if (vali.lastIndexOf('/') === 0) val[i] = prefix + val;
-            else internalize_urls(vali, authority)             
+            else internalizeURLs(vali, authority)             
           }
-        } else internalize_urls(val, authority)
+        } else internalizeURLs(val, authority)
       }
     }
   }
