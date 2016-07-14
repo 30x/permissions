@@ -4,7 +4,7 @@ var Pool = require('pg').Pool;
 var url = require('url')
 var querystring = require('querystring')
 
-var protocol = 'http';
+var PROTOCOL = 'http';
 var config = {
   host: 'localhost',
   user: 'martinnally',
@@ -29,16 +29,29 @@ function verifyPermissions(permissions) {
       return 'invalid JSON: "governs" property not set'
     }
   } else {
-    // not a Permissions body
+    // not a Permissions entity
     return 'invalid JSON: "kind" property not set to "Permissions"'
   }
+}
+
+var OPERATIONS = ['creators', 'readers', 'updaters', 'deleters'];
+
+function calculateSharedWith(permissions) {
+  var result = {}
+  for (var i = 0; i < OPERATIONS.length; i++)
+    if (permissions.hasOwnProperty(OPERATIONS[i])) {
+      var users = permissions[OPERATIONS[i]];
+      for (var j = 0; j < users.length; j++) result[users[j]] = true;
+    }
+  permissions['_sharedWith'] = Object.keys(result)
 }
 
 function createPermissions(req, res, permissions) {
   var err = verifyPermissions(permissions)
   if (err == null) {
+    calculateSharedWith(permissions);
     internalizeURLs(permissions, req.headers.host)
-    pool.query('INSERT INTO permissions (subject, data) values($1, $2)', [permissions.governs, permissions], function (err, pg_res) {
+    pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
         var body = JSON.stringify(err)
         res.writeHead(400, {'Content-Type': 'application/json',
@@ -46,9 +59,10 @@ function createPermissions(req, res, permissions) {
         res.write(body);
         res.end()
       } else {
-        var selfURL = protocol + '://' + req.headers.host + '/permissions?' + permissions.governs;
+        var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
+        var etag = pg_res.rows[0].etag
         permissions['_self'] = selfURL;
-        created(req, res, permissions, selfURL)
+        created(req, res, permissions, selfURL, etag)
       }
     })
   } else badRequest(res, err)
@@ -77,11 +91,10 @@ function addAllowedActions(resource, user, result, callback) {
       if (pg_res.rowCount == 0) return 404;
       else {
         var row = pg_res.rows[0];
-        var ops = ['create', 'read', 'update', 'delete'];
-        for (var i = 0; i < ops.length; i++)
-          if (row.data.hasOwnProperty(ops[i])) 
-            if (row.data[ops[i]].indexOf(user) > -1) 
-              result[ops[i]] = true;
+        for (var i = 0; i < OPERATIONS.length; i++)
+          if (row.data.hasOwnProperty(OPERATIONS[i])) 
+            if (row.data[OPERATIONS[i]].indexOf(user) > -1) 
+              result[OPERATIONS[i]] = true;
         callback()
       }
   })
@@ -94,7 +107,7 @@ function getAllowedActions(req, res, queryString) {
     var resource = internalizeURL(queryParts.resource, req.headers.host);
     var user = internalizeURL(queryParts.user, req.headers.host);
     var err = addAllowedActions(resource, user, result, function() {
-      var selfURL = protocol + '://' + req.headers.host + '/allowed-actions?' + queryString
+      var selfURL = PROTOCOL + '://' + req.headers.host + '/allowed-actions?' + queryString
       found(req, res, Object.keys(result), selfURL)
     })
   } else badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
@@ -121,7 +134,6 @@ function requestHandler(req, res) {
 }
 
 //==============================================================================
-
 // Begin generic http functions that could be moved to a library
 
 function getPostBody(req, res, callback) {
@@ -174,7 +186,7 @@ function found(req, res, body, location, etag) {
 }
 
 function created(req, res, body, location, etag) {
-  headers =  {}
+  var headers =  {}
   if (location != null) headers['Location'] = location; 
   if (etag != null) headers['Etag'] = etag; 
   respond(req, res, 201, headers, body)
@@ -251,9 +263,10 @@ function externalizeURLs(jsObject, authority, protocol) {
 }  
 
 // End generic http functions that could be moved to a library
+//==============================================================================
 
 pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pg_res) {
-  if(err) return console.error('error creating permissions table', err);
+  if(err) console.error('error creating permissions table', err);
   else {
     http.createServer(requestHandler).listen(3001, function() {
       console.log('server is listening on 3001')

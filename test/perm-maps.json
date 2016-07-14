@@ -1,5 +1,5 @@
 {"kind": "Permissions",
  "governs": "http://google.com/maps",
  "sharingSets": ["http://google.com/"],
- "update": ["http://martin-nally.name"]
+ "readers": ["http://martin-nally.name"]
 }
