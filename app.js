@@ -40,8 +40,10 @@ function createPermissions(req, res, permissions) {
     internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2)', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
-        res.writeHead(400, {'Content-Type': 'text/plain'});
-        res.write(JSON.stringify(err));
+        var body = JSON.stringify(err)
+        res.writeHead(400, {'Content-Type': 'application/json',
+                            'Content-Length': Buffer.byteLength(body)});
+        res.write(body);
         res.end()
       } else {
         var selfURL = protocol + '://' + req.headers.host + '/permissions?' + permissions.governs;
@@ -99,9 +101,12 @@ function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   if (queryParts.user && queryParts.resource) {
     var result = {};
-    var err = addAllowedActions(internalizeURL(queryParts.resource, req.headers.host), internalizeURL(queryParts.user, req.headers.host), result, function() {
+    var resource = internalizeURL(queryParts.resource, req.headers.host);
+    var user = internalizeURL(queryParts.user, req.headers.host);
+    var err = addAllowedActions(resource, user, result, function() {
       var body = JSON.stringify(Object.keys(result))
-      res.writeHead(200, {'Content-Location': protocol + '://' + req.headers.host + '/allowed-actions?' + queryString, 
+      var selfURL = protocol + '://' + req.headers.host + '/allowed-actions?' + queryString
+      res.writeHead(200, {'Content-Location': selfURL, 
                           'Content-Type': 'application/json',
                           'Content-Length': Buffer.byteLength(body)});
       res.end(body);
