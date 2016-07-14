@@ -3,7 +3,7 @@ var http = require('http');
 var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
-var httpPatterns = require('./http-patterns.js')
+var lib = require('./http-patterns.js')
 
 var PROTOCOL = 'http';
 var config = {
@@ -43,7 +43,7 @@ function createPermissions(req, res, permissions) {
   var err = verifyPermissions(permissions)
   if (err == null) {
     calculateSharedWith(permissions);
-    httpPatterns.internalizeURLs(permissions, req.headers.host)
+    lib.internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
         var body = JSON.stringify(err)
@@ -55,22 +55,22 @@ function createPermissions(req, res, permissions) {
         var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
         var etag = pg_res.rows[0].etag
         permissions['_self'] = selfURL;
-        httpPatterns.created(req, res, permissions, selfURL, etag)
+        lib.created(req, res, permissions, selfURL, etag)
       }
     })
-  } else httpPatterns.badRequest(res, err)
+  } else lib.badRequest(res, err)
 }
 
 function getPermissions(req, res, subject) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
-    if (err) httpPatterns.badRequest(res, err)
+    if (err) lib.badRequest(res, err)
     else {
-      if (pg_res.rowCount == 0) httpPatterns.notFound(req, res);
+      if (pg_res.rowCount == 0) lib.notFound(req, res);
       else {
         var row = pg_res.rows[0];
-        httpPatterns.externalizeURLs(row.data, req.headers.host, PROTOCOL)
+        lib.externalizeURLs(row.data, req.headers.host, PROTOCOL)
         row.data['_self'] = selfURL;
-        httpPatterns.found(req, res, row.data, row.etag)
+        lib.found(req, res, row.data, row.etag)
       }
     }
   })
@@ -102,12 +102,12 @@ function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   if (queryParts.user && queryParts.resource) {
     var result = {};
-    var resource = httpPatterns.internalizeURL(queryParts.resource, req.headers.host);
-    var user = httpPatterns.internalizeURL(queryParts.user, req.headers.host);
+    var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
+    var user = lib.internalizeURL(queryParts.user, req.headers.host);
     addAllowedActions(resource, user, result, function() {
-      httpPatterns.found(req, res, Object.keys(result))
+      lib.found(req, res, Object.keys(result))
     })
-  } else httpPatterns.badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
+  } else lib.badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }
 
 function addUsersWhoCanSee(resource, result, callback) {
@@ -135,60 +135,60 @@ function addUsersWhoCanSee(resource, result, callback) {
 
 function getUsersWhoCanSee(req, res, resource) {
   var result = {};
-  var resource = httpPatterns.internalizeURL(resource, req.headers.host);
+  var resource = lib.internalizeURL(resource, req.headers.host);
   addUsersWhoCanSee(resource, result, function() {
-    httpPatterns.found(req, res, Object.keys(result))
+    lib.found(req, res, Object.keys(result))
   })
 }
 
 function getResourcesSharedWith(req, res, user) {
-  var user = httpPatterns.internalizeURL(user, req.headers.host);
+  var user = lib.internalizeURL(user, req.headers.host);
   pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
-    if (err) httpPatterns.badRequest(res, err)
+    if (err) lib.badRequest(res, err)
     else {
       var result = [];
       var rows = pg_res.rows
       for (var i = 0; i < rows.length; i++) result.push(rows[i].subject)
-      httpPatterns.found(req, res, result)
+      lib.found(req, res, result)
     }
   })
 }
 
 function getResourcesInSharingSet(req, res, sharingSet) {
-  var user = httpPatterns.internalizeURL(sharingSet, req.headers.host);
+  var user = lib.internalizeURL(sharingSet, req.headers.host);
   pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"sharingSets":["' + sharingSet + '"]}\'', function (err, pg_res) {
-    if (err) httpPatterns.badRequest(res, err)
+    if (err) lib.badRequest(res, err)
     else {
       var result = [];
       var rows = pg_res.rows
       for (var i = 0; i < rows.length; i++) result.push(rows[i].subject)
-      httpPatterns.found(req, res, result)
+      lib.found(req, res, result)
     }
   })
 }
 
 function requestHandler(req, res) {
   if (req.url == '/permissions')
-    if (req.method == 'POST') httpPatterns.getPostBody(req, res, createPermissions);
-    else httpPatterns.methodNotAllowed(req, res);
+    if (req.method == 'POST') lib.getPostBody(req, res, createPermissions);
+    else lib.methodNotAllowed(req, res);
   else {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search != null) 
       if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
-      else httpPatterns.methodNotAllowed(req, res)
+      else lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
       if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
-      else httpPatterns.methodNotAllowed(req, res)
+      else lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/resources-shared-with' && req_url.search != null)
       if (req.method == 'GET') getResourcesSharedWith(req, res, req_url.search.substring(1))
-      else httpPatterns.methodNotAllowed(req, res)
+      else lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/resources-in-sharing-set' && req_url.search != null)
       if (req.method == 'GET') getResourcesInSharingSet(req, res, req_url.search.substring(1))
-      else httpPatterns.methodNotAllowed(req, res)
+      else lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/users-who-can-see' && req_url.search != null)
       if (req.method == 'GET') getUsersWhoCanSee(req, res, req_url.search.substring(1))
-      else httpPatterns.methodNotAllowed(req, res)
-    else httpPatterns.notFound(req, res)
+      else lib.methodNotAllowed(req, res)
+    else lib.notFound(req, res)
   }
 }
 
