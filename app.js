@@ -90,7 +90,7 @@ function getPermissions(req, res, subject) {
 
 function addAllowedActions(resource, user, result, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
-    if (err) return err
+    if (err) callback(err)
     else 
       if (pg_res.rowCount == 0) callback();
       else {
@@ -116,25 +116,54 @@ function getAllowedActions(req, res, queryString) {
     var result = {};
     var resource = internalizeURL(queryParts.resource, req.headers.host);
     var user = internalizeURL(queryParts.user, req.headers.host);
-    var err = addAllowedActions(resource, user, result, function() {
+    addAllowedActions(resource, user, result, function() {
       found(req, res, Object.keys(result))
     })
   } else badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }
 
-function getResourcesSharedWith(req, res, user) {
-  if (user) {
-    var user = internalizeURL(user, req.headers.host);
-    pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
-      if (err) badRequest(res, err)
+function addUsersWhoCanSee(resource, result, callback) {
+  pool.query('SELECT data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
+    if (err) callback(err)
+    else 
+      if (pg_res.rowCount == 0) callback();
       else {
-        var result = [];
-        var rows = pg_res.rows
-        for (var i = 0; i < rows.length; i++) result.push(rows[i]. subject)
+        var row = pg_res.rows[0];
+        if (row.data.hasOwnProperty('_sharedWith')) {
+          var sharedWith = row.data._sharedWith;
+          for (var i=0; i < sharedWith.length; i++) 
+            result[sharedWith[i]] = true;
+        }
+        if (row.data.hasOwnProperty('sharingSets')) {
+          var sharingSets = row.data.sharingSets;
+          var count = 0
+          for (var j = 0; j < sharingSets.length; j++) {
+            addUsersWhoCanSee(sharingSets[j], result, function() {if (++count == sharingSets.length) callback()})
+          }
+        } else callback()
       }
-      found(req, res, result)
-    })
-  } else badRequest(res, 'must provide user URL in querystring: ' + queryString)  
+  })
+}        
+
+function getUsersWhoCanSee(req, res, resource) {
+  var result = {};
+  var resource = internalizeURL(resource, req.headers.host);
+  addUsersWhoCanSee(resource, result, function() {
+    found(req, res, Object.keys(result))
+  })
+}
+
+function getResourcesSharedWith(req, res, user) {
+  var user = internalizeURL(user, req.headers.host);
+  pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
+    if (err) badRequest(res, err)
+    else {
+      var result = [];
+      var rows = pg_res.rows
+      for (var i = 0; i < rows.length; i++) result.push(rows[i]. subject)
+    }
+    found(req, res, result)
+  })
 }
 
 // End functions specific to the 'business logic' of the permissions application
@@ -155,6 +184,9 @@ function requestHandler(req, res) {
       else methodNotAllowed(req, res)
     else if (req_url.pathname == '/resources-shared-with' && req_url.search != null)
       if (req.method == 'GET') getResourcesSharedWith(req, res, req_url.search.substring(1))
+      else methodNotAllowed(req, res)
+    else if (req_url.pathname == '/users-who-can-see' && req_url.search != null)
+      if (req.method == 'GET') getUsersWhoCanSee(req, res, req_url.search.substring(1))
       else methodNotAllowed(req, res)
     else notFound(req, res)
   }
