@@ -48,11 +48,7 @@ function createPermissions(req, res, permissions) {
       } else {
         var selfURL = protocol + '://' + req.headers.host + '/permissions?' + permissions.governs;
         permissions['_self'] = selfURL;
-        var body = JSON.stringify(permissions)
-        res.writeHead(201, {'Location': selfURL, 
-                            'Content-Length': Buffer.byteLength(body),
-                            'Content-Type': 'text/plain'});
-        res.end(body)
+        created(req, res, permissions, selfURL)
       }
     })
   } else badRequest(res, err)
@@ -68,13 +64,7 @@ function getPermissions(req, res, subject) {
         externalizeURLs(row.data, req.headers.host, protocol)
         var selfURL = protocol + '://' + req.headers.host + '/permissions?' + subject;
         row.data['_self'] = selfURL;
-        var body = JSON.stringify(row.data)
-        res.writeHead(200, {'Content-Location': selfURL, 
-                            'Content-Type': 'application/json', 
-                            'Content-Length': Buffer.byteLength(body),
-                            'Etag': row.etag});
-        res.write(body);
-        res.end()
+        found(req, res, row.data, selfURL, row.etag)
       }
     }
   })
@@ -104,12 +94,8 @@ function getAllowedActions(req, res, queryString) {
     var resource = internalizeURL(queryParts.resource, req.headers.host);
     var user = internalizeURL(queryParts.user, req.headers.host);
     var err = addAllowedActions(resource, user, result, function() {
-      var body = JSON.stringify(Object.keys(result))
       var selfURL = protocol + '://' + req.headers.host + '/allowed-actions?' + queryString
-      res.writeHead(200, {'Content-Location': selfURL, 
-                          'Content-Type': 'application/json',
-                          'Content-Length': Buffer.byteLength(body)});
-      res.end(body);
+      found(req, res, Object.keys(result), selfURL)
     })
   } else badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }
@@ -181,7 +167,7 @@ function badRequest(res, err) {
 }   
 
 function found(req, res, body, location, etag) {
-  headers =  {}
+  var headers =  {}
   if (location != null) headers['Content-Location'] = location; 
   if (etag != null) headers['Etag'] = etag; 
   respond(req, res, 200, headers, body)
