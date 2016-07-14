@@ -62,7 +62,7 @@ function getPermissions(req, res, subject) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
     if (err) badRequest(res, err)
     else {
-      if (pg_res.rowCount == 0) notFound(res, req);
+      if (pg_res.rowCount == 0) notFound(req, res);
       else {
         var row = pg_res.rows[0];
         externalizeURLs(row.data, req.headers.host, protocol)
@@ -116,21 +116,21 @@ function getAllowedActions(req, res, queryString) {
 
 // End functions specific to the 'business logic' of the permissions application
 
-//  HTTP resources and methods specific to prmissions application
+//  HTTP request routing specific to prmissions application
 
 function requestHandler(req, res) {
   if (req.url == '/permissions')
     if (req.method == 'POST') getPostBody(req, res, createPermissions);
-    else methodNotAllowed(res, req);
+    else methodNotAllowed(req, res);
   else {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search != null) 
       if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
-      else methodNotAllowed(res, req)
+      else methodNotAllowed(req, res)
     else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
       if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
-      else methodNotAllowed(res, req)
-    else notFound(res, req)
+      else methodNotAllowed(req, res)
+    else notFound(req, res)
   }
 }
 
@@ -160,23 +160,54 @@ function getPostBody(req, res, callback) {
   });
 }
 
-function methodNotAllowed(res, req) {
-  res.writeHead(405, {'Content-Type': 'text/plain'});
-  res.write('Method not allowed. request-target: ' + req.url + ' method: ' + req.method + '\n');
-  res.end();
+function methodNotAllowed(req, res) {
+  var body = 'Method not allowed. request-target: ' + req.url + ' method: ' + req.method + '\n';
+  res.writeHead(405, {'Content-Type': 'text/plain',
+                      'Content-Length': Buffer.byteLength(body)});
+  res.end(err);
 }
 
-function notFound(res, req) {
-  res.writeHead(404, {'Content-Type': 'text/plain'});
-  res.write('Not Found. request-target: ' + req.url + ' method: ' + req.method + '\n');
-  res.end();
+function notFound(req, res) {
+  var body = 'Not Found. request-target: ' + req.url + ' method: ' + req.method + '\n';
+  res.writeHead(404, {'Content-Type': 'text/plain',
+                      'Content-Length': Buffer.byteLength(body)});
+  res.end(body);
 }
 
 function badRequest(res, err) {
-  res.writeHead(400, {'Content-Type': 'text/plain'});
-  res.write(err);
-  res.end()
+  res.writeHead(400, {'Content-Type': 'text/plain',
+                      'Content-Length': Buffer.byteLength(err)});
+  res.end(err)
 }   
+
+function found(req, res, body, location, etag) {
+  headers =  {}
+  if (location != null) headers['Content-Location'] = location; 
+  if (etag != null) headers['Etag'] = etag; 
+  respond(req, res, 200, headers, body)
+}
+
+function created(req, res, body, location, etag) {
+  headers =  {}
+  if (location != null) headers['Location'] = location; 
+  if (etag != null) headers['Etag'] = etag; 
+  respond(req, res, 201, headers, body)
+}
+
+function respond(req, res, status, headers, body) {
+  if (body != null) {
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify(body);
+    headers['Content-Length'] = Buffer.byteLength(body);
+    res.writeHead(status, headers);
+    res.end(body)
+  }
+  else { 
+    headers['Content-Length'] = 0;
+    res.writeHead(status, headers);
+    res.end(body)
+  }
+}
 
 function internalizeURL(anURL, authority) {
   var httpString = 'http://' + authority;
@@ -214,7 +245,6 @@ function internalizeURLs(jsObject, authority) {
 function externalizeURLs(jsObject, authority, protocol) {
   //add http://authority or https://authority to the front of any urls
   if (typeof jsObject == 'object') {
-    protocol = protocol || 'http';
     var prefix = protocol + '://' + authority;
     for(var key in jsObject) {
       if (jsObject.hasOwnProperty(key)) {
