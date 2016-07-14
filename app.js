@@ -4,16 +4,6 @@ var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
 var httpPatterns = require('./http-patterns.js')
-var getPostBody = httpPatterns.getPostBody;
-var methodNotAllowed = httpPatterns.methodNotAllowed;
-var notFound = httpPatterns.notFound;
-var badRequest = httpPatterns.badRequest;
-var found = httpPatterns.found;
-var created = httpPatterns.created;
-var respond = httpPatterns.respond;
-var internalizeURL = httpPatterns.internalizeURL;
-var internalizeURLs = httpPatterns.internalizeURLs;
-var externalizeURLs = httpPatterns.externalizeURLs;
 
 var PROTOCOL = 'http';
 var config = {
@@ -28,8 +18,6 @@ process.on('unhandledRejection', function(e) {
 })
 
 var pool = new Pool(config)
-
-// Begin functions specific to the 'business logic' of the permissions application
 
 function verifyPermissions(permissions) {
   if (permissions.hasOwnProperty('kind') && permissions.kind == 'Permissions')
@@ -55,7 +43,7 @@ function createPermissions(req, res, permissions) {
   var err = verifyPermissions(permissions)
   if (err == null) {
     calculateSharedWith(permissions);
-    internalizeURLs(permissions, req.headers.host)
+    httpPatterns.internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
         var body = JSON.stringify(err)
@@ -67,22 +55,22 @@ function createPermissions(req, res, permissions) {
         var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
         var etag = pg_res.rows[0].etag
         permissions['_self'] = selfURL;
-        created(req, res, permissions, selfURL, etag)
+        httpPatterns.created(req, res, permissions, selfURL, etag)
       }
     })
-  } else badRequest(res, err)
+  } else httpPatterns.badRequest(res, err)
 }
 
 function getPermissions(req, res, subject) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
-    if (err) badRequest(res, err)
+    if (err) httpPatterns.badRequest(res, err)
     else {
-      if (pg_res.rowCount == 0) notFound(req, res);
+      if (pg_res.rowCount == 0) httpPatterns.notFound(req, res);
       else {
         var row = pg_res.rows[0];
-        externalizeURLs(row.data, req.headers.host, PROTOCOL)
+        httpPatterns.externalizeURLs(row.data, req.headers.host, PROTOCOL)
         row.data['_self'] = selfURL;
-        found(req, res, row.data, row.etag)
+        httpPatterns.found(req, res, row.data, row.etag)
       }
     }
   })
@@ -114,12 +102,12 @@ function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   if (queryParts.user && queryParts.resource) {
     var result = {};
-    var resource = internalizeURL(queryParts.resource, req.headers.host);
-    var user = internalizeURL(queryParts.user, req.headers.host);
+    var resource = httpPatterns.internalizeURL(queryParts.resource, req.headers.host);
+    var user = httpPatterns.internalizeURL(queryParts.user, req.headers.host);
     addAllowedActions(resource, user, result, function() {
-      found(req, res, Object.keys(result))
+      httpPatterns.found(req, res, Object.keys(result))
     })
-  } else badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
+  } else httpPatterns.badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }
 
 function addUsersWhoCanSee(resource, result, callback) {
@@ -147,64 +135,60 @@ function addUsersWhoCanSee(resource, result, callback) {
 
 function getUsersWhoCanSee(req, res, resource) {
   var result = {};
-  var resource = internalizeURL(resource, req.headers.host);
+  var resource = httpPatterns.internalizeURL(resource, req.headers.host);
   addUsersWhoCanSee(resource, result, function() {
-    found(req, res, Object.keys(result))
+    httpPatterns.found(req, res, Object.keys(result))
   })
 }
 
 function getResourcesSharedWith(req, res, user) {
-  var user = internalizeURL(user, req.headers.host);
+  var user = httpPatterns.internalizeURL(user, req.headers.host);
   pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
-    if (err) badRequest(res, err)
+    if (err) httpPatterns.badRequest(res, err)
     else {
       var result = [];
       var rows = pg_res.rows
       for (var i = 0; i < rows.length; i++) result.push(rows[i].subject)
+      httpPatterns.found(req, res, result)
     }
-    found(req, res, result)
   })
 }
 
 function getResourcesInSharingSet(req, res, sharingSet) {
-  var user = internalizeURL(sharingSet, req.headers.host);
+  var user = httpPatterns.internalizeURL(sharingSet, req.headers.host);
   pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"sharingSets":["' + sharingSet + '"]}\'', function (err, pg_res) {
-    if (err) badRequest(res, err)
+    if (err) httpPatterns.badRequest(res, err)
     else {
       var result = [];
       var rows = pg_res.rows
       for (var i = 0; i < rows.length; i++) result.push(rows[i].subject)
+      httpPatterns.found(req, res, result)
     }
-    found(req, res, result)
   })
 }
 
-// End functions specific to the 'business logic' of the permissions application
-
-//  HTTP request routing specific to prmissions application
-
 function requestHandler(req, res) {
   if (req.url == '/permissions')
-    if (req.method == 'POST') getPostBody(req, res, createPermissions);
-    else methodNotAllowed(req, res);
+    if (req.method == 'POST') httpPatterns.getPostBody(req, res, createPermissions);
+    else httpPatterns.methodNotAllowed(req, res);
   else {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search != null) 
       if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
-      else methodNotAllowed(req, res)
+      else httpPatterns.methodNotAllowed(req, res)
     else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
       if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
-      else methodNotAllowed(req, res)
+      else httpPatterns.methodNotAllowed(req, res)
     else if (req_url.pathname == '/resources-shared-with' && req_url.search != null)
       if (req.method == 'GET') getResourcesSharedWith(req, res, req_url.search.substring(1))
-      else methodNotAllowed(req, res)
+      else httpPatterns.methodNotAllowed(req, res)
     else if (req_url.pathname == '/resources-in-sharing-set' && req_url.search != null)
       if (req.method == 'GET') getResourcesInSharingSet(req, res, req_url.search.substring(1))
-      else methodNotAllowed(req, res)
+      else httpPatterns.methodNotAllowed(req, res)
     else if (req_url.pathname == '/users-who-can-see' && req_url.search != null)
       if (req.method == 'GET') getUsersWhoCanSee(req, res, req_url.search.substring(1))
-      else methodNotAllowed(req, res)
-    else notFound(req, res)
+      else httpPatterns.methodNotAllowed(req, res)
+    else httpPatterns.notFound(req, res)
   }
 }
 
