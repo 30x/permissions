@@ -3,7 +3,7 @@ var http = require('http');
 var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
-var lib = require('./http-patterns.js')
+var lib = require('./standard-functions.js')
 
 var PROTOCOL = 'http';
 var config = {
