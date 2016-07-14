@@ -160,7 +160,20 @@ function getResourcesSharedWith(req, res, user) {
     else {
       var result = [];
       var rows = pg_res.rows
-      for (var i = 0; i < rows.length; i++) result.push(rows[i]. subject)
+      for (var i = 0; i < rows.length; i++) result.push(rows[i].subject)
+    }
+    found(req, res, result)
+  })
+}
+
+function getResourcesInSharingSet(req, res, sharingSet) {
+  var user = internalizeURL(sharingSet, req.headers.host);
+  pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"sharingSets":["' + sharingSet + '"]}\'', function (err, pg_res) {
+    if (err) badRequest(res, err)
+    else {
+      var result = [];
+      var rows = pg_res.rows
+      for (var i = 0; i < rows.length; i++) result.push(rows[i].subject)
     }
     found(req, res, result)
   })
@@ -184,6 +197,9 @@ function requestHandler(req, res) {
       else methodNotAllowed(req, res)
     else if (req_url.pathname == '/resources-shared-with' && req_url.search != null)
       if (req.method == 'GET') getResourcesSharedWith(req, res, req_url.search.substring(1))
+      else methodNotAllowed(req, res)
+    else if (req_url.pathname == '/resources-in-sharing-set' && req_url.search != null)
+      if (req.method == 'GET') getResourcesInSharingSet(req, res, req_url.search.substring(1))
       else methodNotAllowed(req, res)
     else if (req_url.pathname == '/users-who-can-see' && req_url.search != null)
       if (req.method == 'GET') getUsersWhoCanSee(req, res, req_url.search.substring(1))
