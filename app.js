@@ -110,6 +110,25 @@ function getAllowedActions(req, res, queryString) {
 }
 
 // End functions specific to the 'business logic' of the permissions application
+
+//  HTTP resources and methods specific to prmissions application
+
+function requestHandler(req, res) {
+  if (req.url == '/permissions')
+    if (req.method == 'POST') getPostBody(req, res, createPermissions);
+    else methodNotAllowed(res, req);
+  else {
+    var req_url = url.parse(req.url);
+    if (req_url.pathname == '/permissions' && req_url.search != null) 
+      if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
+      else methodNotAllowed(res, req)
+    else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
+      if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
+      else methodNotAllowed(res, req)
+    else notFound(res, req)
+  }
+}
+
 //==============================================================================
 
 // Begin generic http functions that could be moved to a library
@@ -211,23 +230,6 @@ function externalizeURLs(jsObject, authority, protocol) {
 }  
 
 // End generic http functions that could be moved to a library
-
-// Permissions HTTP resources and methods.$1
-function requestHandler(req, res) {
-  if (req.url == '/permissions')
-    if (req.method == 'POST') getPostBody(req, res, createPermissions);
-    else methodNotAllowed(res, req);
-  else {
-    var req_url = url.parse(req.url);
-    if (req_url.pathname == '/permissions' && req_url.search != null) 
-      if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
-      else methodNotAllowed(res, req)
-    else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
-      if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
-      else methodNotAllowed(res, req)
-    else notFound(res, req)
-  }
-}
 
 pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pg_res) {
   if(err) return console.error('error creating permissions table', err);
