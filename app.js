@@ -32,17 +32,10 @@ var pool = new Pool(config)
 // Begin functions specific to the 'business logic' of the permissions application
 
 function verifyPermissions(permissions) {
-  if (permissions.hasOwnProperty('kind') && permissions.kind == 'Permissions') {
-    if (permissions.hasOwnProperty('governs')) {
-      return null
-    } else {
-      // no governs property
-      return 'invalid JSON: "governs" property not set'
-    }
-  } else {
-    // not a Permissions entity
-    return 'invalid JSON: "kind" property not set to "Permissions"'
-  }
+  if (permissions.hasOwnProperty('kind') && permissions.kind == 'Permissions')
+    if (permissions.hasOwnProperty('governs')) return null
+    else return 'invalid JSON: "governs" property not set'
+  else return 'invalid JSON: "kind" property not set to "Permissions"'
 }
 
 var OPERATIONPROPERTIES = ['creators', 'readers', 'updaters', 'deleters'];
@@ -99,14 +92,20 @@ function addAllowedActions(resource, user, result, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
     if (err) return err
     else 
-      if (pg_res.rowCount == 0) return 404;
+      if (pg_res.rowCount == 0) callback();
       else {
         var row = pg_res.rows[0];
         for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
           if (row.data.hasOwnProperty(OPERATIONPROPERTIES[i])) 
             if (row.data[OPERATIONPROPERTIES[i]].indexOf(user) > -1) 
               result[OPERATIONS[i]] = true;
-        callback()
+        if (row.data.hasOwnProperty('sharingSets')) {
+          var sharingSets = row.data.sharingSets;
+          var count = 0
+          for (var i = 0; i < sharingSets.length; i++) {
+            addAllowedActions(sharingSets[i], user, result, function() {if (++count == sharingSets.length) callback()})
+          }
+        } else callback()
       }
   })
 }        
@@ -118,7 +117,7 @@ function getAllowedActions(req, res, queryString) {
     var resource = internalizeURL(queryParts.resource, req.headers.host);
     var user = internalizeURL(queryParts.user, req.headers.host);
     var err = addAllowedActions(resource, user, result, function() {
-      found(req, res, Object.keys(result), selfURL)
+      found(req, res, Object.keys(result))
     })
   } else badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }
