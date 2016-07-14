@@ -87,10 +87,9 @@ function getPermissions(req, res, subject) {
       if (pg_res.rowCount == 0) notFound(req, res);
       else {
         var row = pg_res.rows[0];
-        externalizeURLs(row.data, req.headers.host, protocol)
-        var selfURL = protocol + '://' + req.headers.host + '/permissions?' + subject;
+        externalizeURLs(row.data, req.headers.host, PROTOCOL)
         row.data['_self'] = selfURL;
-        found(req, res, row.data, selfURL, row.etag)
+        found(req, res, row.data, row.etag)
       }
     }
   })
@@ -119,10 +118,24 @@ function getAllowedActions(req, res, queryString) {
     var resource = internalizeURL(queryParts.resource, req.headers.host);
     var user = internalizeURL(queryParts.user, req.headers.host);
     var err = addAllowedActions(resource, user, result, function() {
-      var selfURL = PROTOCOL + '://' + req.headers.host + '/allowed-actions?' + queryString
       found(req, res, Object.keys(result), selfURL)
     })
   } else badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
+}
+
+function getResourcesSharedWith(req, res, user) {
+  if (user) {
+    var user = internalizeURL(user, req.headers.host);
+    pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
+      if (err) badRequest(res, err)
+      else {
+        var result = [];
+        var rows = pg_res.rows
+        for (var i = 0; i < rows.length; i++) result.push(rows[i]. subject)
+      }
+      found(req, res, result)
+    })
+  } else badRequest(res, 'must provide user URL in querystring: ' + queryString)  
 }
 
 // End functions specific to the 'business logic' of the permissions application
@@ -140,6 +153,9 @@ function requestHandler(req, res) {
       else methodNotAllowed(req, res)
     else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
       if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
+      else methodNotAllowed(req, res)
+    else if (req_url.pathname == '/resources-shared-with' && req_url.search != null)
+      if (req.method == 'GET') getResourcesSharedWith(req, res, req_url.search.substring(1))
       else methodNotAllowed(req, res)
     else notFound(req, res)
   }
