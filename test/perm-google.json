@@ -4,6 +4,8 @@
  "governedBy": {
     "kind": "Permissions",
     "readers": ["http://martin-nally.name"],
+    "deleters": ["http://martin-nally.name"],
+    "creators": ["http://martin-nally.name"],
     "updaters": ["http://martin-nally.name"]     
  }
 }

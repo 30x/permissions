@@ -28,7 +28,7 @@ function verifyPermissions(permissions) {
 }
 
 var OPERATIONPROPERTIES = ['creators', 'readers', 'updaters', 'deleters'];
-var OPERATIONS = ['create', 'read', 'update', 'deleters'];
+var OPERATIONS = ['create', 'read', 'update', 'delete'];
 
 function calculateSharedWith(permissions) {
   var result = {}
@@ -71,23 +71,25 @@ function createPermissions(req, res, permissions) {
   } else lib.badRequest(res, err)
 }
 
-function getPermissions(req, res, subject) {
+function getPermissionsThen(req, res, subject, action, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
-    if (err) lib.badRequest(res, err)
+    if (err) 
+      lib.badRequest(res, err);
     else {
-      if (pg_res.rowCount == 0) lib.notFound(req, res);
+      if (pg_res.rowCount == 0) 
+        lib.notFound(req, res);
       else {
         var row = pg_res.rows[0];
         var user = lib.getUser(req);
         if (user != null) {
           var allowedActions = {};
           addAllowedActions(row.data, user, allowedActions, true, function() {
-            if ("read" in allowedActions) {
+            if (action in allowedActions) {
               lib.externalizeURLs(row.data, req.headers.host, PROTOCOL)
               row.data._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject;
               if ('governedBy' in row.data)
                 row.data.governedBy._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject + '#permissionsOfPermissions';
-              lib.found(req, res, row.data, row.etag)
+              callback(row.data, row.etag)
             } else 
               lib.forbidden(req, res)
           })
@@ -98,15 +100,37 @@ function getPermissions(req, res, subject) {
   })
 }
 
+function getPermissions(req, res, subject) {
+  getPermissionsThen(req, res, subject, 'read', function(permissions, etag) {
+    lib.found(req, res, permissions, etag)
+  })
+}
+
+function deletePermissions(req, res, subject) {
+  getPermissionsThen(req, res, subject, 'delete', function(permissions, etag) {
+    pool.query('DELETE FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
+      if (err) 
+        lib.badRequest(res, err)
+      else 
+        if (pg_res.rowCount == 0) 
+          lib.notFound(req, res);
+        else 
+          lib.found(req, res, permissions, etag)
+    })
+  })
+}
+
 function addAllowedActions(data, user, result, permissionsOfPermissions, callback) {
   var permissions;
-  if (permissionsOfPermissions) permissions = data.governedBy;
-  else permissions = data;
+  if (permissionsOfPermissions) 
+    permissions = data.governedBy;
+  else 
+    permissions = data;
   if (permissions != null)
     for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
-      if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i])) 
+      if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i]))
         if (permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1) 
-          result[OPERATIONS[i]] = true;
+          result[OPERATIONS[i]] = true; 
   var sharingSets = data.sharingSets;
   if (sharingSets != null && sharingSets.length > 0) {
     var count = 0
@@ -202,6 +226,7 @@ function requestHandler(req, res) {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search != null) 
       if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
+      else if (req.method == 'DELETE') deletePermissions(req, res, req_url.search.substring(1))
       else lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
       if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
