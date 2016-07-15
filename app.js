@@ -5,7 +5,8 @@ var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js')
 
-var PROTOCOL = 'http';
+var PROTOCOL = process.env.PROTOCOL || 'http';
+
 var config = {
   host: 'localhost',
   user: 'martinnally',
