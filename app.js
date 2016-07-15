@@ -71,6 +71,12 @@ function createPermissions(req, res, permissions) {
   } else lib.badRequest(res, err)
 }
 
+function addCalculatedProperties(permissions, req) {
+  permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
+  if ('governedBy' in permissions)
+    permissions.governedBy._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs + '#permissionsOfPermissions';
+}
+
 function getPermissionsThen(req, res, subject, action, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
     if (err) 
@@ -86,9 +92,7 @@ function getPermissionsThen(req, res, subject, action, callback) {
           addAllowedActions(row.data, user, allowedActions, true, function() {
             if (action in allowedActions) {
               lib.externalizeURLs(row.data, req.headers.host, PROTOCOL)
-              row.data._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject;
-              if ('governedBy' in row.data)
-                row.data.governedBy._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject + '#permissionsOfPermissions';
+              addCalculatedProperties(row.data, req); 
               callback(row.data, row.etag)
             } else 
               lib.forbidden(req, res)
@@ -112,10 +116,47 @@ function deletePermissions(req, res, subject) {
       if (err) 
         lib.badRequest(res, err)
       else 
+        if (pg_res.rowCount == 0) {
+          addCalculatedProperties(permissions, req); 
+          lib.notFound(req, res);
+        } else 
+          lib.found(req, res, permissions, etag)
+    })
+  })
+}
+
+function mergePatch(target, patch) {
+  if (typeof patch == 'object') {
+    if (typeof target != 'object')
+      target = {}; // don't just return patch since it may have nulls; perform the merge
+    for (var name in patch) 
+      if (patch.hasOwnProperty(name)) {
+        var value = patch[name];
+        if (value === null)
+          if (name in target)
+            delete target[name];
+        else
+           target[name] = mergePatch(target[name], value);
+      }
+    return target
+  } else
+    return patch
+}
+
+function updatePermissions(req, res, patch) {
+  var subject = url.parse(req.url).search.substring(1);
+  getPermissionsThen(req, res, subject, 'update', function(permissions, etag) {
+    var patchedPermissions = mergePatch(permissions, patch)
+    pool.query('UPDATE permissions SET data = ($1) WHERE subject = $2 RETURNING etag' , [patchedPermissions, subject], function (err, pg_res) {
+      if (err) 
+        lib.badRequest(res, err)
+      else 
         if (pg_res.rowCount == 0) 
           lib.notFound(req, res);
         else 
-          lib.found(req, res, permissions, etag)
+          var row = pg_res.rows[0];
+          addCalculatedProperties(patchedPermissions, req); 
+          lib.found(req, res, permissions, row.etag)
     })
   })
 }
@@ -227,6 +268,7 @@ function requestHandler(req, res) {
     if (req_url.pathname == '/permissions' && req_url.search != null) 
       if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
       else if (req.method == 'DELETE') deletePermissions(req, res, req_url.search.substring(1))
+      else if (req.method == 'PATCH') lib.getPostBody(req, res, updatePermissions);
       else lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
       if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
