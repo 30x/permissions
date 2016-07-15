@@ -261,28 +261,43 @@ function getResourcesInSharingSet(req, res, sharingSet) {
 
 function requestHandler(req, res) {
   if (req.url == '/permissions')
-    if (req.method == 'POST') lib.getPostBody(req, res, createPermissions);
-    else lib.methodNotAllowed(req, res);
+    if (req.method == 'POST') 
+      lib.getPostBody(req, res, createPermissions);
+    else 
+      lib.methodNotAllowed(req, res);
   else {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search != null) 
-      if (req.method == 'GET') getPermissions(req, res, req_url.search.substring(1))
-      else if (req.method == 'DELETE') deletePermissions(req, res, req_url.search.substring(1))
-      else if (req.method == 'PATCH') lib.getPostBody(req, res, updatePermissions);
-      else lib.methodNotAllowed(req, res)
+      if (req.method == 'GET') 
+        getPermissions(req, res, req_url.search.substring(1))
+      else if (req.method == 'DELETE') 
+        deletePermissions(req, res, req_url.search.substring(1))
+      else if (req.method == 'PATCH') 
+        lib.getPostBody(req, res, updatePermissions);
+      else 
+        lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
-      if (req.method == 'GET') getAllowedActions(req, res, req_url.search.substring(1))
-      else lib.methodNotAllowed(req, res)
+      if (req.method == 'GET') 
+        getAllowedActions(req, res, req_url.search.substring(1))
+      else 
+        lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/resources-shared-with' && req_url.search != null)
-      if (req.method == 'GET') getResourcesSharedWith(req, res, req_url.search.substring(1))
-      else lib.methodNotAllowed(req, res)
+      if (req.method == 'GET') 
+        getResourcesSharedWith(req, res, req_url.search.substring(1))
+      else 
+        lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/resources-in-sharing-set' && req_url.search != null)
-      if (req.method == 'GET') getResourcesInSharingSet(req, res, req_url.search.substring(1))
-      else lib.methodNotAllowed(req, res)
+      if (req.method == 'GET') 
+        getResourcesInSharingSet(req, res, req_url.search.substring(1))
+      else 
+        lib.methodNotAllowed(req, res)
     else if (req_url.pathname == '/users-who-can-see' && req_url.search != null)
-      if (req.method == 'GET') getUsersWhoCanSee(req, res, req_url.search.substring(1))
-      else lib.methodNotAllowed(req, res)
-    else lib.notFound(req, res)
+      if (req.method == 'GET') 
+        getUsersWhoCanSee(req, res, req_url.search.substring(1))
+      else 
+        lib.methodNotAllowed(req, res)
+    else 
+      lib.notFound(req, res)
   }
 }
 
