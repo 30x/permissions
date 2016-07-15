@@ -182,10 +182,13 @@ function addAllowedActions(data, user, result, permissionsOfPermissions, callbac
 
 function readAllowedActions(resource, user, result, permissionsOfPermissions, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
-    if (err) callback(err)
+    if (err) 
+      callback(err)
     else 
-      if (pg_res.rowCount == 0) callback();
-      else addAllowedActions(pg_res.rows[0].data, user, result, permissionsOfPermissions, callback)
+      if (pg_res.rowCount == 0) 
+        callback();
+      else 
+        addAllowedActions(pg_res.rows[0].data, user, result, permissionsOfPermissions, callback)
   })
 }        
 
@@ -198,7 +201,8 @@ function getAllowedActions(req, res, queryString) {
     readAllowedActions(resource, user, allowedActions, false, function() {
       lib.found(req, res, Object.keys(allowedActions))
     })
-  } else lib.badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
+  } else 
+    lib.badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }
 
 function addUsersWhoCanSee(resource, result, callback) {
@@ -219,7 +223,8 @@ function addUsersWhoCanSee(resource, result, callback) {
           for (var j = 0; j < sharingSets.length; j++) {
             addUsersWhoCanSee(sharingSets[j], result, function() {if (++count == sharingSets.length) callback()})
           }
-        } else callback()
+        } else 
+          callback()
       }
   })
 }        
@@ -235,7 +240,8 @@ function getUsersWhoCanSee(req, res, resource) {
 function getResourcesSharedWith(req, res, user) {
   var user = lib.internalizeURL(user, req.headers.host);
   pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
-    if (err) lib.badRequest(res, err)
+    if (err) 
+      lib.badRequest(res, err)
     else {
       var result = [];
       var rows = pg_res.rows
@@ -248,7 +254,8 @@ function getResourcesSharedWith(req, res, user) {
 function getResourcesInSharingSet(req, res, sharingSet) {
   var user = lib.internalizeURL(sharingSet, req.headers.host);
   pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"sharingSets":["' + sharingSet + '"]}\'', function (err, pg_res) {
-    if (err) lib.badRequest(res, err)
+    if (err) 
+      lib.badRequest(res, err)
     else {
       var result = [];
       var rows = pg_res.rows
