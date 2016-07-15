@@ -43,6 +43,9 @@ function createPermissions(req, res, permissions) {
   var err = verifyPermissions(permissions)
   if (err == null) {
     calculateSharedWith(permissions);
+    var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
+    if ('permissions' in permissions)
+      permissions.permissions.governs = selfURL; 
     lib.internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
@@ -52,7 +55,6 @@ function createPermissions(req, res, permissions) {
         res.write(body);
         res.end()
       } else {
-        var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
         var etag = pg_res.rows[0].etag
         permissions['_self'] = selfURL;
         lib.created(req, res, permissions, selfURL, etag)
@@ -68,44 +70,62 @@ function getPermissions(req, res, subject) {
       if (pg_res.rowCount == 0) lib.notFound(req, res);
       else {
         var row = pg_res.rows[0];
-        lib.externalizeURLs(row.data, req.headers.host, PROTOCOL)
-        row.data['_self'] = selfURL;
-        lib.found(req, res, row.data, row.etag)
+        var user = lib.getUser(req);
+        if (user != null) {
+          var allowedActions = {};
+          addAllowedActions(row.data, user, allowedActions, true, function() {
+            if ("read" in allowedActions) {
+              var auth_permissions = row.permissions
+              lib.externalizeURLs(row.data, req.headers.host, PROTOCOL)
+              row.data._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject;
+              if ('permissions' in row.data)
+                row.data.permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject + '#meta';
+              lib.found(req, res, row.data, row.etag)
+            } else 
+              lib.forbidden(req, res)
+          })
+        } else 
+          lib.unauthorized(req, res)
       }
     }
   })
 }
 
-function addAllowedActions(resource, user, result, callback) {
+function addAllowedActions(data, user, result, meta, callback) {
+  var permissions;
+  if (meta) permissions = data.permissions;
+  else permissions = data;
+  if (permissions != null)
+    for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
+      if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i])) 
+        if (permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1) 
+          result[OPERATIONS[i]] = true;
+  var sharingSets = data.sharingSets;
+  if (sharingSets != null && sharingSets.length > 0) {
+    var count = 0
+    for (var i = 0; i < sharingSets.length; i++) {
+      readAllowedActions(sharingSets[i], user, result, meta, function() {if (++count == sharingSets.length) callback()})
+    }
+  } else callback()
+}
+
+function readAllowedActions(resource, user, result, meta, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
     if (err) callback(err)
     else 
       if (pg_res.rowCount == 0) callback();
-      else {
-        var row = pg_res.rows[0];
-        for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
-          if (row.data.hasOwnProperty(OPERATIONPROPERTIES[i])) 
-            if (row.data[OPERATIONPROPERTIES[i]].indexOf(user) > -1) 
-              result[OPERATIONS[i]] = true;
-        if (row.data.hasOwnProperty('sharingSets')) {
-          var sharingSets = row.data.sharingSets;
-          var count = 0
-          for (var i = 0; i < sharingSets.length; i++) {
-            addAllowedActions(sharingSets[i], user, result, function() {if (++count == sharingSets.length) callback()})
-          }
-        } else callback()
-      }
+      else addAllowedActions(pg_res.rows[0].data, user, result, meta, callback)
   })
 }        
 
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   if (queryParts.user && queryParts.resource) {
-    var result = {};
+    var allowedActions = {};
     var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
     var user = lib.internalizeURL(queryParts.user, req.headers.host);
-    addAllowedActions(resource, user, result, function() {
-      lib.found(req, res, Object.keys(result))
+    readAllowedActions(resource, user, allowedActions, false, function() {
+      lib.found(req, res, Object.keys(allowedActions))
     })
   } else lib.badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
 }

@@ -1,4 +1,8 @@
 {"kind": "Permissions",
  "governs": "http://google.com/",
- "updaters": ["http://martin-nally.name"]
+ "updaters": ["http://martin-nally.name"],
+ "permissions": {
+    "readers": ["http://martin-nally.name"],
+    "updaters": ["http://martin-nally.name"]     
+ }
 }
