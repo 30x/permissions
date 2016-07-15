@@ -64,6 +64,13 @@ function badRequest(res, err) {
   res.end(body)
 }   
 
+function duplicate(res, err) {
+  var body = JSON.stringify(err)
+  res.writeHead(409, {'Content-Type': 'application/json',
+                      'Content-Length': Buffer.byteLength(body)});
+  res.end(body)
+}   
+
 function found(req, res, body, etag, location) {
   var headers =  {}
   if (location != null) headers['Content-Location'] = location; 
@@ -153,6 +160,7 @@ exports.getPostBody = getPostBody;
 exports.methodNotAllowed = methodNotAllowed;
 exports.notFound = notFound;
 exports.badRequest = badRequest;
+exports.duplicate = duplicate;
 exports.found = found;
 exports.created = created;
 exports.respond = respond;

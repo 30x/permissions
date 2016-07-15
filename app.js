@@ -54,11 +54,10 @@ function createPermissions(req, res, permissions) {
     lib.internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
-        var body = JSON.stringify(err)
-        res.writeHead(400, {'Content-Type': 'application/json',
-                            'Content-Length': Buffer.byteLength(body)});
-        res.write(body);
-        res.end()
+        if (err.code == 23505)
+          lib.duplicate(res, err)
+        else 
+          lib.badRequest(res, err)
       } else {
         var etag = pg_res.rows[0].etag
         var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
