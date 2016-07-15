@@ -32,21 +32,25 @@ var OPERATIONS = ['create', 'read', 'update', 'deleters'];
 
 function calculateSharedWith(permissions) {
   var result = {}
-  for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
-    if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i])) {
-      var users = permissions[OPERATIONPROPERTIES[i]];
-      for (var j = 0; j < users.length; j++) result[users[j]] = true;
-    }
-  permissions['_sharedWith'] = Object.keys(result)
+  function listUsers (obj) {
+    for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
+      if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i])) {
+        var users = permissions[OPERATIONPROPERTIES[i]];
+        for (var j = 0; j < users.length; j++) result[users[j]] = true;
+      }
+  }
+  listUsers(permissions);
+  if ('meta' in permissions)
+    listUsers(permissions.meta)
+  permissions._sharedWith = Object.keys(result)
 }
 
 function createPermissions(req, res, permissions) {
   var err = verifyPermissions(permissions)
   if (err == null) {
     calculateSharedWith(permissions);
-    var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
-    if ('permissions' in permissions)
-      permissions.permissions.governs = selfURL; 
+    if ('meta' in permissions)
+      permissions.meta.governs = '/permissions?' + permissions.governs; 
     lib.internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
@@ -57,7 +61,10 @@ function createPermissions(req, res, permissions) {
         res.end()
       } else {
         var etag = pg_res.rows[0].etag
+        var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
         permissions['_self'] = selfURL;
+        if ('meta' in permissions)
+          permissions.meta._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs + '#meta'; 
         lib.created(req, res, permissions, selfURL, etag)
       }
     })
@@ -76,11 +83,10 @@ function getPermissions(req, res, subject) {
           var allowedActions = {};
           addAllowedActions(row.data, user, allowedActions, true, function() {
             if ("read" in allowedActions) {
-              var auth_permissions = row.permissions
               lib.externalizeURLs(row.data, req.headers.host, PROTOCOL)
               row.data._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject;
-              if ('permissions' in row.data)
-                row.data.permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject + '#meta';
+              if ('meta' in row.data)
+                row.data.meta._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject + '#meta';
               lib.found(req, res, row.data, row.etag)
             } else 
               lib.forbidden(req, res)
