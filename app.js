@@ -40,8 +40,8 @@ function calculateSharedWith(permissions) {
       }
   }
   listUsers(permissions);
-  if ('meta' in permissions)
-    listUsers(permissions.meta)
+  if ('governedBy' in permissions)
+    listUsers(permissions.governedBy)
   permissions._sharedWith = Object.keys(result)
 }
 
@@ -49,8 +49,8 @@ function createPermissions(req, res, permissions) {
   var err = verifyPermissions(permissions)
   if (err == null) {
     calculateSharedWith(permissions);
-    if ('meta' in permissions)
-      permissions.meta.governs = '/permissions?' + permissions.governs; 
+    if ('governedBy' in permissions)
+      permissions.governedBy.governs = '/permissions?' + permissions.governs; 
     lib.internalizeURLs(permissions, req.headers.host)
     pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
@@ -63,8 +63,8 @@ function createPermissions(req, res, permissions) {
         var etag = pg_res.rows[0].etag
         var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
         permissions['_self'] = selfURL;
-        if ('meta' in permissions)
-          permissions.meta._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs + '#meta'; 
+        if ('governedBy' in permissions)
+          permissions.governedBy._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs + '#permissionsOfPermissions'; 
         lib.created(req, res, permissions, selfURL, etag)
       }
     })
@@ -85,8 +85,8 @@ function getPermissions(req, res, subject) {
             if ("read" in allowedActions) {
               lib.externalizeURLs(row.data, req.headers.host, PROTOCOL)
               row.data._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject;
-              if ('meta' in row.data)
-                row.data.meta._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject + '#meta';
+              if ('governedBy' in row.data)
+                row.data.governedBy._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + subject + '#permissionsOfPermissions';
               lib.found(req, res, row.data, row.etag)
             } else 
               lib.forbidden(req, res)
@@ -98,9 +98,9 @@ function getPermissions(req, res, subject) {
   })
 }
 
-function addAllowedActions(data, user, result, meta, callback) {
+function addAllowedActions(data, user, result, permissionsOfPermissions, callback) {
   var permissions;
-  if (meta) permissions = data.permissions;
+  if (permissionsOfPermissions) permissions = data.governedBy;
   else permissions = data;
   if (permissions != null)
     for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
@@ -111,17 +111,17 @@ function addAllowedActions(data, user, result, meta, callback) {
   if (sharingSets != null && sharingSets.length > 0) {
     var count = 0
     for (var i = 0; i < sharingSets.length; i++) {
-      readAllowedActions(sharingSets[i], user, result, meta, function() {if (++count == sharingSets.length) callback()})
+      readAllowedActions(sharingSets[i], user, result, permissionsOfPermissions, function() {if (++count == sharingSets.length) callback()})
     }
   } else callback()
 }
 
-function readAllowedActions(resource, user, result, meta, callback) {
+function readAllowedActions(resource, user, result, permissionsOfPermissions, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
     if (err) callback(err)
     else 
       if (pg_res.rowCount == 0) callback();
-      else addAllowedActions(pg_res.rows[0].data, user, result, meta, callback)
+      else addAllowedActions(pg_res.rows[0].data, user, result, permissionsOfPermissions, callback)
   })
 }        
 
