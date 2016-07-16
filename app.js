@@ -3,7 +3,7 @@ var http = require('http');
 var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
-var lib = require('./standard-functions.js')
+var lib = require('./standard-functions.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http';
 
@@ -11,307 +11,358 @@ var config = {
   host: 'localhost',
   user: 'martinnally',
   password: 'martinnally',
-  database: 'permissions',
+  database: 'permissions'
 };
 
 process.on('unhandledRejection', function(e) {
-  console.log(e.message, e.stack)
-})
+  console.log(e.message, e.stack);
+});
 
-var pool = new Pool(config)
+var pool = new Pool(config);
 
 function verifyPermissions(permissions) {
-  if (permissions.hasOwnProperty('kind') && permissions.kind == 'Permissions')
-    if (permissions.hasOwnProperty('governs')) return null
-    else return 'invalid JSON: "governs" property not set'
-  else return 'invalid JSON: "kind" property not set to "Permissions"'
+  if (permissions.hasOwnProperty('kind') && permissions.kind == 'Permissions') {
+    if (permissions.hasOwnProperty('governs')) {
+      return null;
+    } else { 
+      return 'invalid JSON: "governs" property not set';
+    }
+  } else { 
+    return 'invalid JSON: "kind" property not set to "Permissions"';
+  }
 }
 
 var OPERATIONPROPERTIES = ['creators', 'readers', 'updaters', 'deleters'];
 var OPERATIONS = ['create', 'read', 'update', 'delete'];
 
 function calculateSharedWith(permissions) {
-  var result = {}
+  var result = {};
   function listUsers (obj) {
-    for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
+    for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
       if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i])) {
         var users = permissions[OPERATIONPROPERTIES[i]];
-        for (var j = 0; j < users.length; j++) result[users[j]] = true;
+        for (var j = 0; j < users.length; j++) {result[users[j]] = true;}
       }
+    }
   }
   listUsers(permissions);
-  if ('governedBy' in permissions)
-    listUsers(permissions.governedBy)
-  permissions._sharedWith = Object.keys(result)
+  if ('governedBy' in permissions) {
+    listUsers(permissions.governedBy);
+  }
+  permissions._sharedWith = Object.keys(result);
 }
 
 function createPermissions(req, res, permissions) {
-  var err = verifyPermissions(permissions)
-  if (err == null) {
+  var err = verifyPermissions(permissions);
+  if (err === null) {
     calculateSharedWith(permissions);
-    if ('governedBy' in permissions)
-      permissions.governedBy.governs = '/permissions?' + permissions.governs; 
-    lib.internalizeURLs(permissions, req.headers.host)
+    if ('governedBy' in permissions) {
+      permissions.governedBy.governs = '/permissions?' + permissions.governs;
+    } 
+    lib.internalizeURLs(permissions, req.headers.host);
     pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs, permissions], function (err, pg_res) {
       if (err) {
-        if (err.code == 23505)
-          lib.duplicate(res, err)
-        else 
-          lib.badRequest(res, err)
+        if (err.code == 23505){ 
+          lib.duplicate(res, err);
+        } else { 
+          lib.badRequest(res, err);
+        }
       } else {
-        var etag = pg_res.rows[0].etag
+        var etag = pg_res.rows[0].etag;
         var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
         permissions['_self'] = selfURL;
-        if ('governedBy' in permissions)
-          permissions.governedBy._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs + '#permissionsOfPermissions'; 
-        lib.created(req, res, permissions, selfURL, etag)
+        if ('governedBy' in permissions) {
+          permissions.governedBy._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs + '#permissionsOfPermissions';
+        } 
+        lib.created(req, res, permissions, selfURL, etag);
       }
-    })
-  } else lib.badRequest(res, err)
+    });
+  } else {
+    lib.badRequest(res, err);
+    }
 }
 
 function addCalculatedProperties(permissions, req) {
   permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
-  if ('governedBy' in permissions)
+  if ('governedBy' in permissions) {
     permissions.governedBy._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs + '#permissionsOfPermissions';
+  }
 }
 
 function getPermissionsThen(req, res, subject, action, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
-    if (err) 
+    if (err) {
       lib.badRequest(res, err);
+    }
     else {
-      if (pg_res.rowCount == 0) 
+      if (pg_res.rowCount === 0) { 
         lib.notFound(req, res);
+      }
       else {
         var row = pg_res.rows[0];
         var user = lib.getUser(req);
-        if (user != null) {
+        if (user !== null) {
           var allowedActions = {};
           addAllowedActions(row.data, user, allowedActions, true, function() {
             if (action in allowedActions) {
-              lib.externalizeURLs(row.data, req.headers.host, PROTOCOL)
+              lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
               addCalculatedProperties(row.data, req); 
-              callback(row.data, row.etag)
-            } else 
-              lib.forbidden(req, res)
-          })
-        } else 
-          lib.unauthorized(req, res)
+              callback(row.data, row.etag);
+            } else { 
+              lib.forbidden(req, res);
+            }
+          });
+        } else { 
+          lib.unauthorized(req, res);
+        }
       }
     }
-  })
+  });
 }
 
 function getPermissions(req, res, subject) {
   getPermissionsThen(req, res, subject, 'read', function(permissions, etag) {
-    lib.found(req, res, permissions, etag)
-  })
+    lib.found(req, res, permissions, etag);
+  });
 }
 
 function deletePermissions(req, res, subject) {
   getPermissionsThen(req, res, subject, 'delete', function(permissions, etag) {
     pool.query('DELETE FROM permissions WHERE subject = $1', [subject], function (err, pg_res) {
-      if (err) 
-        lib.badRequest(res, err)
-      else 
-        if (pg_res.rowCount == 0) {
+      if (err) { 
+        lib.badRequest(res, err);
+      } else { 
+        if (pg_res.rowCount === 0) {
           addCalculatedProperties(permissions, req); 
           lib.notFound(req, res);
-        } else 
-          lib.found(req, res, permissions, etag)
-    })
-  })
+        } else {
+          lib.found(req, res, permissions, etag);
+        }
+      }
+    });
+  });
 }
 
 function mergePatch(target, patch) {
   if (typeof patch == 'object') {
-    if (typeof target != 'object')
+    if (typeof target != 'object') {
       target = {}; // don't just return patch since it may have nulls; perform the merge
-    for (var name in patch) 
+    }
+    for (var name in patch) {
       if (patch.hasOwnProperty(name)) {
         var value = patch[name];
-        if (value === null)
-          if (name in target)
+        if (value === null) {
+          if (name in target) {
             delete target[name];
-        else
+          }
+        } else {
            target[name] = mergePatch(target[name], value);
+        }
       }
-    return target
-  } else
-    return patch
+    }
+    return target;
+  } else {
+    return patch;
+  }
 }
 
 function updatePermissions(req, res, patch) {
   var subject = url.parse(req.url).search.substring(1);
   getPermissionsThen(req, res, subject, 'update', function(permissions, etag) {
-    var patchedPermissions = mergePatch(permissions, patch)
+    var patchedPermissions = mergePatch(permissions, patch);
     pool.query('UPDATE permissions SET data = ($1) WHERE subject = $2 RETURNING etag' , [patchedPermissions, subject], function (err, pg_res) {
-      if (err) 
-        lib.badRequest(res, err)
-      else 
-        if (pg_res.rowCount == 0) 
+      if (err) { 
+        lib.badRequest(res, err);
+      } else {
+        if (pg_res.rowCount === 0) { 
           lib.notFound(req, res);
-        else 
+        } else {
           var row = pg_res.rows[0];
           addCalculatedProperties(patchedPermissions, req); 
-          lib.found(req, res, permissions, row.etag)
-    })
-  })
+          lib.found(req, res, permissions, row.etag);
+        }
+      }
+    });
+  });
 }
 
 function addAllowedActions(data, user, result, permissionsOfPermissions, callback) {
   var permissions;
-  if (permissionsOfPermissions) 
+  if (permissionsOfPermissions) { 
     permissions = data.governedBy;
-  else 
+  } else {
     permissions = data;
-  if (permissions != null)
-    for (var i = 0; i < OPERATIONPROPERTIES.length; i++)
-      if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i]))
-        if (permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1) 
-          result[OPERATIONS[i]] = true; 
-  var sharingSets = data.sharingSets;
-  if (sharingSets != null && sharingSets.length > 0) {
-    var count = 0
-    for (var i = 0; i < sharingSets.length; i++) {
-      readAllowedActions(sharingSets[i], user, result, permissionsOfPermissions, function() {if (++count == sharingSets.length) callback()})
+  }
+  if (permissions !== undefined) {
+    for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
+      if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i])){
+        if (permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1){ 
+          result[OPERATIONS[i]] = true;
+        }
+      }
     }
-  } else callback()
+  } 
+  var sharingSets = data.sharingSets;
+  if (sharingSets !== undefined && sharingSets.length > 0) {
+    var count = 0;
+    for (var j = 0; j < sharingSets.length; j++) {
+      readAllowedActions(sharingSets[j], user, result, permissionsOfPermissions, function() {if (++count == sharingSets.length) {callback();}});
+    }
+  } else {
+    callback();
+  }
 }
 
 function readAllowedActions(resource, user, result, permissionsOfPermissions, callback) {
   pool.query('SELECT etag, data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
-    if (err) 
-      callback(err)
-    else 
-      if (pg_res.rowCount == 0) 
+    if (err) { 
+      callback(err);
+    } else { 
+      if (pg_res.rowCount === 0) { 
         callback();
-      else 
-        addAllowedActions(pg_res.rows[0].data, user, result, permissionsOfPermissions, callback)
-  })
+      } else {
+        addAllowedActions(pg_res.rows[0].data, user, result, permissionsOfPermissions, callback);
+      }
+    }
+  });
 }        
 
 function getAllowedActions(req, res, queryString) {
-  var queryParts = querystring.parse(queryString)
+  var queryParts = querystring.parse(queryString);
   if (queryParts.user && queryParts.resource) {
     var allowedActions = {};
     var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
     var user = lib.internalizeURL(queryParts.user, req.headers.host);
     readAllowedActions(resource, user, allowedActions, false, function() {
-      lib.found(req, res, Object.keys(allowedActions))
-    })
-  } else 
-    lib.badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString)  
+      lib.found(req, res, Object.keys(allowedActions));
+    });
+  } else {
+    lib.badRequest(res, 'must provide both resource and user URLs in querystring: ' + queryString);
+  }  
 }
 
 function addUsersWhoCanSee(resource, result, callback) {
   pool.query('SELECT data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
-    if (err) callback(err)
-    else 
-      if (pg_res.rowCount == 0) callback();
-      else {
+    if (err) {
+      callback(err);
+    } else {
+      if (pg_res.rowCount === 0) {
+        callback();
+      } else {
         var row = pg_res.rows[0];
         if (row.data.hasOwnProperty('_sharedWith')) {
           var sharedWith = row.data._sharedWith;
-          for (var i=0; i < sharedWith.length; i++) 
+          for (var i=0; i < sharedWith.length; i++) {
             result[sharedWith[i]] = true;
+          }
         }
         if (row.data.hasOwnProperty('sharingSets')) {
           var sharingSets = row.data.sharingSets;
-          var count = 0
+          var count = 0;
           for (var j = 0; j < sharingSets.length; j++) {
-            addUsersWhoCanSee(sharingSets[j], result, function() {if (++count == sharingSets.length) callback()})
+            addUsersWhoCanSee(sharingSets[j], result, function() {if (++count == sharingSets.length) {callback();}});
           }
-        } else 
-          callback()
+        } else {
+          callback();
+        }
       }
-  })
+    }
+  });
 }        
 
 function getUsersWhoCanSee(req, res, resource) {
   var result = {};
-  var resource = lib.internalizeURL(resource, req.headers.host);
+  resource = lib.internalizeURL(resource, req.headers.host);
   addUsersWhoCanSee(resource, result, function() {
-    lib.found(req, res, Object.keys(result))
-  })
+    lib.found(req, res, Object.keys(result));
+  });
 }
 
 function getResourcesSharedWith(req, res, user) {
-  var user = lib.internalizeURL(user, req.headers.host);
+  user = lib.internalizeURL(user, req.headers.host);
   pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
-    if (err) 
-      lib.badRequest(res, err)
+    if (err) {
+      lib.badRequest(res, err);
+    }
     else {
       var result = [];
-      var rows = pg_res.rows
-      for (var i = 0; i < rows.length; i++) result.push(rows[i].subject)
-      lib.found(req, res, result)
+      var rows = pg_res.rows;
+      for (var i = 0; i < rows.length; i++) {result.push(rows[i].subject);}
+      lib.found(req, res, result);
     }
-  })
+  });
 }
 
 function getResourcesInSharingSet(req, res, sharingSet) {
   var user = lib.internalizeURL(sharingSet, req.headers.host);
   pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"sharingSets":["' + sharingSet + '"]}\'', function (err, pg_res) {
-    if (err) 
-      lib.badRequest(res, err)
+    if (err) {
+      lib.badRequest(res, err);
+    }
     else {
       var result = [];
-      var rows = pg_res.rows
-      for (var i = 0; i < rows.length; i++) result.push(rows[i].subject)
-      lib.found(req, res, result)
+      var rows = pg_res.rows;
+      for (var i = 0; i < rows.length; i++) {result.push(rows[i].subject);}
+      lib.found(req, res, result);
     }
-  })
+  });
 }
 
 function requestHandler(req, res) {
-  if (req.url == '/permissions')
-    if (req.method == 'POST') 
+  if (req.url == '/permissions') {
+    if (req.method == 'POST') {
       lib.getPostBody(req, res, createPermissions);
-    else 
+    } else { 
       lib.methodNotAllowed(req, res);
-  else {
+    }
+  } else {
     var req_url = url.parse(req.url);
-    if (req_url.pathname == '/permissions' && req_url.search != null) 
-      if (req.method == 'GET') 
-        getPermissions(req, res, req_url.search.substring(1))
-      else if (req.method == 'DELETE') 
-        deletePermissions(req, res, req_url.search.substring(1))
-      else if (req.method == 'PATCH') 
+    if (req_url.pathname == '/permissions' && req_url.search !== null) {
+      if (req.method == 'GET') { 
+        getPermissions(req, res, req_url.search.substring(1));
+      } else if (req.method == 'DELETE') { 
+        deletePermissions(req, res, req_url.search.substring(1));
+      } else if (req.method == 'PATCH') { 
         lib.getPostBody(req, res, updatePermissions);
-      else 
-        lib.methodNotAllowed(req, res)
-    else if (req_url.pathname == '/allowed-actions' && req_url.search != null) 
-      if (req.method == 'GET') 
-        getAllowedActions(req, res, req_url.search.substring(1))
-      else 
-        lib.methodNotAllowed(req, res)
-    else if (req_url.pathname == '/resources-shared-with' && req_url.search != null)
-      if (req.method == 'GET') 
-        getResourcesSharedWith(req, res, req_url.search.substring(1))
-      else 
-        lib.methodNotAllowed(req, res)
-    else if (req_url.pathname == '/resources-in-sharing-set' && req_url.search != null)
-      if (req.method == 'GET') 
-        getResourcesInSharingSet(req, res, req_url.search.substring(1))
-      else 
-        lib.methodNotAllowed(req, res)
-    else if (req_url.pathname == '/users-who-can-see' && req_url.search != null)
-      if (req.method == 'GET') 
-        getUsersWhoCanSee(req, res, req_url.search.substring(1))
-      else 
-        lib.methodNotAllowed(req, res)
-    else 
-      lib.notFound(req, res)
+      } else {
+        lib.methodNotAllowed(req, res);
+      }
+    } else if (req_url.pathname == '/allowed-actions' && req_url.search !== null){ 
+      if (req.method == 'GET') {
+        getAllowedActions(req, res, req_url.search.substring(1));
+      } else {
+        lib.methodNotAllowed(req, res);
+      }
+    } else if (req_url.pathname == '/resources-shared-with' && req_url.search !== null) {
+      if (req.method == 'GET') {
+        getResourcesSharedWith(req, res, req_url.search.substring(1));
+      } else {
+        lib.methodNotAllowed(req, res);
+      }
+    } else  if (req_url.pathname == '/resources-in-sharing-set' && req_url.search !== null) {
+      if (req.method == 'GET') {
+        getResourcesInSharingSet(req, res, req_url.search.substring(1));
+      } else {
+        lib.methodNotAllowed(req, res);
+      }
+    } else if (req_url.pathname == '/users-who-can-see' && req_url.search !== null) {
+      if (req.method == 'GET') {
+        getUsersWhoCanSee(req, res, req_url.search.substring(1));
+      } else {
+        lib.methodNotAllowed(req, res);
+      }
+    } else {
+      lib.notFound(req, res);
+    }
   }
 }
 
 pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pg_res) {
-  if(err) console.error('error creating permissions table', err);
-  else {
+  if(err) {
+    console.error('error creating permissions table', err);
+  } else {
     http.createServer(requestHandler).listen(3001, function() {
-      console.log('server is listening on 3001')
-    })
+      console.log('server is listening on 3001');
+    });
   }
-})
+});
