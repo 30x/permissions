@@ -1,11 +1,10 @@
-{"kind": "Permissions",
- "governs": "http://google.com/",
- "updaters": ["http://martin-nally.name"],
- "governedBy": {
-    "kind": "Permissions",
-    "readers": ["http://martin-nally.name"],
-    "deleters": ["http://martin-nally.name"],
-    "creators": ["http://martin-nally.name"],
-    "updaters": ["http://martin-nally.name"]     
- }
+{"isA": "Permissions",
+ "governs": 
+    {"_self": "http://google.com/",
+     "updaters": ["http://martin-nally.name", "http://barak-obama.name"]
+    },
+ "readers": ["http://martin-nally.name", "http://barak-obama.name"],
+ "deleters": ["http://martin-nally.name"],
+ "creators": ["http://martin-nally.name"],
+ "updaters": ["http://martin-nally.name"]     
 }

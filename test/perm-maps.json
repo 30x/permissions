@@ -1,5 +1,7 @@
-{"kind": "Permissions",
- "governs": "http://google.com/maps",
- "sharingSets": ["http://google.com/"],
- "readers": ["http://martin-nally.name"]
+{"isA": "Permissions",
+ "governs": {
+    "_self": "http://google.com/maps",
+    "sharingSets": ["http://google.com/"],
+    "readers": ["http://martin-nally.name"]
+ }
 }
