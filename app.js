@@ -21,7 +21,7 @@ process.on('unhandledRejection', function(e) {
 var pool = new Pool(config);
 
 function verifyPermissions(permissions) {
-  if (permissions.hasOwnProperty('isA') && permissions.isA == 'Permissions') {
+  if (permissions.isA == 'Permissions') {
     if (permissions.hasOwnProperty('governs')) {
       if (permissions.hasOwnProperty('sharingSets')) {
         return 'sharingSets for a Permissions resource independent of sharingSets for the resource it governs not supported'
