@@ -36,9 +36,9 @@ function verifyPermissions(permissions) {
         } else {
           return 'must provide _self for governed resource'
         }
+      } else { 
+        return 'invalid JSON: "governs" property not set';
       }
-    } else { 
-      return 'invalid JSON: "governs" property not set';
     }
   } else { 
     return 'invalid JSON: "isA" property not set to "Permissions"';
@@ -245,7 +245,25 @@ function getAllowedActions(req, res, queryString) {
   }  
 }
 
-function addUsersWhoCanSee(resource, result, callback) {
+function addUsersWhoCanSee(permissions, result, callback) {
+  var sharedWith = permissions._sharedWith;
+  if (sharedWith !== undefined) {
+    for (var i=0; i < sharedWith.length; i++) {
+      result[sharedWith[i]] = true;
+    }
+  }
+  var sharingSets = permissions.governs.sharingSets;
+  if (sharingSets !== undefined) {
+    var count = 0;
+    for (var j = 0; j < sharingSets.length; j++) {
+      fetchUsersWhoCanSee(sharingSets[j], result, function() {if (++count == sharingSets.length) {callback();}});
+    }
+  } else {
+    callback();
+  }
+}
+
+function fetchUsersWhoCanSee(resource, result, callback) {
   pool.query('SELECT data FROM permissions WHERE subject = $1', [resource], function (err, pg_res) {
     if (err) {
       callback(err);
@@ -253,22 +271,7 @@ function addUsersWhoCanSee(resource, result, callback) {
       if (pg_res.rowCount === 0) {
         callback();
       } else {
-        var row = pg_res.rows[0];
-        var sharedWith = row.data._sharedWith;
-        if (sharedWith !== undefined) {
-          for (var i=0; i < sharedWith.length; i++) {
-            result[sharedWith[i]] = true;
-          }
-        }
-        var sharingSets = row.data.governs.sharingSets;
-        if (sharingSets !== undefined) {
-          var count = 0;
-          for (var j = 0; j < sharingSets.length; j++) {
-            addUsersWhoCanSee(sharingSets[j], result, function() {if (++count == sharingSets.length) {callback();}});
-          }
-        } else {
-          callback();
-        }
+        addUsersWhoCanSee(pg_res.rows[0].data, result, callback)
       }
     }
   });
@@ -277,24 +280,31 @@ function addUsersWhoCanSee(resource, result, callback) {
 function getUsersWhoCanSee(req, res, resource) {
   var result = {};
   resource = lib.internalizeURL(resource, req.headers.host);
-  addUsersWhoCanSee(resource, result, function() {
-    lib.found(req, res, Object.keys(result));
+  getPermissionsThen(req, res, resource, "read", function (permissions, etag) {
+    addUsersWhoCanSee(permissions, result, function() {
+      lib.found(req, res, Object.keys(result));
+    });
   });
 }
 
 function getResourcesSharedWith(req, res, user) {
+  var requesting_user = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
-  pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
-    if (err) {
-      lib.badRequest(res, err);
-    }
-    else {
-      var result = [];
-      var rows = pg_res.rows;
-      for (var i = 0; i < rows.length; i++) {result.push(rows[i].subject);}
-      lib.found(req, res, result);
-    }
-  });
+  if (user == requesting_user) {
+    pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
+      if (err) {
+        lib.badRequest(res, err);
+      }
+      else {
+        var result = [];
+        var rows = pg_res.rows;
+        for (var i = 0; i < rows.length; i++) {result.push(rows[i].subject);}
+        lib.found(req, res, result);
+      }
+    });
+  } else {
+    lib.forbidden(req, res)
+  }
 }
 
 function getResourcesInSharingSet(req, res, sharingSet) {
