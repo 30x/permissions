@@ -22,13 +22,13 @@ var pool = new Pool(config);
 
 function verifyPermissions(permissions) {
   if (permissions.isA == 'Permissions') {
-    if (permissions.hasOwnProperty('governs')) {
-      if (permissions.hasOwnProperty('sharingSets')) {
-        return 'sharingSets for a Permissions resource independent of sharingSets for the resource it governs not supported'
-      } else {
+    if (permissions.hasOwnProperty('sharingSets')) {
+      return 'sharingSets for a Permissions resource independent of sharingSets for the resource it governs not supported'
+    } else {
+      if (permissions.hasOwnProperty('governs')) {
         var governed = permissions.governs;
         if (governed.hasOwnProperty('_self')) {
-          if (governed.hasOwnProperty('sharingSet')&& !Array.isArray(governed.sharingSet)) {
+          if (governed.hasOwnProperty('sharingSet') && !Array.isArray(governed.sharingSet)) {
             return 'sharingSet must be an Array'
           } else {
             return null;
