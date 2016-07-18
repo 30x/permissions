@@ -6,6 +6,7 @@ var querystring = require('querystring');
 var lib = require('./standard-functions.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http';
+var ANYONE = 'http://apigee.com/users/anyone';
 
 var config = {
   host: 'localhost',
@@ -197,7 +198,7 @@ function addAllowedActions(data, user, result, permissionsOfPermissions, callbac
   }
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i])){
-      if (permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1){ 
+      if (permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1 || permissions[OPERATIONPROPERTIES[i]].indexOf(ANYONE)){ 
         result[OPERATIONS[i]] = true;
       }
     }
@@ -291,7 +292,8 @@ function getResourcesSharedWith(req, res, user) {
   var requesting_user = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
   if (user == requesting_user) {
-    pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"_sharedWith":["' + user + '"]}\'', function (err, pg_res) {
+    var query = 'SELECT subject FROM permissions, jsonb_array_elements(permissions.data._sharedWith) AS sharedWith WHERE sharedWith IN $1'
+    pool.query(query, [[user, ANYONE]], function (err, pg_res) {
       if (err) {
         lib.badRequest(res, err);
       }
