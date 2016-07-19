@@ -1,10 +1,10 @@
 {"isA": "Permissions",
  "governs": 
     {"_self": "http://google.com/",
-     "updaters": ["http://martin-nally.name", "http://barak-obama.name"]
+     "updaters": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737", "http://barak-obama.name"]
     },
- "readers": ["http://martin-nally.name", "http://barak-obama.name"],
- "deleters": ["http://martin-nally.name"],
- "creators": ["http://martin-nally.name"],
- "updaters": ["http://martin-nally.name"]     
+ "readers": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737", "http://barak-obama.name"],
+ "deleters": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737"],
+ "creators": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737"],
+ "updaters": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737"]     
 }

@@ -198,7 +198,7 @@ function addAllowedActions(data, user, result, permissionsOfPermissions, callbac
   }
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     if (permissions.hasOwnProperty(OPERATIONPROPERTIES[i])){
-      if (permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1 || permissions[OPERATIONPROPERTIES[i]].indexOf(ANYONE)){ 
+      if (permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1 || permissions[OPERATIONPROPERTIES[i]].indexOf(ANYONE) > 1){ 
         result[OPERATIONS[i]] = true;
       }
     }

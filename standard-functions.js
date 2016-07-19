@@ -28,8 +28,25 @@ function getPostBody(req, res, callback) {
 }
 
 function getUser(req) {
-  // temp for testing
-  return req.headers.user;
+  var auth = req.headers.authorization
+  if (auth == undefined) {
+    return null;
+  } else {
+    var auth_parts = auth.match(/\S+/g);
+    if (auth_parts.length < 2 || auth_parts[0].toLowerCase() != 'bearer') {
+      return null;
+    } else {
+      var token = auth_parts[1];
+      var claims64 = token.split('.');
+      if (claims64.length != 3) {
+        return null;
+      } else {
+        var claimsString = new Buffer(claims64[1], 'base64').toString();
+        var claims = JSON.parse(claimsString);
+        return claims.user_id;
+      }
+    }
+  }
 }
 
 function methodNotAllowed(req, res) {
