@@ -100,6 +100,7 @@ function found(req, res, body, etag, location) {
   if (location !== undefined) {
     headers['Content-Location'] = location;
   } else {
+    console.log (req.headers);
     headers['Content-Location'] = PROTOCOL + '://' + req.headers.host + req.url; //todo - handle case where req.url includes http://authority
   }
   if (etag !== undefined) {
@@ -210,6 +211,67 @@ function externalizeURLs(jsObject, authority, protocol) {
   }
 }  
 
+function ifHasPermissionThen(req, res, action, callback) {
+  var user = lib.getUser(req);
+  var permissionsURL = PROTOCOL + '://' + req.headers.host + '/allowed-actions?resource=' + PROTOCOL + '://' + req.headers.host + req.url
+  if (user !== null) {
+    permissionsURL += '&user=' + user;
+  }
+  var options = {
+    url: permissionsURL,
+    headers: {
+      'Accept': 'application/json'
+    }
+  };
+  request(options, function (err, response, body) {
+    if (err) {
+      lib.badRequest(res, err);
+    }
+    else {
+      if (response.statusCode == 200) { 
+        console.log(body);
+        if (body.indexOf(action) > -1) { 
+          callback()
+        } else {
+          if (user !== null) {
+            lib.forbidden(req, res);
+          } else { 
+            lib.unauthorized(req, res);
+          }
+        }
+      } else if (response.statusCode == 404) {
+        lib.notFound(req, res);
+      } else {
+        console.log (response);
+        lib.badRequest(res, 'unknown err')
+      }
+    }
+  });
+}
+
+function mergePatch(target, patch) {
+  if (typeof patch == 'object') {
+    if (typeof target != 'object') {
+      target = {}; // don't just return patch since it may have nulls; perform the merge
+    }
+    for (var name in patch) {
+      if (patch.hasOwnProperty(name)) {
+        var value = patch[name];
+        if (value === null) {
+          if (name in target) {
+            delete target[name];
+          }
+        } else {
+           target[name] = mergePatch(target[name], value);
+        }
+      }
+    }
+    return target;
+  } else {
+    return patch;
+  }
+}
+
 exports.getPostBody = getPostBody;
 exports.methodNotAllowed = methodNotAllowed;
 exports.notFound = notFound;
@@ -224,3 +286,5 @@ exports.externalizeURLs = externalizeURLs;
 exports.getUser = getUser;
 exports.forbidden = forbidden;
 exports.unauthorized = unauthorized;
+exports.ifHasPermissionThen = ifHasPermissionThen;
+exports.mergePatch = mergePatch;
