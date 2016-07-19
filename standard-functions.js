@@ -51,28 +51,32 @@ function getUser(req) {
 
 function methodNotAllowed(req, res) {
   var body = 'Method not allowed. request-target: ' + req.url + ' method: ' + req.method + '\n';
-  res.writeHead(405, {'Content-Type': 'text/plain',
+  body = JSON.stringify(body);
+  res.writeHead(405, {'Content-Type': 'application/json',
                       'Content-Length': Buffer.byteLength(body)});
   res.end(body);
 }
 
 function notFound(req, res) {
   var body = 'Not Found. request-target: ' + req.url + ' method: ' + req.method + '\n';
-  res.writeHead(404, {'Content-Type': 'text/plain',
+  body = JSON.stringify(body);
+  res.writeHead(404, {'Content-Type': 'application/json',
                       'Content-Length': Buffer.byteLength(body)});
   res.end(body);
 }
 
 function forbidden(req, res) {
   var body = 'Forbidden. request-target: ' + req.url + ' method: ' + req.method + '\n';
-  res.writeHead(403, {'Content-Type': 'text/plain',
+  body = JSON.stringify(body);
+  res.writeHead(403, {'Content-Type': 'application/json',
                       'Content-Length': Buffer.byteLength(body)});
   res.end(body);
 }
 
 function unauthorized(req, res) {
   var body = 'Unauthorized. request-target: ' + req.url;
-  res.writeHead(403, {'Content-Type': 'text/plain',
+  body = JSON.stringify(body);
+  res.writeHead(403, {'Content-Type': 'application/json',
                       'Content-Length': Buffer.byteLength(body)});
   res.end(body);
 }
