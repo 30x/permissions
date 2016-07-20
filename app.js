@@ -306,7 +306,6 @@ function getResourcesSharedWith(req, res, user) {
     }
     query += JSON.stringify(params);
     query += "'";
-    console.log(query);
     pool.query(query, function (err, pg_res) {
       if (err) {
         lib.badRequest(res, err);
