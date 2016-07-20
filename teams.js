@@ -24,7 +24,17 @@ var pool = new Pool(config);
 
 function verifyTeam(team) {
   if (team.isA == 'Team') {
-    return null
+    if (Array.isArray(team.members)) {
+      for (var i = 0; i < team.members.length; i++) {
+        if (!typeof team.members[i] == 'string') {
+          return 'members must be strings';
+        }
+      }
+      return null;
+    }
+    else {
+      return 'team must have an array of members';
+    }
   } else { 
     return 'invalid JSON: "isA" property not set to "Team"';
   }
