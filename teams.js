@@ -23,7 +23,7 @@ process.on('unhandledRejection', function(e) {
 var pool = new Pool(config);
 
 function verifyTeam(team) {
-  if (permissions.isA == 'Team') {
+  if (team.isA == 'Team') {
     return null
   } else { 
     return 'invalid JSON: "isA" property not set to "Team"';
@@ -37,7 +37,7 @@ function createTeam(req, res, team) {
       lib.badRequest(res, err);
     } else {
       lib.internalizeURLs(team, req.headers.host);
-      pool.query('INSERT INTO team (data) values($1) RETURNING *', [team], function (err, pg_res) {
+      pool.query('INSERT INTO teams (data) values($1) RETURNING *', [team], function (err, pg_res) {
         if (err) {
           lib.badRequest(res, err);
         } else {
@@ -145,7 +145,7 @@ pool.query('CREATE TABLE IF NOT EXISTS teams (id serial primary key, etag serial
     console.error('error creating teams table', err);
   } else {
     http.createServer(requestHandler).listen(3002, function() {
-      console.log('server is listening on 3001');
+      console.log('server is listening on 3002');
     });
   }
 });

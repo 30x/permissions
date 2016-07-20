@@ -1,6 +1,7 @@
 'use strict';
 
 var PROTOCOL = process.env.PROTOCOL || 'http';
+var request = require('request');
 
 function getPostBody(req, res, callback) {
   var body = '';
@@ -211,8 +212,8 @@ function externalizeURLs(jsObject, authority, protocol) {
   }
 }  
 
-function ifHasPermissionThen(req, res, action, callback) {
-  var user = lib.getUser(req);
+function ifUserHasPermissionThen(req, res, action, callback) {
+  var user = getUser(req);
   var permissionsURL = PROTOCOL + '://' + req.headers.host + '/allowed-actions?resource=' + PROTOCOL + '://' + req.headers.host + req.url
   if (user !== null) {
     permissionsURL += '&user=' + user;
@@ -225,7 +226,7 @@ function ifHasPermissionThen(req, res, action, callback) {
   };
   request(options, function (err, response, body) {
     if (err) {
-      lib.badRequest(res, err);
+      badRequest(res, err);
     }
     else {
       if (response.statusCode == 200) { 
@@ -234,16 +235,16 @@ function ifHasPermissionThen(req, res, action, callback) {
           callback()
         } else {
           if (user !== null) {
-            lib.forbidden(req, res);
+            forbidden(req, res);
           } else { 
-            lib.unauthorized(req, res);
+            unauthorized(req, res);
           }
         }
       } else if (response.statusCode == 404) {
-        lib.notFound(req, res);
+        notFound(req, res);
       } else {
         console.log (response);
-        lib.badRequest(res, 'unknown err')
+        badRequest(res, 'unknown err')
       }
     }
   });
@@ -286,5 +287,5 @@ exports.externalizeURLs = externalizeURLs;
 exports.getUser = getUser;
 exports.forbidden = forbidden;
 exports.unauthorized = unauthorized;
-exports.ifHasPermissionThen = ifHasPermissionThen;
+exports.ifUserHasPermissionThen = ifUserHasPermissionThen;
 exports.mergePatch = mergePatch;
