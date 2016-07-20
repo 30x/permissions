@@ -16,10 +16,6 @@ var config = {
   database: 'permissions'
 };
 
-process.on('unhandledRejection', function(e) {
-  console.log(e.message, e.stack);
-});
-
 var pool = new Pool(config);
 
 function verifyTeam(team) {
@@ -52,7 +48,7 @@ function createTeam(req, res, team) {
           lib.badRequest(res, err);
         } else {
           var etag = pg_res.rows[0].etag;
-          var key = pg_res.rows[0].key;
+          var key = pg_res.rows[0].id;
           addCalculatedProperties(team, key, req)
           lib.created(req, res, team, team._self, etag);
         }
@@ -122,6 +118,28 @@ function updateTeam(req, res, id, patch) {
   });
 }
 
+function getTeamsForUser(req, res, user) {
+  var requesting_user = lib.getUser(req);
+  user = lib.internalizeURL(user, req.headers.host);
+  if (user == requesting_user) {
+    var query = "SELECT id FROM teams, jsonb_array_elements(teams.data->'members') AS member WHERE member = $1"
+    //var query = 'SELECT id FROM teams WHERE $1 IN teams.data.members';
+    pool.query(query, [JSON.stringify(user)], function (err, pg_res) {
+      if (err) {
+        lib.badRequest(res, err);
+      }
+      else {
+        var result = [];
+        var rows = pg_res.rows;
+        for (var i = 0; i < rows.length; i++) {result.push(PROTOCOL + '://' + req.headers.host + TEAM + rows[i].id);}
+        lib.found(req, res, result);
+      }
+    });
+  } else {
+    lib.forbidden(req, res)
+  }
+}
+
 function requestHandler(req, res) {
   if (req.url == '/teams') {
     if (req.method == 'POST') {
@@ -144,6 +162,8 @@ function requestHandler(req, res) {
       } else {
         lib.methodNotAllowed(req, res);
       }
+    } else if (req_url.pathname == '/teams' && req_url.search !== null) {
+      getTeamsForUser(req, res, req_url.search.substring(1));
     } else {
       lib.notFound(req, res);
     }

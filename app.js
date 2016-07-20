@@ -16,10 +16,6 @@ var config = {
   database: 'permissions'
 };
 
-process.on('unhandledRejection', function(e) {
-  console.log(e.message, e.stack);
-});
-
 var pool = new Pool(config);
 
 function verifyPermissions(permissions) {
@@ -301,14 +297,17 @@ function getResourcesSharedWith(req, res, user) {
   var requesting_user = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
   if (user == requesting_user) {
-    var query = 'SELECT subject FROM permissions, jsonb_array_elements(permissions.data._sharedWith) AS sharedWith WHERE sharedWith IN $1'
+    var query = "SELECT subject FROM permissions, jsonb_array_elements(permissions.data->'_sharedWith') AS sharedWith WHERE sharedWith <@ '";
     var params;
     if (user !== null) {
       params = [user, ANYONE, INCOGNITO]
     } else {
       params = [INCOGNITO]
     }
-    pool.query(query, [[user, ANYONE, INCOGNITO]], function (err, pg_res) {
+    query += JSON.stringify(params);
+    query += "'";
+    console.log(query);
+    pool.query(query, function (err, pg_res) {
       if (err) {
         lib.badRequest(res, err);
       }

@@ -101,7 +101,6 @@ function found(req, res, body, etag, location) {
   if (location !== undefined) {
     headers['Content-Location'] = location;
   } else {
-    console.log (req.headers);
     headers['Content-Location'] = PROTOCOL + '://' + req.headers.host + req.url; //todo - handle case where req.url includes http://authority
   }
   if (etag !== undefined) {
@@ -230,7 +229,6 @@ function ifUserHasPermissionThen(req, res, action, callback) {
     }
     else {
       if (response.statusCode == 200) { 
-        console.log(body);
         if (body.indexOf(action) > -1) { 
           callback()
         } else {
@@ -243,7 +241,6 @@ function ifUserHasPermissionThen(req, res, action, callback) {
       } else if (response.statusCode == 404) {
         notFound(req, res);
       } else {
-        console.log (response);
         badRequest(res, 'unknown err')
       }
     }
