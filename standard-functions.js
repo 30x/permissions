@@ -89,6 +89,13 @@ function badRequest(res, err) {
   res.end(body);
 }   
 
+function internalError(res, err) {
+  var body = JSON.stringify(err);
+  res.writeHead(500, {'Content-Type': 'application/json',
+                      'Content-Length': Buffer.byteLength(body)});
+  res.end(body);
+}   
+
 function duplicate(res, err) {
   var body = JSON.stringify(err);
   res.writeHead(409, {'Content-Type': 'application/json',
@@ -225,7 +232,7 @@ function ifUserHasPermissionThen(req, res, action, callback) {
   };
   request(options, function (err, response, body) {
     if (err) {
-      badRequest(res, err);
+      internalError(res, err);
     }
     else {
       if (response.statusCode == 200) { 
@@ -241,7 +248,7 @@ function ifUserHasPermissionThen(req, res, action, callback) {
       } else if (response.statusCode == 404) {
         notFound(req, res);
       } else {
-        badRequest(res, 'unknown err')
+        internalError(res, 'unknown err: ' + response.statusCode + ' in ifUserHasPermissionThen')
       }
     }
   });
@@ -286,3 +293,4 @@ exports.forbidden = forbidden;
 exports.unauthorized = unauthorized;
 exports.ifUserHasPermissionThen = ifUserHasPermissionThen;
 exports.mergePatch = mergePatch;
+exports.internalError = internalError;
