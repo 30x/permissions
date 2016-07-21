@@ -326,6 +326,30 @@ function mergePatch(target, patch) {
   }
 }
 
+function createResource(req, res, resource, primCreate) {
+  var count = 0;
+  var errors = [];
+  for (var i=0; i < resource.sharingSets.length; i++) {
+    withPermissionsDo(req, resource.sharingSets[i], function(err, sharingSet, actions){
+      if (err == 404) {
+        errors.push('sharingSet ' + sharingSet + ' is not a governed resource');
+      } else if (err !== null) {
+        errors.push(err);
+      } else if (actions.indexOf('create') == -1) {
+        console.log(sharingSet, actions);
+        errors.push('user not permitted to create in sharingSet ' + sharingSet);
+      }
+      if (++count == resource.sharingSets.length) {
+        if (errors.length == 0) {
+          primCreate(req, res, resource);
+        } else {
+          badRequest(res, errors);
+        }
+      }
+    });
+  }
+}
+
 exports.getPostBody = getPostBody;
 exports.methodNotAllowed = methodNotAllowed;
 exports.notFound = notFound;
@@ -345,3 +369,4 @@ exports.withPermissionsDo = withPermissionsDo;
 exports.mergePatch = mergePatch;
 exports.internalError = internalError;
 exports.createPermissonsFor = createPermissonsFor;
+exports.createResource = createResource;

@@ -77,27 +77,7 @@ function createTeam(req, res, team) {
   if (err !== null) {
     lib.badRequest(res, err);
   } else {
-    var count = 0;
-    var errors = [];
-    for (var i=0; i < team.sharingSets.length; i++) {
-      lib.withPermissionsDo(req, team.sharingSets[i], function(err, sharingSet, actions){
-        if (err == 404) {
-          errors.push('sharingSet ' + sharingSet + ' is not a governed resource');
-        } else if (err !== null) {
-          errors.push(err);
-        } else if (actions.indexOf('create') == -1) {
-          console.log(sharingSet, actions);
-          errors.push('user not permitted to create in sharingSet ' + sharingSet);
-        }
-        if (++count == team.sharingSets.length) {
-          if (errors.length == 0) {
-            primCreateTeam(req, res, team);
-          } else {
-            lib.badRequest(res, errors);
-          }
-        }
-      });
-    }
+    lib.createResource(req, res, team, primCreateTeam);
   }
 }
 
