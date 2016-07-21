@@ -213,12 +213,12 @@ function addAllowedActions(req, data, user, result, permissionsOfPermissions, ca
     for (var j = 0; j < sharingSets.length; j++) {
       readAllowedActions(req, sharingSets[j], user, result, permissionsOfPermissions, function() {
         if (++count == sharingSets.length) {
-          callback();
+          callback(200);
         }
       });
     }
   } else {
-    callback();
+    callback(200);
   }
 }
 
@@ -230,7 +230,7 @@ function readAllowedActions(req, resource, user, result, permissionsOfPermission
       callback(err);
     } else { 
       if (pg_res.rowCount === 0) { 
-        callback();
+        callback(404);
       } else {
         addAllowedActions(req, pg_res.rows[0].data, user, result, permissionsOfPermissions, callback);
       }
@@ -246,8 +246,14 @@ function getAllowedActions(req, res, queryString) {
   if (queryParts.user !== undefined) {
     user = lib.internalizeURL(queryParts.user, req.headers.host);
   }
-  readAllowedActions(req, resource, user, allowedActions, false, function() {
-   lib.found(req, res, Object.keys(allowedActions));
+  readAllowedActions(req, resource, user, allowedActions, false, function(statusCode) {
+    if (statusCode == 200) {
+      lib.found(req, res, Object.keys(allowedActions));
+    } else if (statusCode == 404) {
+      lib.notFound(req, res)
+    } else {
+      lib.internalError(statusCode)
+    }
   });
 }
 

@@ -1,1 +1,1 @@
-curl -i -X POST localhost:8080/teams -d@team-apigee.json
+curl -i -X POST  -H "Authorization: Bearer ${APIGEE_TOKEN}" localhost:8080/teams -d@team-apigee.json

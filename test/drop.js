@@ -18,4 +18,10 @@ pool.query('DROP TABLE IF EXISTS permissions', function(err, pg_res) {
   if(err) console.error('error dropping permissions table', err);
   else console.log('dropped table permissions')
   pool.end()
+});
+
+pool.query('DROP TABLE IF EXISTS teams', function(err, pg_res) {
+  if(err) console.error('error dropping teams table', err);
+  else console.log('dropped table teams')
+  pool.end()
 })

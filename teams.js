@@ -23,10 +23,23 @@ function verifyTeam(team) {
     if (Array.isArray(team.members)) {
       for (var i = 0; i < team.members.length; i++) {
         if (!typeof team.members[i] == 'string') {
-          return 'members must be strings';
+          return 'members must be URLs encoded as strings';
         }
       }
-      return null;
+      if (Array.isArray(team.sharingSets)) {
+        if (team.sharingSets.length > 0) {
+          for (var i = 0; i < team.sharingSets.length; i++) {
+            if (!typeof team.sharingSets[i] == 'string') {
+            return 'members must be URLs encoded as strings';
+            }
+          }
+          return null;
+        } else {
+          return 'must provide at least one sharingSet';
+        }
+      } else {
+        return 'must provide at least one sharingSet'
+      }
     }
     else {
       return 'team must have an array of members';
@@ -36,25 +49,56 @@ function verifyTeam(team) {
   }
 }
 
-function createTeam(req, res, team) {
-  lib.ifUserHasPermissionThen(req, res, 'create', function() {
-    var err = verifyTeam(team);
-    if (err !== null) {
+function primCreateTeam (req, res, team) {
+  lib.internalizeURLs(team, req.headers.host);
+  var sharingSets = team.sharingSets;
+  delete team.sharingSets;
+  pool.query('INSERT INTO teams (data) values($1) RETURNING *', [team], function (err, pg_res) {
+    if (err) {
       lib.badRequest(res, err);
     } else {
-      lib.internalizeURLs(team, req.headers.host);
-      pool.query('INSERT INTO teams (data) values($1) RETURNING *', [team], function (err, pg_res) {
-        if (err) {
-          lib.badRequest(res, err);
+      var etag = pg_res.rows[0].etag;
+      var key = pg_res.rows[0].id;
+      addCalculatedProperties(team, key, req)
+      lib.created(req, res, team, team._self, etag);
+      lib.createPermissonsFor(req, team._self, sharingSets, function(statusCode, resourceURL){
+        if (statusCode == 201) {
+          console.log('permissions created for resource ' + resourceURL);
         } else {
-          var etag = pg_res.rows[0].etag;
-          var key = pg_res.rows[0].id;
-          addCalculatedProperties(team, key, req)
-          lib.created(req, res, team, team._self, etag);
+          console.log('failed to create permissions for ' + resourceURL + ' statusCode ' + statusCode)
         }
       });
     }
   });
+}
+
+function createTeam(req, res, team) {
+  var err = verifyTeam(team);
+  if (err !== null) {
+    lib.badRequest(res, err);
+  } else {
+    var count = 0;
+    var errors = [];
+    for (var i=0; i < team.sharingSets.length; i++) {
+      lib.withPermissionsDo(req, team.sharingSets[i], function(err, sharingSet, actions){
+        if (err == 404) {
+          errors.push('sharingSet ' + sharingSet + ' is not a governed resource');
+        } else if (err !== null) {
+          errors.push(err);
+        } else if (actions.indexOf('create') == -1) {
+          console.log(sharingSet, actions);
+          errors.push('user not permitted to create in sharingSet ' + sharingSet);
+        }
+        if (++count == team.sharingSets.length) {
+          if (errors.length == 0) {
+            primCreateTeam(req, res, team);
+          } else {
+            lib.badRequest(res, errors);
+          }
+        }
+      });
+    }
+  }
 }
 
 function addCalculatedProperties(team, key, req) {
@@ -62,7 +106,7 @@ function addCalculatedProperties(team, key, req) {
 }
 
 function getTeam(req, res, id) {
-  lib.ifUserHasPermissionThen(req, res, 'read', function() {
+  lib.ifUserHasRequestTargetPermissionThen(req, res, 'read', function() {
     pool.query('SELECT etag, data FROM teams WHERE id = $1', [id], function (err, pg_res) {
       if (err) {
         lib.badRequest(res, err);
@@ -83,7 +127,7 @@ function getTeam(req, res, id) {
 }
 
 function deleteTeam(req, res, id) {
-  lib.ifUserHasPermissionThen(req, res, 'delete', function() {
+  lib.ifUserHasRequestTargetPermissionThen(req, res, 'delete', function() {
     pool.query('DELETE FROM teams WHERE id = $1', [id], function (err, pg_res) {
       if (err) { 
         lib.badRequest(res, err);
@@ -100,7 +144,7 @@ function deleteTeam(req, res, id) {
 }
 
 function updateTeam(req, res, id, patch) {
-  lib.ifUserHasPermissionThen(req, res, 'update', function(team, etag) {
+  lib.ifUserHasRequestTargetPermissionThen(req, res, 'update', function(team, etag) {
     var patchedTeam = mergePatch(team, patch);
     pool.query('UPDATE team SET data = ($1) WHERE id = $2 RETURNING etag' , [patchedPermissions, id], function (err, pg_res) {
       if (err) { 

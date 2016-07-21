@@ -218,37 +218,86 @@ function externalizeURLs(jsObject, authority, protocol) {
   }
 }  
 
-function ifUserHasPermissionThen(req, res, action, callback) {
+function withPermissionsDo(req, resourceURL, callback) {
   var user = getUser(req);
-  var permissionsURL = PROTOCOL + '://' + req.headers.host + '/allowed-actions?resource=' + PROTOCOL + '://' + req.headers.host + req.url
+  var permissionsURL = PROTOCOL + '://' + req.headers.host + '/allowed-actions?resource=' + resourceURL;
   if (user !== null) {
     permissionsURL += '&user=' + user;
   }
+  var headers = {
+    'Accept': 'application/json'
+  }
+  if (req.headers.authorization) {
+    headers.authorization = req.headers.authorization; 
+  }
   var options = {
     url: permissionsURL,
-    headers: {
-      'Accept': 'application/json'
-    }
+    headers: headers
   };
   request(options, function (err, response, body) {
     if (err) {
-      internalError(res, err);
+      callback(err, resourceURL);
     }
     else {
       if (response.statusCode == 200) { 
-        if (body.indexOf(action) > -1) { 
-          callback()
-        } else {
-          if (user !== null) {
-            forbidden(req, res);
-          } else { 
-            unauthorized(req, res);
-          }
-        }
-      } else if (response.statusCode == 404) {
-        notFound(req, res);
+        callback(null, resourceURL, body)
       } else {
-        internalError(res, 'unknown err: ' + response.statusCode + ' in ifUserHasPermissionThen')
+        callback(response.statusCode, resourceURL)
+      }
+    }
+  });
+}
+
+function createPermissonsFor(req, resourceURL, sharingSets, callback) {
+  var permissionsURL = PROTOCOL + '://' + req.headers.host + '/permissions';
+  var headers = {
+    'Accept': 'application/json'
+  }
+  if (req.headers.authorization) {
+    headers.authorization = req.headers.authorization; 
+  }
+  var body = {
+    isA: 'Permissions',
+    governs: {
+      _self: resourceURL,
+      sharingSets: sharingSets,
+    }
+  }
+  var options = {
+    url: permissionsURL,
+    headers: headers,
+    method: 'POST',
+    json: body
+  }
+  request(options, function (err, response, body) {
+    if (err) {
+      callback(err, resourceURL);
+    }
+    else {
+      if (response.statusCode == 200) { 
+        callback(null, resourceURL, body)
+      } else {
+        callback(response.statusCode, resourceURL)
+      }
+    }
+  });
+}
+
+function ifUserHasRequestTargetPermissionThen(req, res, action, callback) {
+  var user = getUser(req);
+  var resourceURL = PROTOCOL + '://' + req.host + req.url;
+  withPermissionsDo(req, resourceURL, function (err, resourceURL, permissions) {
+    if (err) {
+      internalError(res, err);
+    } else {
+      if (body.indexOf(action) > -1) { 
+        callback()
+      } else {
+        if (user !== null) {
+          forbidden(req, res);
+        } else { 
+          unauthorized(req, res);
+        }
       }
     }
   });
@@ -291,6 +340,8 @@ exports.externalizeURLs = externalizeURLs;
 exports.getUser = getUser;
 exports.forbidden = forbidden;
 exports.unauthorized = unauthorized;
-exports.ifUserHasPermissionThen = ifUserHasPermissionThen;
+exports.ifUserHasRequestTargetPermissionThen = ifUserHasRequestTargetPermissionThen;
+exports.withPermissionsDo = withPermissionsDo;
 exports.mergePatch = mergePatch;
 exports.internalError = internalError;
+exports.createPermissonsFor = createPermissonsFor;
