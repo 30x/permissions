@@ -22,7 +22,8 @@ def b64_decode(data):
     return base64.decodestring(data)
 
 with open('token.txt') as f:
-    TOKEN = json.loads(b64_decode(f.read().split('.')[1]))['user_id']
+    TOKEN = f.read()
+    USER = json.loads(b64_decode(TOKEN.split('.')[1]))['user_id']
 
 permissions = {
  'isA': 'Permissions',
@@ -44,4 +45,32 @@ r = requests.post(url, headers=headers, json=permissions)
 if r.status_code == 201:
     print 'successfully created permissions %s' % r.text 
 else:
-    print 'failed to create permissions %s' % r.text 
+    print 'failed to create permissions %s %s' % (r.status_code, r.text)
+
+permissions = {
+ 'isA': 'Permissions',
+ 'governs': 
+    {'_self': 'http://google.com/maps',
+     'updaters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
+     'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
+     'deleters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
+     'creators': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737']
+    },
+ 'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
+ 'deleters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
+ 'creators': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
+}
+url = 'http://localhost:8080' + '/permissions' 
+headers = {'Accept': 'application/json'}
+r = requests.post(url, headers=headers, json=permissions)
+if r.status_code == 400 and r.json() == 'permissions must have an updater':
+    print 'correctly rejected permission with no updater' 
+else:
+    print 'incorrectly accepted permissions with no updater %s %s' % (r.status_code, r.text)
+
+headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN}
+r = requests.post(url, headers=headers, json=permissions)
+if r.status_code == 201:
+    print 'correctly accepted permission with no updater from logged-in user' 
+else:
+    print 'incorrectly rejected permission with no updater from logged-in user %s %s' % (r.status_code, r.text)

@@ -18,7 +18,7 @@ var config = {
 
 var pool = new Pool(config);
 
-function verifyPermissions(permissions) {
+function verifyPermissions(permissions, req) {
   if (permissions.isA == 'Permissions') {
     if (permissions.hasOwnProperty('sharingSets')) {
       return 'sharingSets for a Permissions resource independent of sharingSets for the resource it governs not supported'
@@ -29,6 +29,14 @@ function verifyPermissions(permissions) {
           if (governed.hasOwnProperty('sharingSet') && !Array.isArray(governed.sharingSet)) {
             return 'sharingSet must be an Array'
           } else {
+            if (permissions.updaters === undefined) {
+              var user = lib.getUser(req);
+              if (user !== null) {
+                permissions.updaters = [user]
+              } else {
+                return 'permissions must have an updater'
+              }
+            }
             return null;
           }
         } else {
@@ -62,7 +70,7 @@ function calculateSharedWith(permissions) {
 }
 
 function createPermissions(req, res, permissions) {
-  var err = verifyPermissions(permissions);
+  var err = verifyPermissions(permissions, req);
   if (err === null) {
     calculateSharedWith(permissions);
     lib.internalizeURLs(permissions, req.headers.host);
