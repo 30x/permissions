@@ -30,7 +30,7 @@ function verifyPermissions(permissions, req) {
             return 'sharingSet must be an Array'
           } else {
             var user = lib.getUser(req);
-            if (permissions.updaters === undefined && permissions.sharingSets === undefined) {
+            if (permissions.updaters === undefined && governed.sharingSets === undefined) {
               permissions.updaters = [user];
             }
             return null;

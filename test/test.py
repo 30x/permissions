@@ -28,13 +28,13 @@ with open('token.txt') as f:
 permissions = {
  'isA': 'Permissions',
  'governs': 
-    {'_self': 'http://enterprise.apigee.com/o/nike',
-     'updaters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
-     'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
+    {'_self': 'http://nike.com/api-assets',
+     'updaters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
+     'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
      'deleters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
      'creators': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737']
     },
- 'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
+ 'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
  'deleters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
  'creators': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
  'updaters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737']     
@@ -57,8 +57,8 @@ else:
 permissions = {
  'isA': 'Permissions',
  'governs': 
-    {'_self': 'http://enterprise.apigee.com/o/nike/environments',
-     'sharingSets': ['http://enterprise.apigee.com/o/nike']
+    {'_self': 'http://nike.com/api-assets/teams',
+     'sharingSets': ['http://nike.com/api-assets']
     }
 }
 
@@ -77,13 +77,15 @@ if r.status_code == 403:
 else:
     print 'incorrectly accepted read of permission with no user %s %s' % (r.status_code, r.text)
 
+url = 'http://localhost:8080' + '/resources-in-sharing-set?%s' % 'http://nike.com/api-assets'
 headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN}
-r = requests.get(location, headers=headers, json=permissions)
+r = requests.get(url, headers=headers, json=permissions)
 if r.status_code == 200:
-    print 'correctly accepted read of permission'
-    if USER in r.json()['updaters']:
-        print 'correctly inserted %s as updater' % USER
+    contents = r.json()
+    if contents == ['http://nike.com/api-assets/teams']:
+        print 'correctly returned contents of http://nike.com/api-assets sharingSet'
     else:
-        print 'failed to add %s as updater' % USER
+        print 'incorrect contents of http://nike.com/api-assets sharingSet %s' % contents
 else:
-    print 'incorrectly rejected read of permission %s %s' % (r.status_code, r.text)
+    print 'failed to return contents of http://nike.com/api-assets sharingSet %s %s' % (r.status_code, r.text)
+
