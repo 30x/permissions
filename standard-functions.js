@@ -116,7 +116,7 @@ function found(req, res, body, etag, location) {
   respond(req, res, 200, headers, body);
 }
 
-function created(req, res, body, etag, location) {
+function created(req, res, body, location, etag) {
   var headers =  {};
   if (location !== undefined) {
     headers['Location'] = location;
