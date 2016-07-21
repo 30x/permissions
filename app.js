@@ -342,14 +342,18 @@ function getResourcesSharedWith(req, res, user) {
 
 function getResourcesInSharingSet(req, res, sharingSet) {
   var user = lib.internalizeURL(sharingSet, req.headers.host);
-  pool.query( 'SELECT subject FROM permissions WHERE data @> \'{"governs": {"sharingSets":["' + sharingSet + '"]}}\'', function (err, pg_res) {
+  pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"sharingSets":["' + sharingSet + '"]}}\'', function (err, pg_res) {
     if (err) {
       lib.badRequest(res, err);
     }
     else {
       var result = [];
       var rows = pg_res.rows;
-      for (var i = 0; i < rows.length; i++) {result.push(rows[i].subject);}
+      for (var i = 0; i < rows.length; i++) {
+        console.log(rows[i]);
+        lib.externalizeURLs(rows[i].data.governs, req.host); 
+        result.push(rows[i].data.governs);
+      }
       lib.found(req, res, result);
     }
   });

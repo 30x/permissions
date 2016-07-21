@@ -82,7 +82,7 @@ headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN}
 r = requests.get(url, headers=headers, json=permissions)
 if r.status_code == 200:
     contents = r.json()
-    if contents == ['http://nike.com/api-assets/teams']:
+    if [perm['_self'] for perm in contents] == ['http://nike.com/api-assets/teams']:
         print 'correctly returned contents of http://nike.com/api-assets sharingSet'
     else:
         print 'incorrect contents of http://nike.com/api-assets sharingSet %s' % contents
