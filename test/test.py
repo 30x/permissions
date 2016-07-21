@@ -28,7 +28,7 @@ with open('token.txt') as f:
 permissions = {
  'isA': 'Permissions',
  'governs': 
-    {'_self': 'http://google.com/',
+    {'_self': 'http://enterprise.apigee.com/o/nike',
      'updaters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
      'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
      'deleters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
@@ -57,15 +57,9 @@ else:
 permissions = {
  'isA': 'Permissions',
  'governs': 
-    {'_self': 'http://google.com/maps',
-     'updaters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
-     'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
-     'deleters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
-     'creators': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737']
-    },
- 'readers': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737', 'http://barak-obama.name'],
- 'deleters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
- 'creators': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
+    {'_self': 'http://enterprise.apigee.com/o/nike/environments',
+     'sharingSets': ['http://enterprise.apigee.com/o/nike']
+    }
 }
 
 headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN}

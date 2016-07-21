@@ -23,19 +23,15 @@ function verifyPermissions(permissions, req) {
     if (permissions.hasOwnProperty('sharingSets')) {
       return 'sharingSets for a Permissions resource independent of sharingSets for the resource it governs not supported'
     } else {
-      if (permissions.hasOwnProperty('governs')) {
+      if (permissions.governs !== undefined) {
         var governed = permissions.governs;
-        if (governed.hasOwnProperty('_self')) {
-          if (governed.hasOwnProperty('sharingSet') && !Array.isArray(governed.sharingSet)) {
+        if (governed._self !== undefined) {
+          if (governed.sharingSet !== undefined && !Array.isArray(governed.sharingSet)) {
             return 'sharingSet must be an Array'
           } else {
             var user = lib.getUser(req);
-            if (user == null) {
-              return 'must be logged in to create a permission'
-            } else {
-              if (permissions.updaters === undefined) {
-                permissions.updaters = [user]
-              }
+            if (permissions.updaters === undefined && permissions.sharingSets === undefined) {
+              permissions.updaters = [user];
             }
             return null;
           }
