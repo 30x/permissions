@@ -74,3 +74,10 @@ if r.status_code == 201:
     print 'correctly accepted permission with no updater from logged-in user' 
 else:
     print 'incorrectly rejected permission with no updater from logged-in user %s %s' % (r.status_code, r.text)
+
+headers = {'Accept': 'application/json'}
+r = requests.post(r.headers['Location'], headers=headers, json=permissions)
+if r.status_code == 403:
+    print 'correctly rejected read of permission with no user' 
+else:
+    print 'incorrectly accepted read of permission with no user' % (r.status_code, r.text)
