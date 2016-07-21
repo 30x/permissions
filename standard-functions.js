@@ -29,7 +29,7 @@ function getPostBody(req, res, callback) {
 }
 
 function getUser(req) {
-  var auth = req.headers.authorization
+  var auth = req.headers.authorization;
   if (auth == undefined) {
     return null;
   } else {
