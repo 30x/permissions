@@ -22,26 +22,26 @@ def b64_decode(data):
     return base64.decodestring(data)
 
 with open('token.txt') as f:
-    TOKEN = f.read()
-    USER = json.loads(b64_decode(TOKEN.split('.')[1]))['user_id']
+    TOKEN1 = f.read()
+    USER1 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
 
 with open('token2.txt') as f:
     TOKEN2 = f.read()
-    USER2 = json.loads(b64_decode(TOKEN.split('.')[1]))['user_id']
+    USER2 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
 
 permissions = {
  'isA': 'Permissions',
  'governs': 
     {'_self': 'http://apigee.com/o/coke',
-     'updaters': [USER],
-     'readers': [USER],
-     'deleters': [USER],
-     'creators': [USER]
+     'updaters': [USER1],
+     'readers': [USER1],
+     'deleters': [USER1],
+     'creators': [USER1]
     },
- 'readers': [USER],
- 'deleters': [USER],
- 'creators': [USER],
- 'updaters': [USER]     
+ 'readers': [USER1],
+ 'deleters': [USER1],
+ 'creators': [USER1],
+ 'updaters': [USER1]     
 }
 url = 'http://localhost:8080' + '/permissions' 
 headers = {'Accept': 'application/json'}
@@ -51,7 +51,7 @@ if r.status_code == 403:
 else:
     print 'failed to create permissions %s %s' % (r.status_code, r.text)
 
-headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN}
+headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
 r = requests.post(url, headers=headers, json=permissions)
 if r.status_code == 201:
     print 'correctly created permissions' 
@@ -66,7 +66,7 @@ permissions = {
     }
 }
 
-headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN}
+headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
 r = requests.post(url, headers=headers, json=permissions)
 if r.status_code == 201:
     print 'correctly accepted permission with no updater from logged-in user' 
@@ -82,7 +82,7 @@ else:
     print 'incorrectly accepted read of permission with no user %s %s' % (r.status_code, r.text)
 
 url = 'http://localhost:8080' + '/resources-in-sharing-set?%s' % 'http://apigee.com/o/coke'
-headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN}
+headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
 r = requests.get(url, headers=headers, json=permissions)
 if r.status_code == 200:
     contents = r.json()
@@ -96,13 +96,13 @@ else:
 team = {
  'isA': 'Team',
  'name': 'Org admins',
- 'sharingSet': 'http://apigee.com/o/coke/teams',
- 'members': [] 
+ 'sharingSets': ['http://apigee.com/o/coke/teams'],
+ 'members': [USER1, USER2] 
 }
 url = 'http://localhost:8080' + '/teams' 
-headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN}
-r = requests.post(url, headers=headers, json=permissions)
+headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+r = requests.post(url, headers=headers, json=team)
 if r.status_code == 201:
     print 'correctly created team' 
 else:
-    print 'failed to create permissions %s %s' % (r.status_code, r.text)
+    print 'failed to create team %s %s' % (r.status_code, r.text)

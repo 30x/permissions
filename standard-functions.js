@@ -351,9 +351,9 @@ function setStandardCreationProperties(req, resource, user) {
 }
 
 function createResource(req, res, resource, primCreate) {
-  var user = lib.getUser(req);
+  var user = getUser(req);
   if (user == null) {
-    lib.unauthorized(req, res)
+    unauthorized(req, res)
   } else {
     var count = 0;
     var errors = [];
@@ -364,7 +364,6 @@ function createResource(req, res, resource, primCreate) {
         } else if (err !== null) {
           errors.push(err);
         } else if (actions.indexOf('create') == -1) {
-          console.log(sharingSet, actions);
           errors.push('user not permitted to create in sharingSet ' + sharingSet);
         }
         if (++count == resource.sharingSets.length) {

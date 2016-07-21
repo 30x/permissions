@@ -350,7 +350,6 @@ function getResourcesInSharingSet(req, res, sharingSet) {
       var result = [];
       var rows = pg_res.rows;
       for (var i = 0; i < rows.length; i++) {
-        console.log(rows[i]);
         lib.externalizeURLs(rows[i].data.governs, req.host); 
         result.push(rows[i].data.governs);
       }

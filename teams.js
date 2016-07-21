@@ -38,14 +38,14 @@ function verifyTeam(team) {
           return 'must provide at least one sharingSet';
         }
       } else {
-        return 'must provide at least one sharingSet'
+        return 'sharingSets must present and must be an Array'
       }
     }
     else {
       return 'team must have an array of members';
     }
   } else { 
-    return 'invalid JSON: "isA" property not set to "Team"';
+    return 'invalid JSON: "isA" property not set to "Team" ' + JSON.stringify(team);
   }
 }
 
