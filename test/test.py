@@ -10,8 +10,8 @@ except:
 
 with conn:
     with conn.cursor() as cur:
-        cur.execute(""" DROP TABLE IF EXISTS permissions """)
-        cur.execute(""" DROP TABLE IF EXISTS teams """)
+        cur.execute('DROP TABLE IF EXISTS permissions')
+        cur.execute('DROP TABLE IF EXISTS teams')
         cur.execute('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb)')
         cur.execute('CREATE TABLE IF NOT EXISTS teams (id serial primary key, etag serial, data jsonb)')
 
