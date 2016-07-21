@@ -326,6 +326,30 @@ function mergePatch(target, patch) {
   }
 }
 
+function setStandardCreationProperties(req, resource, user) {
+  if (resource.creator) {
+    return 'may not set creator'
+  } else {
+    resource.creator = user
+  }
+  if (resource.modifier) {
+    return 'may not set modifier'
+  } else {
+    resource.modifier = user
+  }
+  if (resource.created) {
+    return 'may not set created'
+  } else {
+    resource.creator = new Date().toISOString()
+  }
+  if (resource.modified) {
+    return 'may not set modified'
+  } else {
+    resource.modified = resource.created
+  }
+  return null;
+}
+
 function createResource(req, res, resource, primCreate) {
   var count = 0;
   var errors = [];
@@ -370,3 +394,4 @@ exports.mergePatch = mergePatch;
 exports.internalError = internalError;
 exports.createPermissonsFor = createPermissonsFor;
 exports.createResource = createResource;
+exports.setStandardCreationProperties = setStandardCreationProperties;

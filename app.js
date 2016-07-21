@@ -29,12 +29,12 @@ function verifyPermissions(permissions, req) {
           if (governed.hasOwnProperty('sharingSet') && !Array.isArray(governed.sharingSet)) {
             return 'sharingSet must be an Array'
           } else {
-            if (permissions.updaters === undefined) {
-              var user = lib.getUser(req);
-              if (user !== null) {
+            var user = lib.getUser(req);
+            if (user == null) {
+              return 'must be logged in to create a permission'
+            } else {
+              if (permissions.updaters === undefined) {
                 permissions.updaters = [user]
-              } else {
-                return 'permissions must have an updater'
               }
             }
             return null;
@@ -70,27 +70,35 @@ function calculateSharedWith(permissions) {
 }
 
 function createPermissions(req, res, permissions) {
-  var err = verifyPermissions(permissions, req);
-  if (err === null) {
-    calculateSharedWith(permissions);
-    lib.internalizeURLs(permissions, req.headers.host);
-    pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs._self, permissions], function (err, pg_res) {
-      if (err) {
-        if (err.code == 23505){ 
-          lib.duplicate(res, err);
-        } else { 
-          lib.badRequest(res, err);
-        }
-      } else {
-        var etag = pg_res.rows[0].etag;
-        var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs._self;
-        permissions['_self'] = selfURL;
-        lib.created(req, res, permissions, selfURL, etag);
-      }
-    });
+  var user = lib.getUser(req);
+  if (user == null) {
+    lib.unauthorized(req, res)
   } else {
-    lib.badRequest(res, err);
+    var err = verifyPermissions(permissions, req);
+    if (err === null) {
+      err = lib.setStandardCreationProperties(permissions, req, user);
     }
+    if (err === null) {
+      calculateSharedWith(permissions);
+      lib.internalizeURLs(permissions, req.headers.host);
+      pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs._self, permissions], function (err, pg_res) {
+        if (err) {
+          if (err.code == 23505){ 
+            lib.duplicate(res, err);
+          } else { 
+            lib.badRequest(res, err);
+          }
+        } else {
+          var etag = pg_res.rows[0].etag;
+          var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs._self;
+          permissions['_self'] = selfURL;
+          lib.created(req, res, permissions, selfURL, etag);
+        }
+      });
+    } else {
+      lib.badRequest(res, err);
+    }
+  }
 }
 
 function addCalculatedProperties(permissions, req) {

@@ -42,8 +42,15 @@ permissions = {
 url = 'http://localhost:8080' + '/permissions' 
 headers = {'Accept': 'application/json'}
 r = requests.post(url, headers=headers, json=permissions)
+if r.status_code == 403:
+    print 'correctly rejected permissions creation without user' 
+else:
+    print 'failed to create permissions %s %s' % (r.status_code, r.text)
+
+headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN}
+r = requests.post(url, headers=headers, json=permissions)
 if r.status_code == 201:
-    print 'successfully created permissions %s' % r.text 
+    print 'correctly created permissions' 
 else:
     print 'failed to create permissions %s %s' % (r.status_code, r.text)
 
@@ -60,13 +67,6 @@ permissions = {
  'deleters': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
  'creators': ['997a22a5-e3ee-42f7-a664-ae6aa1c4f737'],
 }
-url = 'http://localhost:8080' + '/permissions' 
-headers = {'Accept': 'application/json'}
-r = requests.post(url, headers=headers, json=permissions)
-if r.status_code == 400 and r.json() == 'permissions must have an updater':
-    print 'correctly rejected permission with no updater' 
-else:
-    print 'incorrectly accepted permissions with no updater %s %s' % (r.status_code, r.text)
 
 headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN}
 r = requests.post(url, headers=headers, json=permissions)
