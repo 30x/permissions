@@ -12,11 +12,11 @@ with conn:
     with conn.cursor() as cur:
         cur.execute('DROP TABLE IF EXISTS permissions')
         cur.execute('DROP TABLE IF EXISTS teams')
-        cur.execute('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb)')
-        cur.execute('CREATE TABLE IF NOT EXISTS teams (id serial primary key, etag serial, data jsonb)')
+        cur.execute('CREATE TABLE permissions (subject text primary key, etag serial, data jsonb)')
+        cur.execute('CREATE TABLE teams (id serial primary key, etag serial, data jsonb)')
 
 def b64_decode(data):
-    missing_padding = 4 - len(data) % 4
+    missing_padding = (4 - len(data) % 4) % 4
     if missing_padding:
         data += b'='* missing_padding
     return base64.decodestring(data)

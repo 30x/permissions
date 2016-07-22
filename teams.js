@@ -4,10 +4,9 @@ var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
-var request = require('request');
 
 var PROTOCOL = process.env.PROTOCOL || 'http';
-var TEAM = '/dGVh-';
+var TEAM = '/team/';
 
 var config = {
   host: 'localhost',
