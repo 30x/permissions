@@ -213,7 +213,6 @@ function addAllowedActions(req, data, users, result, permissionsOfPermissions, a
   } else {
     permissions = data.governs;
   }
-  console.log(users, permissions);
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     if (permissions[OPERATIONPROPERTIES[i]] !== undefined) {
       for (var j=0; j<users.length; j++) {
