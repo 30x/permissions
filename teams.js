@@ -55,7 +55,7 @@ function primCreateTeam (req, res, team) {
   delete team.sharingSets;
   pool.query('INSERT INTO teams (data) values($1) RETURNING *', [team], function (err, pg_res) {
     if (err) {
-      lib.badRequest(res, err);
+      lib.internalError(res, err);
     } else {
       var etag = pg_res.rows[0].etag;
       var key = pg_res.rows[0].id;
@@ -89,7 +89,7 @@ function getTeam(req, res, id) {
   lib.ifUserHasRequestTargetPermissionThen(req, res, 'read', function() {
     pool.query('SELECT etag, data FROM teams WHERE id = $1', [id], function (err, pg_res) {
       if (err) {
-        lib.badRequest(res, err);
+        lib.internalError(res, err);
       }
       else {
         if (pg_res.rowCount === 0) { 
@@ -128,7 +128,7 @@ function updateTeam(req, res, id, patch) {
     var patchedTeam = mergePatch(team, patch);
     pool.query('UPDATE team SET data = ($1) WHERE id = $2 RETURNING etag' , [patchedPermissions, id], function (err, pg_res) {
       if (err) { 
-        lib.badRequest(res, err);
+        lib.internalError(res, err);
       } else {
         if (pg_res.rowCount === 0) { 
           lib.notFound(req, res);
@@ -150,7 +150,7 @@ function getTeamsForUser(req, res, user) {
     //var query = 'SELECT id FROM teams WHERE $1 IN teams.data.members';
     pool.query(query, [JSON.stringify(user)], function (err, pg_res) {
       if (err) {
-        lib.badRequest(res, err);
+        lib.internalError(res, err);
       }
       else {
         var result = [];

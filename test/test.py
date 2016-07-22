@@ -98,7 +98,7 @@ r = requests.get(url, headers=headers, json=permissions)
 if r.status_code == 403:
     print 'correctly refused to return sharing set contents to unauthorized user'
 else:
-    print 'failed to refused to return sharing set contents to unauthorized user %s' % r.status_code
+    print 'failed to refuse to return sharing set contents to unauthorized user %s' % r.status_code
 
 team = {
  'isA': 'Team',
