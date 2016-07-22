@@ -116,20 +116,20 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
       else {
         var row = pg_res.rows[0];
         var user = lib.getUser(req);
-        if (user !== null) {
-          var allowedActions = {};
-          addAllowedActions(req, row.data, [user], allowedActions, permissionsOfPermissions, action, function() {
-            if (action in allowedActions) {
-              lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
-              addCalculatedProperties(row.data, req); 
-              callback(row.data, row.etag);
-            } else { 
-              lib.forbidden(req, res);
-            }
-          });
-        } else { 
-          lib.unauthorized(req, res);
+        var users = null;
+        if (user != null) {
+          users = [user];
         }
+        var allowedActions = {};
+        addAllowedActions(req, row.data, users, allowedActions, permissionsOfPermissions, action, function() {
+          if (action in allowedActions) {
+            lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
+            addCalculatedProperties(row.data, req); 
+            callback(row.data, row.etag);
+          } else { 
+            lib.forbidden(req, res);
+          }
+        });
       }
     }
   });
@@ -215,12 +215,17 @@ function addAllowedActions(req, data, users, result, permissionsOfPermissions, a
   }
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     if (permissions[OPERATIONPROPERTIES[i]] !== undefined) {
-      for (var j=0; j<users.length; j++) {
-        var user = users[j];
-        if ((user === null && permissions[OPERATIONPROPERTIES[i]].indexOf(INCOGNITO) > -1) ||
-            (user !== null && permissions[OPERATIONPROPERTIES[i]].indexOf(ANYONE) > -1) ||
-            (user !== null && permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1 )) { 
+      if (users === null) {
+        if (permissions[OPERATIONPROPERTIES[i]].indexOf(INCOGNITO) > -1) { 
           result[OPERATIONS[i]] = true;
+        }
+      } else {
+        for (var j=0; j<users.length; j++) {
+          var user = users[j];
+          if (permissions[OPERATIONPROPERTIES[i]].indexOf(ANYONE) > -1 ||
+              permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1 ) { 
+            result[OPERATIONS[i]] = true;
+          }
         }
       }
     }
