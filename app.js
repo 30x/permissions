@@ -101,7 +101,7 @@ function addCalculatedProperties(permissions, req) {
   permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
 }
 
-function getPermissionsThen(req, res, subject, action, callback) {
+function getPermissionsThen(req, res, subject, action, permissionsOfPermissions, callback) {
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   var key = lib.internalizeURL(subject, req.headers.host)
   pool.query(query,[key], function (err, pg_res) {
@@ -117,7 +117,7 @@ function getPermissionsThen(req, res, subject, action, callback) {
         var user = lib.getUser(req);
         if (user !== null) {
           var allowedActions = {};
-          addAllowedActions(req, row.data, user, allowedActions, true, function() {
+          addAllowedActions(req, row.data, user, allowedActions, permissionsOfPermissions, action, function() {
             if (action in allowedActions) {
               lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
               addCalculatedProperties(row.data, req); 
@@ -135,13 +135,13 @@ function getPermissionsThen(req, res, subject, action, callback) {
 }
 
 function getPermissions(req, res, subject) {
-  getPermissionsThen(req, res, subject, 'read', function(permissions, etag) {
+  getPermissionsThen(req, res, subject, 'read', true, function(permissions, etag) {
     lib.found(req, res, permissions, etag);
   });
 }
 
 function deletePermissions(req, res, subject) {
-  getPermissionsThen(req, res, subject, 'delete', function(permissions, etag) {
+  getPermissionsThen(req, res, subject, 'delete', true, function(permissions, etag) {
     var query = 'DELETE FROM permissions WHERE subject = $1'
     var key = lib.internalizeURL(subject, req.headers.host)
     pool.query(query, [key], function (err, pg_res) {
@@ -184,7 +184,7 @@ function mergePatch(target, patch) {
 
 function updatePermissions(req, res, patch) {
   var subject = url.parse(req.url).search.substring(1);
-  getPermissionsThen(req, res, subject, 'update', function(permissions, etag) {
+  getPermissionsThen(req, res, subject, 'update', true, function(permissions, etag) {
     var patchedPermissions = mergePatch(permissions, patch);
     lib.internalizeURLs(patchedPermissions, req.headers.host);
     var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 RETURNING etag'
@@ -205,7 +205,7 @@ function updatePermissions(req, res, patch) {
   });
 }
 
-function addAllowedActions(req, data, user, result, permissionsOfPermissions, callback) {
+function addAllowedActions(req, data, user, result, permissionsOfPermissions, action, callback) {
   var permissions;
   if (permissionsOfPermissions) { 
     permissions = data;
@@ -220,10 +220,10 @@ function addAllowedActions(req, data, user, result, permissionsOfPermissions, ca
     }
   }
   var sharingSets = data.governs.sharingSets;
-  if (sharingSets !== undefined && sharingSets.length > 0) {
+  if (!(action in result) && sharingSets !== undefined && sharingSets.length > 0) {
     var count = 0;
     for (var j = 0; j < sharingSets.length; j++) {
-      readAllowedActions(req, sharingSets[j], user, result, permissionsOfPermissions, function() {
+      readAllowedActions(req, sharingSets[j], user, result, permissionsOfPermissions, action, function() {
         if (++count == sharingSets.length) {
           callback(200);
         }
@@ -234,7 +234,7 @@ function addAllowedActions(req, data, user, result, permissionsOfPermissions, ca
   }
 }
 
-function readAllowedActions(req, resource, user, result, permissionsOfPermissions, callback) {
+function readAllowedActions(req, resource, user, result, permissionsOfPermissions, action, callback) {
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   var key = lib.internalizeURL(resource, req.headers.host)
   pool.query(query, [key], function (err, pg_res) {
@@ -244,7 +244,7 @@ function readAllowedActions(req, resource, user, result, permissionsOfPermission
       if (pg_res.rowCount === 0) { 
         callback(404);
       } else {
-        addAllowedActions(req, pg_res.rows[0].data, user, result, permissionsOfPermissions, callback);
+        addAllowedActions(req, pg_res.rows[0].data, user, result, permissionsOfPermissions, action, callback);
       }
     }
   });
@@ -258,7 +258,7 @@ function getAllowedActions(req, res, queryString) {
   if (queryParts.user !== undefined) {
     user = lib.internalizeURL(queryParts.user, req.headers.host);
   }
-  readAllowedActions(req, resource, user, allowedActions, false, function(statusCode) {
+  readAllowedActions(req, resource, user, allowedActions, false, null, function(statusCode) {
     if (statusCode == 200) {
       lib.found(req, res, Object.keys(allowedActions));
     } else if (statusCode == 404) {
@@ -304,7 +304,7 @@ function fetchUsersWhoCanSee(resource, result, callback) {
 function getUsersWhoCanSee(req, res, resource) {
   var result = {};
   resource = lib.internalizeURL(resource, req.headers.host);
-  getPermissionsThen(req, res, resource, "read", function (permissions, etag) {
+  getPermissionsThen(req, res, resource, "read", true, function (permissions, etag) {
     addUsersWhoCanSee(permissions, result, function() {
       lib.found(req, res, Object.keys(result));
     });
@@ -341,20 +341,22 @@ function getResourcesSharedWith(req, res, user) {
 }
 
 function getResourcesInSharingSet(req, res, sharingSet) {
-  var user = lib.internalizeURL(sharingSet, req.headers.host);
-  pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"sharingSets":["' + sharingSet + '"]}}\'', function (err, pg_res) {
-    if (err) {
-      lib.badRequest(res, err);
-    }
-    else {
-      var result = [];
-      var rows = pg_res.rows;
-      for (var i = 0; i < rows.length; i++) {
-        lib.externalizeURLs(rows[i].data.governs, req.host); 
-        result.push(rows[i].data.governs);
+  sharingSet = lib.internalizeURL(sharingSet, req.headers.host);
+  getPermissionsThen(req, res, sharingSet, 'read', false, function(permissions, etag) {
+    pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"sharingSets":["' + sharingSet + '"]}}\'', function (err, pg_res) {
+      if (err) {
+        lib.badRequest(res, err);
       }
-      lib.found(req, res, result);
-    }
+      else {
+        var result = [];
+        var rows = pg_res.rows;
+        for (var i = 0; i < rows.length; i++) {
+            lib.externalizeURLs(rows[i].data.governs, req.host); 
+            result.push(rows[i].data.governs);
+        }
+        lib.found(req, res, result);
+      }
+    });
   });
 }
 

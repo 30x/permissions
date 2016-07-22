@@ -40,7 +40,6 @@ permissions = {
     },
  'readers': [USER1],
  'deleters': [USER1],
- 'creators': [USER1],
  'updaters': [USER1]     
 }
 url = 'http://localhost:8080' + '/permissions' 
@@ -92,6 +91,14 @@ if r.status_code == 200:
         print 'incorrect contents of http://apigee.com/o/coke sharingSet %s' % contents
 else:
     print 'failed to return contents of http://apigee.com/o/coke sharingSet %s %s' % (r.status_code, r.text)
+
+url = 'http://localhost:8080' + '/resources-in-sharing-set?%s' % 'http://apigee.com/o/coke'
+headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN2}
+r = requests.get(url, headers=headers, json=permissions)
+if r.status_code == 403:
+    print 'correctly refused to return sharing set contents to unauthorized user'
+else:
+    print 'failed to refused to return sharing set contents to unauthorized user %s' % r.status_code
 
 team = {
  'isA': 'Team',
