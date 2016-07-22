@@ -63,8 +63,16 @@ function primCreateTeam (req, res, team) {
       lib.createPermissonsFor(req, team._self, sharingSets, function(statusCode, resourceURL){
         if (statusCode == 201) {
           console.log('permissions created for resource ' + resourceURL);
+          lib.created(req, res, team, team._self, etag);
         } else {
           console.log('failed to create permissions for ' + resourceURL + ' statusCode ' + statusCode)
+          pool.query('DELETE FROM teams WHERE id = $1', [key], function (err, pg_res) {
+            if (err) {
+              lib.internalError(res, err);
+            } else {
+              lib.internalError('failed to create permissions for new team')
+            }
+          });
         }
       });
     }
