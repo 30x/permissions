@@ -113,7 +113,7 @@ function found(req, res, body, etag, location) {
   if (etag !== undefined) {
     headers['Etag'] = etag;
   } 
-  respond(req, res, 200, headers, body);
+  respond(req, res, 200, headers, externalizeURLs(body, req.headers.host));
 }
 
 function created(req, res, body, location, etag) {
@@ -135,9 +135,8 @@ function respond(req, res, status, headers, body) {
     res.writeHead(status, headers);
     res.end(body);
   } else { 
-    headers['Content-Length'] = 0;
     res.writeHead(status, headers);
-    res.end(body);
+    res.end();
   }
 }
 
@@ -160,33 +159,22 @@ function internalizeURLs(jsObject, authority) {
     var httpsString = 'https://' + authority;
     for(var key in jsObject) {
       if (jsObject.hasOwnProperty(key)) {
-        var val = jsObject[key];
-        if (typeof val == 'string') {
-          if (val.lastIndexOf(httpString) === 0) {
-            jsObject[key] = val.substring(httpString.length);
-          } else if (val.lastIndexOf(httpsString) === 0) {
-            jsObject[key] = val.substring(httpsString.length);
-          }
-        } else if (Array.isArray(val)) {
-          for (var i = 0; i < val.length; i++) {
-            var vali = val[i];
-            if (typeof vali == 'string') {
-              if (vali.lastIndexOf(httpString) === 0) {
-                val[i] = vali.substring(httpString.length);
-              } else if (vali.lastIndexOf(httpsString) === 0) {
-                val[i] = vali.substring(httpsString.length);
-              }
-            } else {
-              internalizeURLs(vali, authority);
-            }             
-          }
-        } else {
-          internalizeURLs(val, authority);
-        }
+        jsObject[key] = internalizeURLs(jsObject[key], authority);
       }
     }
+  } else if (Array.isArray(jsObject)) {
+    for (var i = 0; i < jsObject.length; i++) {
+      jsObject[i] = internalizeURLs(jsObject[i], authority);
+    }             
+  } else if (typeof vali == 'string') {
+    if (jsObject.lastIndexOf(httpString) === 0) {
+      return jsObject.substring(httpString.length);
+    } else if (jsObject.lastIndexOf(httpsString) === 0) {
+      return jsObject.substring(httpsString.length);
+    }
   }
-}  
+  return jsObject;
+}
 
 function externalizeURLs(jsObject, authority, protocol) {
   //add http://authority or https://authority to the front of any urls
@@ -195,27 +183,19 @@ function externalizeURLs(jsObject, authority, protocol) {
     for(var key in jsObject) {
       if (jsObject.hasOwnProperty(key)) {
         var val = jsObject[key];
-        if (typeof val == 'string') {
-          if (val.lastIndexOf('/') === 0) {
-            jsObject[key] = prefix + val;
-          }
-        } else if (Array.isArray(val)) {
-          for (var i = 0; i < val.length; i++) {
-            var vali = val[i];
-            if (typeof vali == 'string') {
-              if (vali.lastIndexOf('/') === 0) {
-                val[i] = prefix + val;
-              } else {
-                internalizeURLs(vali, authority);
-              }
-            }             
-          }
-        } else {
-          internalizeURLs(val, authority);
-        }
+        externalizeURLs(jsObject[key], authority);
       }
     }
-  }
+  } else if (Array.isArray(jsObject)) {
+    for (var i = 0; i < jsObject.length; i++) {
+      jsObject[i] = externalizeURLs(jsObject[i], authority);
+    }
+  } else if (typeof jsObject == 'string') {
+    if (jsObject.lastIndexOf('/') === 0) {
+      return prefix + jsObject;
+    }
+  }             
+  return jsObject
 }  
 
 function withPermissionsDo(req, resourceURL, callback) {

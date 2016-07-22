@@ -55,9 +55,9 @@ function calculateSharedWith(permissions) {
   var result = {};
   function listUsers (obj) {
     for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
-      var users = obj[OPERATIONPROPERTIES[i]];
-      if (users !== undefined) {
-        for (var j = 0; j < users.length; j++) {result[users[j]] = true;}
+      var actors = obj[OPERATIONPROPERTIES[i]];
+      if (actors !== undefined) {
+        for (var j = 0; j < actors.length; j++) {result[actors[j]] = true;}
       }
     }
   }
@@ -116,18 +116,20 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
       else {
         var row = pg_res.rows[0];
         var user = lib.getUser(req);
-        var users = null;
-        if (user != null) {
-          users = [user];
-        }
-        var allowedActions = {};
-        addAllowedActions(req, row.data, users, allowedActions, permissionsOfPermissions, action, function() {
-          if (action in allowedActions) {
-            lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
-            addCalculatedProperties(row.data, req); 
-            callback(row.data, row.etag);
-          } else { 
-            lib.forbidden(req, res);
+        withActorsDo(req, user, function(err, user, actors) {
+          if (err) {
+            lib.internalError(res, err);
+          } else {
+            var allowedActions = {};
+            addAllowedActions(req, row.data, actors, allowedActions, permissionsOfPermissions, action, function() {
+              if (action in allowedActions) {
+                lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
+                addCalculatedProperties(row.data, req); 
+                callback(row.data, row.etag);
+              } else { 
+                lib.forbidden(req, res);
+              }
+            });
           }
         });
       }
@@ -160,33 +162,10 @@ function deletePermissions(req, res, subject) {
   });
 }
 
-function mergePatch(target, patch) {
-  if (typeof patch == 'object') {
-    if (typeof target != 'object') {
-      target = {}; // don't just return patch since it may have nulls; perform the merge
-    }
-    for (var name in patch) {
-      if (patch.hasOwnProperty(name)) {
-        var value = patch[name];
-        if (value === null) {
-          if (name in target) {
-            delete target[name];
-          }
-        } else {
-           target[name] = mergePatch(target[name], value);
-        }
-      }
-    }
-    return target;
-  } else {
-    return patch;
-  }
-}
-
 function updatePermissions(req, res, patch) {
   var subject = url.parse(req.url).search.substring(1);
   getPermissionsThen(req, res, subject, 'update', true, function(permissions, etag) {
-    var patchedPermissions = mergePatch(permissions, patch);
+    var patchedPermissions = lib.mergePatch(permissions, patch);
     lib.internalizeURLs(patchedPermissions, req.headers.host);
     var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 RETURNING etag'
     var key = lib.internalizeURL(subject, req.headers.host)
@@ -206,7 +185,7 @@ function updatePermissions(req, res, patch) {
   });
 }
 
-function addAllowedActions(req, data, users, result, permissionsOfPermissions, action, callback) {
+function addAllowedActions(req, data, actors, result, permissionsOfPermissions, action, callback) {
   var permissions;
   if (permissionsOfPermissions) { 
     permissions = data;
@@ -215,13 +194,13 @@ function addAllowedActions(req, data, users, result, permissionsOfPermissions, a
   }
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     if (permissions[OPERATIONPROPERTIES[i]] !== undefined) {
-      if (users === null) {
+      if (actors === null) {
         if (permissions[OPERATIONPROPERTIES[i]].indexOf(INCOGNITO) > -1) { 
           result[OPERATIONS[i]] = true;
         }
       } else {
-        for (var j=0; j<users.length; j++) {
-          var user = users[j];
+        for (var j=0; j<actors.length; j++) {
+          var user = actors[j];
           if (permissions[OPERATIONPROPERTIES[i]].indexOf(ANYONE) > -1 ||
               permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1 ) { 
             result[OPERATIONS[i]] = true;
@@ -234,7 +213,7 @@ function addAllowedActions(req, data, users, result, permissionsOfPermissions, a
   if (!(action in result) && sharingSets !== undefined && sharingSets.length > 0) {
     var count = 0;
     for (var j = 0; j < sharingSets.length; j++) {
-      readAllowedActions(req, sharingSets[j], users, result, permissionsOfPermissions, action, function() {
+      readAllowedActions(req, sharingSets[j], actors, result, permissionsOfPermissions, action, function() {
         if (++count == sharingSets.length) {
           callback(200);
         }
@@ -245,7 +224,7 @@ function addAllowedActions(req, data, users, result, permissionsOfPermissions, a
   }
 }
 
-function readAllowedActions(req, resource, users, result, permissionsOfPermissions, action, callback) {
+function readAllowedActions(req, resource, actors, result, permissionsOfPermissions, action, callback) {
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   var key = lib.internalizeURL(resource, req.headers.host)
   pool.query(query, [key], function (err, pg_res) {
@@ -255,7 +234,7 @@ function readAllowedActions(req, resource, users, result, permissionsOfPermissio
       if (pg_res.rowCount === 0) { 
         callback(404);
       } else {
-        addAllowedActions(req, pg_res.rows[0].data, users, result, permissionsOfPermissions, action, callback);
+        addAllowedActions(req, pg_res.rows[0].data, actors, result, permissionsOfPermissions, action, callback);
       }
     }
   });
@@ -269,12 +248,11 @@ function getAllowedActions(req, res, queryString) {
   if (queryParts.user !== undefined) {
     user = lib.internalizeURL(queryParts.user, req.headers.host);
   }
-  withTeamsDo(req, user, function(err, user, teams) {
+  withActorsDo(req, user, function(err, user, actors) {
     if (err) {
       lib.internalError(res, err);
     } else {
-      teams.push(user);
-      readAllowedActions(req, resource, [user], allowedActions, false, null, function(statusCode) {
+      readAllowedActions(req, resource, actors, allowedActions, false, null, function(statusCode) {
         if (statusCode == 200) {
           lib.found(req, res, Object.keys(allowedActions));
         } else if (statusCode == 404) {
@@ -378,7 +356,7 @@ function getResourcesInSharingSet(req, res, sharingSet) {
   });
 }
 
-function withTeamsDo(req, user, callback) {
+function withActorsDo(req, user, callback) {
   if (user !== null) {
     var teamsURL = PROTOCOL + '://' + req.headers.host + '/teams?' + user;
     var headers = {
@@ -398,14 +376,16 @@ function withTeamsDo(req, user, callback) {
       }
       else {
         if (response.statusCode == 200) { 
-          callback(null, user, body)
+          body.push(user);
+          lib.internalizeURLs(body, req.headers.host);
+          callback(null, user, body);
         } else {
-          callback(response.statusCode, user)
+          callback(response.statusCode, user);
         }
       }
     });
   } else {
-    callback(null, user, [])
+    callback(null, user, null);
   }
 }
 
