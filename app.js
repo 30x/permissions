@@ -87,9 +87,8 @@ function createPermissions(req, res, permissions) {
           }
         } else {
           var etag = pg_res.rows[0].etag;
-          var selfURL = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs._self;
-          permissions['_self'] = selfURL;
-          lib.created(req, res, permissions, selfURL, etag);
+          addCalculatedProperties(permissions, req);
+          lib.created(req, res, permissions, permissions._self, etag);
         }
       });
     } else {

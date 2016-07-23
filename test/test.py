@@ -63,7 +63,6 @@ def main():
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get(org_permissions, headers=headers, json=permissions)
     if r.status_code == 200:
-        print r.text
         server_permission = r.json()
         if all(item in server_permission.items() for item in permissions.items()):
             print 'correctly retrieved permissions'
