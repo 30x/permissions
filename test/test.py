@@ -160,6 +160,19 @@ def main():
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
 
+    url = 'http://localhost:8080' + '/resources-in-sharing-set?%s' % 'http://apigee.com/o/coke'
+    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        contents = r.json()
+        if [perm['_self'] for perm in contents] == ['http://apigee.com/o/coke/teams']:
+            print 'correctly returned contents of http://apigee.com/o/coke sharingSet after update of permissions to use team'
+        else:
+            print 'incorrect contents of http://apigee.com/o/coke sharingSet %s' % contents
+    else:
+        print 'failed to return contents of http://apigee.com/o/coke sharingSet %s %s' % (r.status_code, r.text)
+
+
 
 if __name__ == '__main__':
     main()
