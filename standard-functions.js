@@ -1,7 +1,8 @@
 'use strict';
+var request = require('request');
 
 var PROTOCOL = process.env.PROTOCOL || 'http';
-var request = require('request');
+var INTERNALURLPREFIX = 'protocol://authority';
 
 function getPostBody(req, res, callback) {
   var body = '';
@@ -144,9 +145,9 @@ function internalizeURL(anURL, authority) {
   var httpString = 'http://' + authority;
   var httpsString = 'https://' + authority;  
   if (anURL.lastIndexOf(httpString) === 0) {
-    return anURL.substring(httpString.length);
+    return INTERNALURLPREFIX + anURL.substring(httpString.length);
   } else if (anURL.lastIndexOf(httpsString) === 0) {
-    return anURL.substring(httpsString.length);
+    return INTERNALURLPREFIX + anURL.substring(httpsString.length);
   } else {
     return anURL;
   }
@@ -168,9 +169,9 @@ function internalizeURLs(jsObject, authority) {
     }             
   } else if (typeof vali == 'string') {
     if (jsObject.lastIndexOf(httpString) === 0) {
-      return jsObject.substring(httpString.length);
+      return INTERNALURLPREFIX + jsObject.substring(httpString.length);
     } else if (jsObject.lastIndexOf(httpsString) === 0) {
-      return jsObject.substring(httpsString.length);
+      return INTERNALURLPREFIX + jsObject.substring(httpsString.length);
     }
   }
   return jsObject;
@@ -182,8 +183,7 @@ function externalizeURLs(jsObject, authority, protocol) {
     var prefix = protocol + '://' + authority;
     for(var key in jsObject) {
       if (jsObject.hasOwnProperty(key)) {
-        var val = jsObject[key];
-        externalizeURLs(jsObject[key], authority);
+        jsObject[key] = externalizeURLs(jsObject[key], authority);
       }
     }
   } else if (Array.isArray(jsObject)) {
@@ -191,8 +191,8 @@ function externalizeURLs(jsObject, authority, protocol) {
       jsObject[i] = externalizeURLs(jsObject[i], authority);
     }
   } else if (typeof jsObject == 'string') {
-    if (jsObject.lastIndexOf('/') === 0) {
-      return prefix + jsObject;
+    if (jsObject.lastIndexOf('INTERNALURLPREFIX') === 0) {
+      return prefix + jsObject.substring(INTERNALURLPREFIX.length);
     }
   }             
   return jsObject

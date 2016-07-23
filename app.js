@@ -99,7 +99,7 @@ function createPermissions(req, res, permissions) {
 }
 
 function addCalculatedProperties(permissions, req) {
-  permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs;
+  permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs._self;
 }
 
 function getPermissionsThen(req, res, subject, action, permissionsOfPermissions, callback) {
@@ -146,8 +146,7 @@ function getPermissions(req, res, subject) {
 function deletePermissions(req, res, subject) {
   getPermissionsThen(req, res, subject, 'delete', true, function(permissions, etag) {
     var query = 'DELETE FROM permissions WHERE subject = $1'
-    var key = lib.internalizeURL(subject, req.headers.host)
-    pool.query(query, [key], function (err, pg_res) {
+    pool.query(query, [subject], function (err, pg_res) {
       if (err) { 
         lib.badRequest(res, err);
       } else { 
