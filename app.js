@@ -163,6 +163,7 @@ function deletePermissions(req, res, subject) {
 }
 
 function updatePermissions(req, res, patch) {
+  patch = lib.internalizeURLs(patch);
   var subject = url.parse(req.url).search.substring(1);
   getPermissionsThen(req, res, subject, 'update', true, function(permissions, etag) {
     var patchedPermissions = lib.mergePatch(permissions, patch);
@@ -400,9 +401,9 @@ function requestHandler(req, res) {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search !== null) {
       if (req.method == 'GET') { 
-        getPermissions(req, res, req_url.search.substring(1));
+        getPermissions(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else if (req.method == 'DELETE') { 
-        deletePermissions(req, res, req_url.search.substring(1));
+        deletePermissions(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else if (req.method == 'PATCH') { 
         lib.getPostBody(req, res, updatePermissions);
       } else {
@@ -410,25 +411,25 @@ function requestHandler(req, res) {
       }
     } else if (req_url.pathname == '/allowed-actions' && req_url.search !== null){ 
       if (req.method == 'GET') {
-        getAllowedActions(req, res, req_url.search.substring(1));
+        getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else {
         lib.methodNotAllowed(req, res);
       }
     } else if (req_url.pathname == '/resources-shared-with' && req_url.search !== null) {
       if (req.method == 'GET') {
-        getResourcesSharedWith(req, res, req_url.search.substring(1));
+        getResourcesSharedWith(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else {
         lib.methodNotAllowed(req, res);
       }
     } else  if (req_url.pathname == '/resources-in-sharing-set' && req_url.search !== null) {
       if (req.method == 'GET') {
-        getResourcesInSharingSet(req, res, req_url.search.substring(1));
+        getResourcesInSharingSet(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else {
         lib.methodNotAllowed(req, res);
       }
     } else if (req_url.pathname == '/users-who-can-see' && req_url.search !== null) {
       if (req.method == 'GET') {
-        getUsersWhoCanSee(req, res, req_url.search.substring(1));
+        getUsersWhoCanSee(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else {
         lib.methodNotAllowed(req, res);
       }
