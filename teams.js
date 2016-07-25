@@ -26,19 +26,19 @@ function verifyTeam(team) {
           return 'members must be URLs encoded as strings';
         }
       }
-      if (Array.isArray(team.sharingSets)) {
-        if (team.sharingSets.length > 0) {
-          for (var i = 0; i < team.sharingSets.length; i++) {
-            if (!typeof team.sharingSets[i] == 'string') {
+      if (Array.isArray(team.defaultPermissions)) {
+        if (team.defaultPermissions.length > 0) {
+          for (var i = 0; i < team.defaultPermissions.length; i++) {
+            if (!typeof team.defaultPermissions[i] == 'string') {
             return 'members must be URLs encoded as strings';
             }
           }
           return null;
         } else {
-          return 'must provide at least one sharingSet';
+          return 'must provide at least one defaultPermissions';
         }
       } else {
-        return 'sharingSets must present and must be an Array'
+        return 'defaultPermissions must present and must be an Array'
       }
     }
     else {
@@ -51,10 +51,10 @@ function verifyTeam(team) {
 
 function primCreateTeam (req, res, team) {
   lib.internalizeURLs(team, req.headers.host);
-  var sharingSets = team.sharingSets;
-  delete team.sharingSets;
+  var defaultPermissions = team.defaultPermissions;
+  delete team.defaultPermissions;
   var id = uuid();
-  lib.createPermissonsFor(req, selfURL(id, req), sharingSets, function(statusCode, resourceURL){
+  lib.createPermissonsFor(req, selfURL(id, req), defaultPermissions, function(statusCode, resourceURL){
     // Create permissions first. If this fails, there will be a useless but harmless permissions document.
     // If we do things the other way around, a team without matchin permissions is much worse.
     if (statusCode == 201) {

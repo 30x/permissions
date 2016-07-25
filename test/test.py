@@ -75,7 +75,7 @@ def main():
     'isA': 'Permissions',
     'governs': 
         {'_self': 'http://apigee.com/o/coke/teams',
-        'sharingSets': ['http://apigee.com/o/coke']
+        'defaultPermissions': ['http://apigee.com/o/coke']
         }
     }
 
@@ -117,7 +117,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Org admins',
-        'sharingSets': ['http://apigee.com/o/coke/teams'],
+        'defaultPermissions': ['http://apigee.com/o/coke/teams'],
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 
