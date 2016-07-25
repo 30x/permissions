@@ -13,7 +13,7 @@ with conn:
         cur.execute('DROP TABLE IF EXISTS permissions')
         cur.execute('DROP TABLE IF EXISTS teams')
         cur.execute('CREATE TABLE permissions (subject text primary key, etag serial, data jsonb)')
-        cur.execute('CREATE TABLE teams (id serial primary key, etag serial, data jsonb)')
+        cur.execute('CREATE TABLE teams (id text primary key, etag serial, data jsonb)')
 
 def b64_decode(data):
     missing_padding = (4 - len(data) % 4) % 4
@@ -171,8 +171,6 @@ def main():
             print 'incorrect contents of http://apigee.com/o/coke sharingSet %s' % contents
     else:
         print 'failed to return contents of http://apigee.com/o/coke sharingSet %s %s' % (r.status_code, r.text)
-
-
 
 if __name__ == '__main__':
     main()

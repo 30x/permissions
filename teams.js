@@ -4,6 +4,7 @@ var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
+var uuid = require('node-uuid');
 
 var PROTOCOL = process.env.PROTOCOL || 'http';
 var TEAM = '/team/';
@@ -52,29 +53,20 @@ function primCreateTeam (req, res, team) {
   lib.internalizeURLs(team, req.headers.host);
   var sharingSets = team.sharingSets;
   delete team.sharingSets;
-  pool.query('INSERT INTO teams (data) values($1) RETURNING *', [team], function (err, pg_res) {
-    if (err) {
-      lib.internalError(res, err);
-    } else {
-      var etag = pg_res.rows[0].etag;
-      var key = pg_res.rows[0].id;
-      addCalculatedProperties(team, key, req)
-      lib.created(req, res, team, team._self, etag);
-      lib.createPermissonsFor(req, team._self, sharingSets, function(statusCode, resourceURL){
-        if (statusCode == 201) {
-          console.log('permissions created for resource ' + resourceURL);
-          lib.created(req, res, team, team._self, etag);
+  var id = uuid();
+  lib.createPermissonsFor(req, selfURL(id, req), sharingSets, function(statusCode, resourceURL){
+    if (statusCode == 201) {
+      pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
+        if (err) {
+          lib.internalError(res, err);
         } else {
-          console.log('failed to create permissions for ' + resourceURL + ' statusCode ' + statusCode)
-          pool.query('DELETE FROM teams WHERE id = $1', [key], function (err, pg_res) {
-            if (err) {
-              lib.internalError(res, err);
-            } else {
-              lib.internalError('failed to create permissions for new team')
-            }
-          });
+          var etag = pg_res.rows[0].etag;
+          team._self = selfURL(id, req); 
+          lib.created(req, res, team, team._self, etag);
         }
       });
+    } else {
+      lib.internalError(res, 'failed to create permissions for ' + resourceURL + ' statusCode ' + statusCode)
     }
   });
 }
@@ -88,8 +80,8 @@ function createTeam(req, res, team) {
   }
 }
 
-function addCalculatedProperties(team, key, req) {
-  team._self = PROTOCOL + '://' + req.headers.host + TEAM + key;
+function selfURL(key, req) {
+  return PROTOCOL + '://' + req.headers.host + TEAM + key;
 }
 
 function getTeam(req, res, id) {
@@ -105,8 +97,8 @@ function getTeam(req, res, id) {
         else {
           var row = pg_res.rows[0];
           lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
-          addCalculatedProperties(row.data, req); 
-          lib.found(req, res, roe.data, row.etag);
+          row.data._self = selfURL(req, id); 
+          lib.found(req, res, row.data, row.etag);
         }
       }
     });
@@ -115,15 +107,15 @@ function getTeam(req, res, id) {
 
 function deleteTeam(req, res, id) {
   lib.ifUserHasRequestTargetPermissionThen(req, res, 'delete', function() {
-    pool.query('DELETE FROM teams WHERE id = $1', [id], function (err, pg_res) {
+    pool.query('DELETE FROM teams WHERE id = $1 RETURNING *', [id], function (err, pg_res) {
       if (err) { 
         lib.badRequest(res, err);
       } else { 
         if (pg_res.rowCount === 0) {
-          addCalculatedProperties(key, req); 
           lib.notFound(req, res);
         } else {
-          lib.found(req, res, permissions, etag);
+          var team = pg_res.rows[0];
+          lib.found(req, res, team, team.etag);
         }
       }
     });
@@ -141,7 +133,7 @@ function updateTeam(req, res, id, patch) {
           lib.notFound(req, res);
         } else {
           var row = pg_res.rows[0];
-          addCalculatedProperties(patchedPermissions, id, req); 
+          patchedPermissions._self = selfURL(id, req); 
           lib.found(req, res, team, row.etag);
         }
       }
@@ -201,7 +193,7 @@ function requestHandler(req, res) {
   }
 }
 
-pool.query('CREATE TABLE IF NOT EXISTS teams (id serial primary key, etag serial, data jsonb);', function(err, pg_res) {
+pool.query('CREATE TABLE IF NOT EXISTS teams (id text primary key, etag serial, data jsonb);', function(err, pg_res) {
   if(err) {
     console.error('error creating teams table', err);
   } else {
