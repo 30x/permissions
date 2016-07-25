@@ -75,7 +75,7 @@ def main():
     'isA': 'Permissions',
     'governs': 
         {'_self': 'http://apigee.com/o/coke/teams',
-        'defaultPermissions': ['http://apigee.com/o/coke']
+        'inheritsPermissionsFrom': ['http://apigee.com/o/coke']
         }
     }
 
@@ -100,11 +100,11 @@ def main():
     if r.status_code == 200:
         contents = r.json()
         if [perm['_self'] for perm in contents] == ['http://apigee.com/o/coke/teams']:
-            print 'correctly returned contents of http://apigee.com/o/coke sharingSet'
+            print 'correctly returned resources that get permissions from http://apigee.com/o/coke'
         else:
-            print 'incorrect contents of http://apigee.com/o/coke sharingSet %s' % contents
+            print 'incorrect resources that get permissions from http://apigee.com/o/coke %s' % contents
     else:
-        print 'failed to return contents of http://apigee.com/o/coke sharingSet %s %s' % (r.status_code, r.text)
+        print 'failed to return resources that get permissions from http://apigee.com/o/coke %s %s' % (r.status_code, r.text)
 
     url = 'http://localhost:8080' + '/resources-in-sharing-set?%s' % 'http://apigee.com/o/coke'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN2}
@@ -117,7 +117,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Org admins',
-        'defaultPermissions': ['http://apigee.com/o/coke/teams'],
+        'inheritsPermissionsFrom': ['http://apigee.com/o/coke/teams'],
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 

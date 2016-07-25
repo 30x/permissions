@@ -21,8 +21,8 @@ var pool = new Pool(config);
 
 function verifyPermissions(permissions, req) {
   if (permissions.isA == 'Permissions') {
-    if (permissions.hasOwnProperty('defaultPermissions')) {
-      return 'defaultPermissions for a Permissions resource independent of defaultPermissions for the resource it governs not supported'
+    if (permissions.hasOwnProperty('inheritsPermissionsFrom')) {
+      return 'inheritsPermissionsFrom for a Permissions resource independent of inheritsPermissionsFrom for the resource it governs not supported'
     } else {
       if (permissions.governs !== undefined) {
         var governed = permissions.governs;
@@ -31,7 +31,7 @@ function verifyPermissions(permissions, req) {
             return 'sharingSet must be an Array'
           } else {
             var user = lib.getUser(req);
-            if (permissions.updaters === undefined && governed.defaultPermissions === undefined) {
+            if (permissions.updaters === undefined && governed.inheritsPermissionsFrom === undefined) {
               permissions.updaters = [user];
             }
             return null;
@@ -208,12 +208,12 @@ function addAllowedActions(req, data, actors, result, permissionsOfPermissions, 
       }
     }
   }
-  var defaultPermissions = data.governs.defaultPermissions;
-  if (!(action in result) && defaultPermissions !== undefined && defaultPermissions.length > 0) {
+  var inheritsPermissionsFrom = data.governs.inheritsPermissionsFrom;
+  if (!(action in result) && inheritsPermissionsFrom !== undefined && inheritsPermissionsFrom.length > 0) {
     var count = 0;
-    for (var j = 0; j < defaultPermissions.length; j++) {
-      readAllowedActions(req, defaultPermissions[j], actors, result, permissionsOfPermissions, action, function() {
-        if (++count == defaultPermissions.length) {
+    for (var j = 0; j < inheritsPermissionsFrom.length; j++) {
+      readAllowedActions(req, inheritsPermissionsFrom[j], actors, result, permissionsOfPermissions, action, function() {
+        if (++count == inheritsPermissionsFrom.length) {
           callback(200);
         }
       });
@@ -271,11 +271,11 @@ function addUsersWhoCanSee(permissions, result, callback) {
       result[sharedWith[i]] = true;
     }
   }
-  var defaultPermissions = permissions.governs.defaultPermissions;
-  if (defaultPermissions !== undefined) {
+  var inheritsPermissionsFrom = permissions.governs.inheritsPermissionsFrom;
+  if (inheritsPermissionsFrom !== undefined) {
     var count = 0;
-    for (var j = 0; j < defaultPermissions.length; j++) {
-      fetchUsersWhoCanSee(defaultPermissions[j], result, function() {if (++count == defaultPermissions.length) {callback();}});
+    for (var j = 0; j < inheritsPermissionsFrom.length; j++) {
+      fetchUsersWhoCanSee(inheritsPermissionsFrom[j], result, function() {if (++count == inheritsPermissionsFrom.length) {callback();}});
     }
   } else {
     callback();
@@ -338,7 +338,7 @@ function getResourcesSharedWith(req, res, user) {
 function getResourcesInSharingSet(req, res, sharingSet) {
   sharingSet = lib.internalizeURL(sharingSet, req.headers.host);
   getPermissionsThen(req, res, sharingSet, 'read', false, function(permissions, etag) {
-    pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"defaultPermissions":["' + sharingSet + '"]}}\'', function (err, pg_res) {
+    pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"inheritsPermissionsFrom":["' + sharingSet + '"]}}\'', function (err, pg_res) {
       if (err) {
         lib.badRequest(res, err);
       }

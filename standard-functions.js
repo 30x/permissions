@@ -228,7 +228,7 @@ function withPermissionsDo(req, resourceURL, callback) {
   });
 }
 
-function createPermissonsFor(req, resourceURL, defaultPermissions, callback) {
+function createPermissonsFor(req, resourceURL, inheritsPermissionsFrom, callback) {
   var permissionsURL = PROTOCOL + '://' + req.headers.host + '/permissions';
   var headers = {
     'Accept': 'application/json'
@@ -240,7 +240,7 @@ function createPermissonsFor(req, resourceURL, defaultPermissions, callback) {
     isA: 'Permissions',
     governs: {
       _self: resourceURL,
-      defaultPermissions: defaultPermissions,
+      inheritsPermissionsFrom: inheritsPermissionsFrom,
     }
   }
   var options = {
@@ -337,8 +337,8 @@ function createResource(req, res, resource, primCreate) {
   } else {
     var count = 0;
     var errors = [];
-    for (var i=0; i < resource.defaultPermissions.length; i++) {
-      withPermissionsDo(req, resource.defaultPermissions[i], function(err, sharingSet, actions){
+    for (var i=0; i < resource.inheritsPermissionsFrom.length; i++) {
+      withPermissionsDo(req, resource.inheritsPermissionsFrom[i], function(err, sharingSet, actions){
         if (err == 404) {
           errors.push('sharingSet ' + sharingSet + ' is not a governed resource');
         } else if (err !== null) {
@@ -346,7 +346,7 @@ function createResource(req, res, resource, primCreate) {
         } else if (actions.indexOf('create') == -1) {
           errors.push('user not permitted to create in sharingSet ' + sharingSet);
         }
-        if (++count == resource.defaultPermissions.length) {
+        if (++count == resource.inheritsPermissionsFrom.length) {
           if (errors.length == 0) {
             primCreate(req, res, resource);
           } else {
