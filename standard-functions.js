@@ -367,9 +367,9 @@ function createResource(req, res, resource, primCreate) {
   } else {
     var count = 0;
     var errors = [];
-    if (resource.inheritsPermissionsFrom !== undefined) {
-      for (var i=0; i < resource.inheritsPermissionsFrom.length; i++) {
-        withPermissionsDo(req, resource.inheritsPermissionsFrom[i], function(err, sharingSet, actions){
+    if (resource.inheritsPermissionsOf !== undefined) {
+      for (var i=0; i < resource.inheritsPermissionsOf.length; i++) {
+        withPermissionsDo(req, resource.inheritsPermissionsOf[i], function(err, sharingSet, actions){
           if (err == 404) {
             errors.push('sharingSet ' + sharingSet + ' is not a governed resource');
           } else if (err !== null) {
@@ -377,7 +377,7 @@ function createResource(req, res, resource, primCreate) {
           } else if (actions.indexOf('create') == -1) {
             errors.push('user not permitted to create in sharingSet ' + sharingSet);
           }
-          if (++count == resource.inheritsPermissionsFrom.length) {
+          if (++count == resource.inheritsPermissionsOf.length) {
             if (errors.length == 0) {
               primCreate(req, res, resource);
             } else {

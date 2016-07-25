@@ -24,17 +24,17 @@ function verifyPermissions(permissions, req) {
     permissions.isA = 'Permissions';
   }
   if (permissions.isA == 'Permissions') {
-    if (permissions.hasOwnProperty('inheritsPermissionsFrom')) {
-      return 'inheritsPermissionsFrom for a Permissions resource independent of inheritsPermissionsFrom for the resource it governs not supported'
+    if (permissions.inheritsPermissionsOf !== undefined) {
+      return 'inheritsPermissionsOf for a Permissions resource independent of inheritsPermissionsOf for the resource it governs not supported'
     } else {
       if (permissions.governs !== undefined) {
         var governed = permissions.governs;
         if (governed._self !== undefined) {
-          if (governed.inheritsPermissionsFrom !== undefined && !Array.isArray(governed.inheritsPermissionsFrom)) {
-            return 'inheritsPermissionsFrom must be an Array'
+          if (governed.inheritsPermissionsOf !== undefined && !Array.isArray(governed.inheritsPermissionsOf)) {
+            return 'inheritsPermissionsOf must be an Array'
           } else {
             var user = lib.getUser(req);
-            if (permissions.updaters === undefined && governed.inheritsPermissionsFrom === undefined) {
+            if (permissions.updaters === undefined && governed.inheritsPermissionsOf === undefined) {
               permissions.updaters = [user];
               permissions.readers = [user];
               permissions.writers = [user];
@@ -213,12 +213,12 @@ function addAllowedActions(req, data, actors, result, permissionsOfPermissions, 
       }
     }
   }
-  var inheritsPermissionsFrom = data.governs.inheritsPermissionsFrom;
-  if (!(action in result) && inheritsPermissionsFrom !== undefined && inheritsPermissionsFrom.length > 0) {
+  var inheritsPermissionsOf = data.governs.inheritsPermissionsOf;
+  if (!(action in result) && inheritsPermissionsOf !== undefined && inheritsPermissionsOf.length > 0) {
     var count = 0;
-    for (var j = 0; j < inheritsPermissionsFrom.length; j++) {
-      readAllowedActions(req, inheritsPermissionsFrom[j], actors, result, permissionsOfPermissions, action, function() {
-        if (++count == inheritsPermissionsFrom.length) {
+    for (var j = 0; j < inheritsPermissionsOf.length; j++) {
+      readAllowedActions(req, inheritsPermissionsOf[j], actors, result, permissionsOfPermissions, action, function() {
+        if (++count == inheritsPermissionsOf.length) {
           callback(200);
         }
       });
@@ -276,11 +276,11 @@ function addUsersWhoCanSee(permissions, result, callback) {
       result[sharedWith[i]] = true;
     }
   }
-  var inheritsPermissionsFrom = permissions.governs.inheritsPermissionsFrom;
-  if (inheritsPermissionsFrom !== undefined) {
+  var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
+  if (inheritsPermissionsOf !== undefined) {
     var count = 0;
-    for (var j = 0; j < inheritsPermissionsFrom.length; j++) {
-      fetchUsersWhoCanSee(inheritsPermissionsFrom[j], result, function() {if (++count == inheritsPermissionsFrom.length) {callback();}});
+    for (var j = 0; j < inheritsPermissionsOf.length; j++) {
+      fetchUsersWhoCanSee(inheritsPermissionsOf[j], result, function() {if (++count == inheritsPermissionsOf.length) {callback();}});
     }
   } else {
     callback();
@@ -343,7 +343,7 @@ function getResourcesSharedWith(req, res, user) {
 function getPermissionsHeirs(req, res, securedObject) {
   securedObject = lib.internalizeURL(securedObject, req.headers.host);
   getPermissionsThen(req, res, securedObject, 'read', false, function(permissions, etag) {
-    pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"inheritsPermissionsFrom":["' + securedObject + '"]}}\'', function (err, pg_res) {
+    pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"inheritsPermissionsOf":["' + securedObject + '"]}}\'', function (err, pg_res) {
       if (err) {
         lib.badRequest(res, err);
       }

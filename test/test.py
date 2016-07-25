@@ -84,7 +84,7 @@ def main():
     'isA': 'Permissions',
     'governs': 
         {'_self': 'http://apigee.com/o/coke/teams',
-        'inheritsPermissionsFrom': ['http://apigee.com/o/coke']
+        'inheritsPermissionsOf': ['http://apigee.com/o/coke']
         }
     }
 
@@ -134,7 +134,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Org admins',
-        'permissions': {'governs': {'inheritsPermissionsFrom': ['http://apigee.com/o/coke/teams']}},
+        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/coke/teams']}},
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 
