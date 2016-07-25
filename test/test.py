@@ -30,6 +30,9 @@ with open('token2.txt') as f:
     USER2 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
 
 def main():
+    
+    # Create permissions for Coke org (fail)
+
     permissions = {
     'isA': 'Permissions',
     'governs': 
@@ -50,6 +53,8 @@ def main():
         print 'correctly rejected permissions creation without user' 
     else:
         print 'failed to create permissions %s %s' % (r.status_code, r.text)
+    
+    # Create permissions for Coke org (succeed)
 
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.post(permissions_url, headers=headers, json=permissions)
@@ -59,6 +64,8 @@ def main():
     else:
         print 'failed to create permissions %s %s' % (r.status_code, r.text)
         return
+    
+    # Retrieve permissions for Coke org
 
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get(org_permissions, headers=headers, json=permissions)
@@ -70,6 +77,8 @@ def main():
             print 'retrieved permissions but comparison failed'
     else:
         print 'failed to create permissions %s %s' % (r.status_code, r.text)
+    
+    # Create permissions for Coke teams (succeed)
 
     permissions = {
     'isA': 'Permissions',
@@ -85,6 +94,8 @@ def main():
         print 'correctly accepted permission with no updater from logged-in user' 
     else:
         print 'incorrectly rejected permission with no updater from logged-in user %s %s' % (r.status_code, r.text)
+    
+    # Read permissions for Coke teams (fail)
 
     team_permissions = r.headers['Location']
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
@@ -93,6 +104,8 @@ def main():
         print 'correctly rejected read of permission with no user' 
     else:
         print 'incorrectly accepted read of permission with no user %s %s' % (r.status_code, r.text)
+    
+    # Read heirs of Coke org (succeed)
 
     url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
@@ -105,6 +118,8 @@ def main():
             print 'incorrect resources permissions heirs of http://apigee.com/o/coke %s' % heirs
     else:
         print 'failed to return permissions heirs of http://apigee.com/o/coke %s %s' % (r.status_code, r.text)
+    
+    # Read heirs of Coke org (fail)
 
     url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN2}
@@ -113,11 +128,13 @@ def main():
         print 'correctly refused to return sharing set heirs to unauthorized user'
     else:
         print 'failed to refuse to return sharing set heirs to unauthorized user %s' % r.status_code
+    
+    # Create Org Admins team
 
     team = {
         'isA': 'Team',
         'name': 'Org admins',
-        'inheritsPermissionsFrom': ['http://apigee.com/o/coke/teams'],
+        'permissions': {'governs': {'inheritsPermissionsFrom': ['http://apigee.com/o/coke/teams']}},
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 
@@ -128,6 +145,8 @@ def main():
         TEAM1 = r.headers['location']
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
+    
+    # Patch Coke org permissions to use team
 
     permissions_patch = {
     'governs': 
@@ -148,6 +167,8 @@ def main():
         print 'correctly patched permissions' 
     else:
         print 'failed to patch permissions %s %s' % (r.status_code, r.text)
+    
+    # Retrieve Coke org permissions
 
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get(org_permissions, headers=headers, json=permissions)
@@ -159,6 +180,8 @@ def main():
             print 'retrieved permissions but comparison failed %s' % r.text
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
+    
+    # Retrieve Coke org heirs
 
     url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}

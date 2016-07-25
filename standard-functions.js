@@ -254,6 +254,18 @@ function createPermissonsFor(req, res, resourceURL, permissions, callback) {
           creators: [user]
         }
       }  
+    } else {
+      if (permissions.governs === undefined) {
+        badRequest(res, 'governs must be set ofr permissions')
+      } else {
+        if (permissions.governs._self === undefined) {
+          permissions.governs._self = resourceURL
+        } else {
+          if (permissions.governs._self != resourceURL) {
+            badRequest(res, 'value of governs must match resourceURL')
+          }
+        }
+      }
     }
     var options = {
       url: permissionsURL,
@@ -355,23 +367,27 @@ function createResource(req, res, resource, primCreate) {
   } else {
     var count = 0;
     var errors = [];
-    for (var i=0; i < resource.inheritsPermissionsFrom.length; i++) {
-      withPermissionsDo(req, resource.inheritsPermissionsFrom[i], function(err, sharingSet, actions){
-        if (err == 404) {
-          errors.push('sharingSet ' + sharingSet + ' is not a governed resource');
-        } else if (err !== null) {
-          errors.push(err);
-        } else if (actions.indexOf('create') == -1) {
-          errors.push('user not permitted to create in sharingSet ' + sharingSet);
-        }
-        if (++count == resource.inheritsPermissionsFrom.length) {
-          if (errors.length == 0) {
-            primCreate(req, res, resource);
-          } else {
-            badRequest(res, errors);
+    if (resource.inheritsPermissionsFrom !== undefined) {
+      for (var i=0; i < resource.inheritsPermissionsFrom.length; i++) {
+        withPermissionsDo(req, resource.inheritsPermissionsFrom[i], function(err, sharingSet, actions){
+          if (err == 404) {
+            errors.push('sharingSet ' + sharingSet + ' is not a governed resource');
+          } else if (err !== null) {
+            errors.push(err);
+          } else if (actions.indexOf('create') == -1) {
+            errors.push('user not permitted to create in sharingSet ' + sharingSet);
           }
-        }
-      });
+          if (++count == resource.inheritsPermissionsFrom.length) {
+            if (errors.length == 0) {
+              primCreate(req, res, resource);
+            } else {
+              badRequest(res, errors);
+            }
+          }
+        });
+      }
+    } else {
+      primCreate(req, res, resource);
     }
   }
 }

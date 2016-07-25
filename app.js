@@ -20,6 +20,9 @@ var config = {
 var pool = new Pool(config);
 
 function verifyPermissions(permissions, req) {
+  if (permissions.isA == undefined && permissions.governs !== undefined) {
+    permissions.isA = 'Permissions';
+  }
   if (permissions.isA == 'Permissions') {
     if (permissions.hasOwnProperty('inheritsPermissionsFrom')) {
       return 'inheritsPermissionsFrom for a Permissions resource independent of inheritsPermissionsFrom for the resource it governs not supported'
