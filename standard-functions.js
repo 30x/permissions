@@ -228,10 +228,10 @@ function withPermissionsDo(req, resourceURL, callback) {
   });
 }
 
-function createPermissonsFor(req, resourceURL, permissions, callback) {
+function createPermissonsFor(req, res, resourceURL, permissions, callback) {
   var user = getUser(req);
   if (user == null) {
-    callback('unauthorized')
+    lib.unauthorized(req, res);
   } else {
     var permissionsURL = PROTOCOL + '://' + req.headers.host + '/permissions';
     var headers = {
@@ -263,14 +263,18 @@ function createPermissonsFor(req, resourceURL, permissions, callback) {
     }
     request(options, function (err, response, body) {
       if (err) {
-        callback(err, resourceURL);
+        internalError(res, err);
       }
       else {
         if (response.statusCode == 201) { 
-          callback(null, resourceURL, body)
+          callback(resourceURL, body);
+        } else if (response.statusCode == 201) {
+          badRequest(res, body);
         } else {
-          var err = 'failed to create permissions for ' + resourceURL + ' statusCode ' + response.statusCode + ' message ' + JSON.stringify(response.body);
-          callback(err, resourceURL)
+          var err = {statusCode: response.statusCode,
+            msg: 'failed to create permissions for ' + resourceURL + ' statusCode ' + response.statusCode + ' message ' + JSON.stringify(response.body)
+          }
+          lib.internalError(res, err)
         }
       }
     });

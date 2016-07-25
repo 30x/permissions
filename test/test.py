@@ -166,11 +166,11 @@ def main():
     if r.status_code == 200:
         heirs = r.json()
         if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/coke/teams']:
-            print 'correctly returned heirs of http://apigee.com/o/coke sharingSet after update of permissions to use team'
+            print 'correctly returned heirs of http://apigee.com/o/coke after update of permissions to use team'
         else:
-            print 'incorrect heirs of http://apigee.com/o/coke sharingSet %s' % heirs
+            print 'incorrect heirs of http://apigee.com/o/coke %s' % heirs
     else:
-        print 'failed to return heirs of http://apigee.com/o/coke sharingSet %s %s' % (r.status_code, r.text)
+        print 'failed to return heirs of http://apigee.com/o/coke %s %s' % (r.status_code, r.text)
 
 if __name__ == '__main__':
     main()

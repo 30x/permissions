@@ -2,7 +2,6 @@
 var http = require('http');
 var Pool = require('pg').Pool;
 var url = require('url');
-var querystring = require('querystring');
 var lib = require('./standard-functions.js');
 var uuid = require('node-uuid');
 
@@ -37,22 +36,18 @@ function primCreateTeam (req, res, team) {
     delete team.permissions;
   }
   var id = uuid();
-  lib.createPermissonsFor(req, selfURL(id, req), permissions, function(err, resourceURL){
+  lib.createPermissonsFor(req, res, selfURL(id, req), permissions, function(){
     // Create permissions first. If this fails, there will be a useless but harmless permissions document.
-    // If we do things the other way around, a team without matchin permissions is much worse.
-    if (err === null) {
-      pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
-        if (err) {
-          lib.internalError(res, err);
-        } else {
-          var etag = pg_res.rows[0].etag;
-          team._self = selfURL(id, req); 
-          lib.created(req, res, team, team._self, etag);
-        }
-      });
+    // If we do things the other way around, a team without matching permissions could cause problems.
+    pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
+    if (err) {
+        lib.internalError(res, err);
     } else {
-      lib.internalError(res, err)
+        var etag = pg_res.rows[0].etag;
+        team._self = selfURL(id, req); 
+        lib.created(req, res, team, team._self, etag);
     }
+    });
   });
 }
 
