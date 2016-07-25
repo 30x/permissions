@@ -55,6 +55,8 @@ function primCreateTeam (req, res, team) {
   delete team.sharingSets;
   var id = uuid();
   lib.createPermissonsFor(req, selfURL(id, req), sharingSets, function(statusCode, resourceURL){
+    // Create permissions first. If this fails, there will be a useless but harmless permissions document.
+    // If we do things the other way around, a team without matchin permissions is much worse.
     if (statusCode == 201) {
       pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
         if (err) {
