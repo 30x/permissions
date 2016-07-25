@@ -228,39 +228,53 @@ function withPermissionsDo(req, resourceURL, callback) {
   });
 }
 
-function createPermissonsFor(req, resourceURL, inheritsPermissionsFrom, callback) {
-  var permissionsURL = PROTOCOL + '://' + req.headers.host + '/permissions';
-  var headers = {
-    'Accept': 'application/json'
-  }
-  if (req.headers.authorization) {
-    headers.authorization = req.headers.authorization; 
-  }
-  var body = {
-    isA: 'Permissions',
-    governs: {
-      _self: resourceURL,
-      inheritsPermissionsFrom: inheritsPermissionsFrom,
+function createPermissonsFor(req, resourceURL, permissions, callback) {
+  var user = getUser(req);
+  if (user == null) {
+    callback('unauthorized')
+  } else {
+    var permissionsURL = PROTOCOL + '://' + req.headers.host + '/permissions';
+    var headers = {
+      'Accept': 'application/json'
     }
-  }
-  var options = {
-    url: permissionsURL,
-    headers: headers,
-    method: 'POST',
-    json: body
-  }
-  request(options, function (err, response, body) {
-    if (err) {
-      callback(err, resourceURL);
+    if (req.headers.authorization) {
+      headers.authorization = req.headers.authorization; 
     }
-    else {
-      if (response.statusCode == 200) { 
-        callback(null, resourceURL, body)
-      } else {
-        callback(response.statusCode, resourceURL)
+    if (permissions === null || permissions === undefined) {
+      permissions = {
+        isA: 'Permissions',
+        readers: [user],
+        writers: [user],
+        updaters: [user],
+        governs: {
+          _self: resourceURL,
+          readers: [user],
+          writers: [user],
+          updaters: [user],
+          creators: [user]
+        }
+      }  
+    }
+    var options = {
+      url: permissionsURL,
+      headers: headers,
+      method: 'POST',
+      json: permissions
+    }
+    request(options, function (err, response, body) {
+      if (err) {
+        callback(err, resourceURL);
       }
-    }
-  });
+      else {
+        if (response.statusCode == 201) { 
+          callback(null, resourceURL, body)
+        } else {
+          var err = 'failed to create permissions for ' + resourceURL + ' statusCode ' + response.statusCode + ' message ' + JSON.stringify(response.body);
+          callback(err, resourceURL)
+        }
+      }
+    });
+  }
 }
 
 function ifUserHasRequestTargetPermissionThen(req, res, action, callback) {

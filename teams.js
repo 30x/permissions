@@ -21,27 +21,8 @@ var pool = new Pool(config);
 function verifyTeam(team) {
   if (team.isA == 'Team') {
     if (Array.isArray(team.members)) {
-      for (var i = 0; i < team.members.length; i++) {
-        if (!typeof team.members[i] == 'string') {
-          return 'members must be URLs encoded as strings';
-        }
-      }
-      if (Array.isArray(team.inheritsPermissionsFrom)) {
-        if (team.inheritsPermissionsFrom.length > 0) {
-          for (var i = 0; i < team.inheritsPermissionsFrom.length; i++) {
-            if (!typeof team.inheritsPermissionsFrom[i] == 'string') {
-            return 'members must be URLs encoded as strings';
-            }
-          }
-          return null;
-        } else {
-          return 'must provide at least one inheritsPermissionsFrom';
-        }
-      } else {
-        return 'inheritsPermissionsFrom must present and must be an Array'
-      }
-    }
-    else {
+      return null;
+    } else {
       return 'team must have an array of members';
     }
   } else { 
@@ -50,14 +31,16 @@ function verifyTeam(team) {
 }
 
 function primCreateTeam (req, res, team) {
-  lib.internalizeURLs(team, req.headers.host);
-  var inheritsPermissionsFrom = team.inheritsPermissionsFrom;
-  delete team.inheritsPermissionsFrom;
+  lib.internalizeURLs(team, req.headers.host); 
+  var permissions = team.permissions;
+  if (permissions !== undefined) {
+    delete team.permissions;
+  }
   var id = uuid();
-  lib.createPermissonsFor(req, selfURL(id, req), inheritsPermissionsFrom, function(statusCode, resourceURL){
+  lib.createPermissonsFor(req, selfURL(id, req), permissions, function(err, resourceURL){
     // Create permissions first. If this fails, there will be a useless but harmless permissions document.
     // If we do things the other way around, a team without matchin permissions is much worse.
-    if (statusCode == 201) {
+    if (err === null) {
       pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
         if (err) {
           lib.internalError(res, err);
@@ -68,17 +51,23 @@ function primCreateTeam (req, res, team) {
         }
       });
     } else {
-      lib.internalError(res, 'failed to create permissions for ' + resourceURL + ' statusCode ' + statusCode)
+      lib.internalError(res, err)
     }
   });
 }
 
 function createTeam(req, res, team) {
-  var err = verifyTeam(team);
-  if (err !== null) {
-    lib.badRequest(res, err);
-  } else {
-    lib.createResource(req, res, team, primCreateTeam);
+  var user = lib.getUser(req);
+  if (user == null) {
+    lib.unauthorized(req, res);
+  } else { 
+    var err = verifyTeam(team);
+    if (err !== null) {
+        console.log('cucou', err)
+        lib.badRequest(res, err);
+    } else {
+        lib.createResource(req, res, team, primCreateTeam);
+    }
   }
 }
 

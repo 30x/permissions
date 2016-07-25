@@ -27,12 +27,14 @@ function verifyPermissions(permissions, req) {
       if (permissions.governs !== undefined) {
         var governed = permissions.governs;
         if (governed._self !== undefined) {
-          if (governed.sharingSet !== undefined && !Array.isArray(governed.sharingSet)) {
-            return 'sharingSet must be an Array'
+          if (governed.inheritsPermissionsFrom !== undefined && !Array.isArray(governed.inheritsPermissionsFrom)) {
+            return 'inheritsPermissionsFrom must be an Array'
           } else {
             var user = lib.getUser(req);
             if (permissions.updaters === undefined && governed.inheritsPermissionsFrom === undefined) {
               permissions.updaters = [user];
+              permissions.readers = [user];
+              permissions.writers = [user];
             }
             return null;
           }
@@ -335,10 +337,10 @@ function getResourcesSharedWith(req, res, user) {
   }
 }
 
-function getResourcesInSharingSet(req, res, sharingSet) {
-  sharingSet = lib.internalizeURL(sharingSet, req.headers.host);
-  getPermissionsThen(req, res, sharingSet, 'read', false, function(permissions, etag) {
-    pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"inheritsPermissionsFrom":["' + sharingSet + '"]}}\'', function (err, pg_res) {
+function getPermissionsHeirs(req, res, securedObject) {
+  securedObject = lib.internalizeURL(securedObject, req.headers.host);
+  getPermissionsThen(req, res, securedObject, 'read', false, function(permissions, etag) {
+    pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"inheritsPermissionsFrom":["' + securedObject + '"]}}\'', function (err, pg_res) {
       if (err) {
         lib.badRequest(res, err);
       }
@@ -419,9 +421,9 @@ function requestHandler(req, res) {
       } else {
         lib.methodNotAllowed(req, res);
       }
-    } else  if (req_url.pathname == '/resources-in-sharing-set' && req_url.search !== null) {
+    } else  if (req_url.pathname == '/permissions-heirs' && req_url.search !== null) {
       if (req.method == 'GET') {
-        getResourcesInSharingSet(req, res, lib.internalizeURL(req_url.search.substring(1)));
+        getPermissionsHeirs(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else {
         lib.methodNotAllowed(req, res);
       }

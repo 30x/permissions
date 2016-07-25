@@ -94,25 +94,25 @@ def main():
     else:
         print 'incorrectly accepted read of permission with no user %s %s' % (r.status_code, r.text)
 
-    url = 'http://localhost:8080' + '/resources-in-sharing-set?%s' % 'http://apigee.com/o/coke'
+    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
-        contents = r.json()
-        if [perm['_self'] for perm in contents] == ['http://apigee.com/o/coke/teams']:
-            print 'correctly returned resources that get permissions from http://apigee.com/o/coke'
+        heirs = r.json()
+        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/coke/teams']:
+            print 'correctly returned permissions heirs of http://apigee.com/o/coke'
         else:
-            print 'incorrect resources that get permissions from http://apigee.com/o/coke %s' % contents
+            print 'incorrect resources permissions heirs of http://apigee.com/o/coke %s' % heirs
     else:
-        print 'failed to return resources that get permissions from http://apigee.com/o/coke %s %s' % (r.status_code, r.text)
+        print 'failed to return permissions heirs of http://apigee.com/o/coke %s %s' % (r.status_code, r.text)
 
-    url = 'http://localhost:8080' + '/resources-in-sharing-set?%s' % 'http://apigee.com/o/coke'
+    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN2}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 403:
-        print 'correctly refused to return sharing set contents to unauthorized user'
+        print 'correctly refused to return sharing set heirs to unauthorized user'
     else:
-        print 'failed to refuse to return sharing set contents to unauthorized user %s' % r.status_code
+        print 'failed to refuse to return sharing set heirs to unauthorized user %s' % r.status_code
 
     team = {
         'isA': 'Team',
@@ -160,17 +160,17 @@ def main():
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
 
-    url = 'http://localhost:8080' + '/resources-in-sharing-set?%s' % 'http://apigee.com/o/coke'
+    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
-        contents = r.json()
-        if [perm['_self'] for perm in contents] == ['http://apigee.com/o/coke/teams']:
-            print 'correctly returned contents of http://apigee.com/o/coke sharingSet after update of permissions to use team'
+        heirs = r.json()
+        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/coke/teams']:
+            print 'correctly returned heirs of http://apigee.com/o/coke sharingSet after update of permissions to use team'
         else:
-            print 'incorrect contents of http://apigee.com/o/coke sharingSet %s' % contents
+            print 'incorrect heirs of http://apigee.com/o/coke sharingSet %s' % heirs
     else:
-        print 'failed to return contents of http://apigee.com/o/coke sharingSet %s %s' % (r.status_code, r.text)
+        print 'failed to return heirs of http://apigee.com/o/coke sharingSet %s %s' % (r.status_code, r.text)
 
 if __name__ == '__main__':
     main()
