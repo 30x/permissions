@@ -268,7 +268,7 @@ function createPermissonsFor(req, res, resourceURL, permissions, callback) {
       else {
         if (response.statusCode == 201) { 
           callback(resourceURL, body);
-        } else if (response.statusCode == 201) {
+        } else if (response.statusCode == 400) {
           badRequest(res, body);
         } else {
           var err = {statusCode: response.statusCode,
