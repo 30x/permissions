@@ -36,7 +36,7 @@ function primCreateTeam (req, res, team) {
     delete team.permissions;
   }
   var id = uuid();
-  lib.createPermissonsFor(req, res, selfURL(id, req), permissions, function(){
+  lib.createPermissonsFor(req, res, selfURL(id, req), permissions, function(permissionsURL, permissions){
     // Create permissions first. If this fails, there will be a useless but harmless permissions document.
     // If we do things the other way around, a team without matching permissions could cause problems.
     pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
