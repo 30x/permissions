@@ -56,9 +56,8 @@ function verifyPermissions(permissions, req) {
 var OPERATIONPROPERTIES = ['creators', 'readers', 'updaters', 'deleters'];
 var OPERATIONS = ['create', 'read', 'update', 'delete'];
 
-function calculateSharedWith(permissions) {
-  var result = {};
-  function listUsers (obj) {
+function calculateCaches(req, res, permissions, callback) {
+  function listUsers (obj, result) {
     for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
       var actors = obj[OPERATIONPROPERTIES[i]];
       if (actors !== undefined) {
@@ -66,9 +65,39 @@ function calculateSharedWith(permissions) {
       }
     }
   }
-  listUsers(permissions);
-  listUsers(permissions.governs);
+  var result = {};
+  listUsers(permissions, result);
+  listUsers(permissions.governs, result);
   permissions._sharedWith = Object.keys(result);
+  var parents = permissions.governs.inheritsPermissionsOf;
+  if (parents !== undefined) {
+    permissions._inherited = {};
+    var response_count = 0;
+    var response_errors = 0;
+    for (var k = 0; k < parents.length; k++) {
+      withPermissionsDo(req, parents[k], function(err, parent, inheritedPermissions){
+        if (err) {
+          if (response_errors++ == 0) {
+            lib.internalError(res, err);
+          }
+        } else {
+          permissions._inherited[parent] = {};
+          var inherited = permissions._inherited[parent]
+          for (var l = 0; l < OPERATIONPROPERTIES.length; l++) {
+            var perm = inheritedPermissions.governs[OPERATIONPROPERTIES[l]];
+            if (perm !== undefined) {
+              inherited[OPERATIONPROPERTIES[l]] = perm;
+            }
+          }
+        }
+        if (++response_count == parents.length && response_errors == 0) {
+          callback(permissions);
+        }
+      });
+    }
+  } else {
+    callback(permissions);
+  }
 }
 
 function createPermissions(req, res, permissions) {
@@ -81,20 +110,21 @@ function createPermissions(req, res, permissions) {
       err = lib.setStandardCreationProperties(permissions, req, user);
     }
     if (err === null) {
-      calculateSharedWith(permissions);
-      lib.internalizeURLs(permissions, req.headers.host);
-      pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs._self, permissions], function (err, pg_res) {
-        if (err) {
-          if (err.code == 23505){ 
-            lib.duplicate(res, err);
-          } else { 
-            lib.badRequest(res, err);
+      calculateCaches(req, res, permissions, function(){
+        lib.internalizeURLs(permissions, req.headers.host);
+        pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs._self, permissions], function (err, pg_res) {
+          if (err) {
+            if (err.code == 23505){ 
+              lib.duplicate(res, err);
+            } else { 
+              lib.badRequest(res, err);
+            }
+          } else {
+            var etag = pg_res.rows[0].etag;
+            addCalculatedProperties(permissions, req);
+            lib.created(req, res, permissions, permissions._self, etag);
           }
-        } else {
-          var etag = pg_res.rows[0].etag;
-          addCalculatedProperties(permissions, req);
-          lib.created(req, res, permissions, permissions._self, etag);
-        }
+        });
       });
     } else {
       lib.badRequest(res, err);
@@ -104,6 +134,24 @@ function createPermissions(req, res, permissions) {
 
 function addCalculatedProperties(permissions, req) {
   permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs._self;
+}
+
+function withPermissionsDo(req, subject, callback) {
+  var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
+  var key = lib.internalizeURL(subject, req.headers.host)
+  pool.query(query,[key], function (err, pg_res) {
+    if (err) {
+      callback(err);
+    }
+    else {
+      if (pg_res.rowCount === 0) { 
+        callback(400);
+      }
+      else {
+        callback(null, subject, pg_res.rows[0].data);
+      }
+    }
+  });
 }
 
 function getPermissionsThen(req, res, subject, action, permissionsOfPermissions, callback) {
