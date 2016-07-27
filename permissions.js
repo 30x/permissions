@@ -169,23 +169,33 @@ function updatePermissions(req, res, patch) {
   patch = lib.internalizeURLs(patch);
   var subject = url.parse(req.url).search.substring(1);
   getPermissionsThen(req, res, subject, 'update', true, function(permissions, etag) {
-    var patchedPermissions = lib.mergePatch(permissions, patch);
-    lib.internalizeURLs(patchedPermissions, req.headers.host);
-    var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 RETURNING etag'
-    var key = lib.internalizeURL(subject, req.headers.host)
-    pool.query(query, [patchedPermissions, key], function (err, pg_res) {
-      if (err) { 
-        lib.badRequest(res, err);
-      } else {
-        if (pg_res.rowCount === 0) { 
-          lib.notFound(req, res);
+    if (req.headers['if-match'] == etag) { 
+      var patchedPermissions = lib.mergePatch(permissions, patch);
+      lib.internalizeURLs(patchedPermissions, req.headers.host);
+      var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 RETURNING etag'
+      var key = lib.internalizeURL(subject, req.headers.host)
+      pool.query(query, [patchedPermissions, key], function (err, pg_res) {
+        if (err) { 
+          lib.badRequest(res, err);
         } else {
-          var row = pg_res.rows[0];
-          addCalculatedProperties(patchedPermissions, req); 
-          lib.found(req, res, permissions, row.etag);
+          if (pg_res.rowCount === 0) { 
+            lib.notFound(req, res);
+          } else {
+            var row = pg_res.rows[0];
+            addCalculatedProperties(patchedPermissions, req); 
+            lib.found(req, res, permissions, row.etag);
+          }
         }
+      });
+    } else {
+      var err;
+      if (req.headers['if-match'] === undefined) {
+        err = 'missing If-Match header' + JSON.stringify(req.headers);
+      } else {
+        err = 'If-Match header does not match etag ' + req.headers['If-Match'] + ' ' + etag;
       }
-    });
+      lib.badRequest(res, err);
+    }
   });
 }
 

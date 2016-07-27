@@ -72,7 +72,11 @@ def main():
     if r.status_code == 200:
         server_permission = r.json()
         if all(item in server_permission.items() for item in permissions.items()):
-            print 'correctly retrieved permissions'
+            if ('Etag' in r.headers):
+                coke_org_if_match = r.headers['Etag']
+                print 'correctly retrieved permissions'
+            else:
+                print 'failed to provide etag in create response'
         else:
             print 'retrieved permissions but comparison failed'
     else:
@@ -162,6 +166,13 @@ def main():
     }
 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
+    if r.status_code == 400:
+        print 'correctly refused to patch permissions without If-Match header' 
+    else:
+        print 'failed to patch permissions %s %s' % (r.status_code, r.text)
+    
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1, 'If-Match': coke_org_if_match}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 200:
         print 'correctly patched permissions' 
