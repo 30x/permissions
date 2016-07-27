@@ -311,7 +311,7 @@ function getUsersWhoCanSee(req, res, resource) {
   });
 }
 
-function getResourcesSharedWith(req, res, user) {
+function getResourcesAccessibleBy(req, res, user) {
   var requesting_user = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
   if (user == requesting_user) {
@@ -418,9 +418,9 @@ function requestHandler(req, res) {
       } else {
         lib.methodNotAllowed(req, res);
       }
-    } else if (req_url.pathname == '/resources-shared-with' && req_url.search !== null) {
+    } else if (req_url.pathname == '/resources-acessible-by' && req_url.search !== null) {
       if (req.method == 'GET') {
-        getResourcesSharedWith(req, res, lib.internalizeURL(req_url.search.substring(1)));
+        getResourcesAccessibleBy(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else {
         lib.methodNotAllowed(req, res);
       }
@@ -430,7 +430,7 @@ function requestHandler(req, res) {
       } else {
         lib.methodNotAllowed(req, res);
       }
-    } else if (req_url.pathname == '/users-who-can-see' && req_url.search !== null) {
+    } else if (req_url.pathname == '/users-who-can-access' && req_url.search !== null) {
       if (req.method == 'GET') {
         getUsersWhoCanSee(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else {
