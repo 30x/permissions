@@ -31,8 +31,6 @@ with open('token2.txt') as f:
 
 def main():
     
-    # Create permissions for Acme org (fail)
-
     permissions = {
     'isA': 'Permissions',
     'governs': 
@@ -47,12 +45,6 @@ def main():
     'updaters': [USER1]     
     }
     permissions_url = 'http://localhost:8080' + '/permissions' 
-    headers = {'Accept': 'application/json'}
-    r = requests.post(permissions_url, headers=headers, json=permissions)
-    if r.status_code == 403:
-        print 'correctly rejected permissions creation without user' 
-    else:
-        print 'failed to create permissions %s %s' % (r.status_code, r.text)
     
     # Create permissions for Acme org (succeed)
 
@@ -82,97 +74,79 @@ def main():
     else:
         print 'failed to create permissions %s %s' % (r.status_code, r.text)
     
-    # Create permissions for Acme teams (succeed)
-
-    permissions = {
-    'isA': 'Permissions',
-    'governs': 
-        {'_self': 'http://apigee.com/o/acme/teams',
-        'inheritsPermissionsOf': ['http://apigee.com/o/acme']
-        }
-    }
-
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
-    r = requests.post(permissions_url, headers=headers, json=permissions)
-    if r.status_code == 201:
-        print 'correctly accepted permission with no updater from logged-in user' 
-    else:
-        print 'incorrectly rejected permission with no updater from logged-in user %s %s' % (r.status_code, r.text)
-    
-    # Read permissions for Acme teams (fail)
-
-    team_permissions = r.headers['Location']
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-    r = requests.get(team_permissions, headers=headers, json=permissions)
-    if r.status_code == 403:
-        print 'correctly rejected read of permission with no user' 
-    else:
-        print 'incorrectly accepted read of permission with no user %s %s' % (r.status_code, r.text)
-    
-    # Read heirs of Acme org (succeed)
-
-    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/acme'
-    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
-    r = requests.get(url, headers=headers, json=permissions)
-    if r.status_code == 200:
-        heirs = r.json()
-        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/acme/teams']:
-            print 'correctly returned permissions heirs of http://apigee.com/o/acme'
-        else:
-            print 'incorrect resources permissions heirs of http://apigee.com/o/acme %s' % heirs
-    else:
-        print 'failed to return permissions heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
-    
-    # Read heirs of Acme org (fail)
-
-    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/acme'
-    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN2}
-    r = requests.get(url, headers=headers, json=permissions)
-    if r.status_code == 403:
-        print 'correctly refused to return sharing set heirs to unauthorized user'
-    else:
-        print 'failed to refuse to return sharing set heirs to unauthorized user %s' % r.status_code
-    
-    # Create Org Admins team
+    # Create Acme Org Admins team
 
     team = {
         'isA': 'Team',
-        'name': 'Org admins',
-        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme/teams']}},
+        'name': 'Acme Org admins',
+        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 
-    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
         print 'correctly created team'
-        TEAM1 = r.headers['location']
+        ORG_ADMINS = r.headers['location']
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
     
+    # Create Acme Business Users team
+
+    team = {
+        'isA': 'Team',
+        'name': 'Acme Business Users',
+        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
+        'members': [USER1, USER2] 
+        }
+    url = 'http://localhost:8080' + '/teams' 
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.post(url, headers=headers, json=team)
+    if r.status_code == 201:
+        print 'correctly created team'
+        BUSINESS_USERS = r.headers['location']
+    else:
+        print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
+
+    # Retrieve permissions for Acme org
+
+    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.get(org_permissions, headers=headers, json=permissions)
+    if r.status_code == 200:
+        server_permission = r.json()
+        if all(item in server_permission.items() for item in permissions.items()):
+            if ('Etag' in r.headers):
+                ACME_ORG_IF_MATCH = r.headers['Etag']
+                print 'correctly retrieved permissions'
+            else:
+                print 'failed to provide etag in create response'
+        else:
+            print 'retrieved permissions but comparison failed'
+    else:
+        print 'failed to create permissions %s %s' % (r.status_code, r.text)
+
     # Patch Acme org permissions to use team
 
     permissions_patch = {
     'governs': 
         {'_self': 'http://apigee.com/o/acme',
-        'updaters': [TEAM1],
-        'readers': [TEAM1],
-        'deleters': [TEAM1],
-        'creators': [TEAM1]
+        'updaters': [ORG_ADMINS],
+        'readers': [ORG_ADMINS, BUSINESS_USERS],
+        'deleters': [ORG_ADMINS],
+        'creators': [ORG_ADMINS, BUSINESS_USERS]
         },
-    'readers': [TEAM1],
-    'deleters': [TEAM1],
-    'updaters': [TEAM1]     
+    'readers': [ORG_ADMINS],
+    'deleters': [ORG_ADMINS],
+    'updaters': [ORG_ADMINS]     
     }
 
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 400:
         print 'correctly refused to patch permissions without If-Match header' 
     else:
         print 'failed to patch permissions %s %s' % (r.status_code, r.text)
     
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1, 'If-Match': acme_org_if_match}
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 200:
         print 'correctly patched permissions' 
@@ -192,13 +166,13 @@ def main():
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
     
-    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
-    r = requests.get(team_permissions, headers=headers, json=permissions)
-    if r.status_code == 200:
+    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN2}
+    r = requests.get(org_permissions, headers=headers, json=permissions)
+    if r.status_code == 403:
         server_permission = r.json()
-        print 'correctly retrieved permissions'
+        print 'correctly refused to retrieve permissions for USER2'
     else:
-        print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
+        print 'failed to refuse permissions %s %s' % (r.status_code, r.text)
     
     # Retrieve Acme org heirs
 
@@ -207,8 +181,8 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/acme/teams']:
-            print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team'
+        if [perm['_self'] for perm in heirs] == [ORG_ADMINS, BUSINESS_USERS]:
+            print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team %s' % [ORG_ADMINS, BUSINESS_USERS]
         else:
             print 'incorrect heirs of http://apigee.com/o/acme %s' % heirs
     else:
