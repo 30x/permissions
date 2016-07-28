@@ -4,9 +4,8 @@ var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
-var request = require('request');
 
-var PROTOCOL = process.env.PROTOCOL || 'http';
+var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
 
@@ -103,7 +102,7 @@ function createPermissions(req, res, permissions) {
 }
 
 function addCalculatedProperties(permissions, req) {
-  permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs._self;
+  permissions._self = PROTOCOL + '//' + req.headers.host + '/permissions?' + permissions.governs._self;
 }
 
 function getPermissionsThen(req, res, subject, action, permissionsOfPermissions, callback) {
@@ -380,32 +379,39 @@ function getPermissionsHeirs(req, res, securedObject) {
 
 function withTeamsDo(req, user, callback) {
   if (user !== null) {
-    var teamsURL = PROTOCOL + '://' + req.headers.host + '/teams?' + user;
     var headers = {
       'Accept': 'application/json'
     }
-    if (req.headers.authorization) {
+    if (req.headers.authorization !== undefined) {
       headers.authorization = req.headers.authorization; 
     }
+    var hostParts = req.headers.host.split(':');
     var options = {
-      url: teamsURL,
-      headers: headers,
-      json: true
+      protocol: PROTOCOL,
+      hostname: hostParts[0],
+      path: '/teams?' + user,
+      method: 'GET',
+      headers: headers
     };
-    request(options, function (err, response, body) {
-      if (err) {
-        callback(err, user);
-      }
-      else {
-        if (response.statusCode == 200) { 
+    if (hostParts.length > 1) {
+      options.port = hostParts[1];
+    }
+    var client_req = http.request(options, function (res) {
+      lib.getClientResponseBody(res, function(body) {
+        if (res.statusCode == 200) { 
+          body = JSON.parse(body);
           body.push(user);
           lib.internalizeURLs(body, req.headers.host);
           callback(null, user, body);
         } else {
           callback(response.statusCode, user);
         }
-      }
+      });
     });
+    client_req.on('error', function (err) {
+      callback(err, user);
+    });
+    client_req.end();
   } else {
     callback(null, user, null);
   }
@@ -414,7 +420,7 @@ function withTeamsDo(req, user, callback) {
 function requestHandler(req, res) {
   if (req.url == '/permissions') {
     if (req.method == 'POST') {
-      lib.getPostBody(req, res, createPermissions);
+      lib.getServerPostBody(req, res, createPermissions);
     } else { 
       lib.methodNotAllowed(req, res);
     }
@@ -426,7 +432,7 @@ function requestHandler(req, res) {
       } else if (req.method == 'DELETE') { 
         deletePermissions(req, res, lib.internalizeURL(req_url.search.substring(1)));
       } else if (req.method == 'PATCH') { 
-        lib.getPostBody(req, res, updatePermissions);
+        lib.getServerPostBody(req, res, updatePermissions);
       } else {
         lib.methodNotAllowed(req, res);
       }

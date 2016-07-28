@@ -152,7 +152,7 @@ function getTeamsForUser(req, res, user) {
 function requestHandler(req, res) {
   if (req.url == '/teams') {
     if (req.method == 'POST') {
-      lib.getPostBody(req, res, createTeam);
+      lib.getServerPostBody(req, res, createTeam);
     } else { 
       lib.methodNotAllowed(req, res);
     }

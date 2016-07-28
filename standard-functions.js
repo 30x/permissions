@@ -1,10 +1,10 @@
 'use strict';
-var request = require('request');
+var http = require('http');
 
-var PROTOCOL = process.env.PROTOCOL || 'http';
+var PROTOCOL = process.env.PROTOCOL || 'http:';
 var INTERNALURLPREFIX = 'protocol://authority';
 
-function getPostBody(req, res, callback) {
+function getServerPostBody(req, res, callback) {
   var body = '';
 
   req.on('data', function (data) {
@@ -26,6 +26,17 @@ function getPostBody(req, res, callback) {
     if (jso) {
       callback(req, res, jso);
     }
+  });
+}
+
+function getClientResponseBody(res, callback) {
+  res.setEncoding('utf8');
+  var body = '';
+  res.on('data', (chunk) => {
+    body += chunk;
+  });
+  res.on('end', () => {
+    callback(body);
   });
 }
 
@@ -109,7 +120,7 @@ function found(req, res, body, etag, location) {
   if (location !== undefined) {
     headers['Content-Location'] = location;
   } else {
-    headers['Content-Location'] = PROTOCOL + '://' + req.headers.host + req.url; //todo - handle case where req.url includes http://authority
+    headers['Content-Location'] = PROTOCOL + '//' + req.headers.host + req.url; //todo - handle case where req.url includes http://authority
   }
   if (etag !== undefined) {
     headers['Etag'] = etag;
@@ -180,7 +191,7 @@ function internalizeURLs(jsObject, authority) {
 function externalizeURLs(jsObject, authority, protocol) {
   //add http://authority or https://authority to the front of any urls
   if (typeof jsObject == 'object') {
-    var prefix = protocol + '://' + authority;
+    var prefix = protocol + '//' + authority;
     for(var key in jsObject) {
       if (jsObject.hasOwnProperty(key)) {
         jsObject[key] = externalizeURLs(jsObject[key], authority);
@@ -200,7 +211,7 @@ function externalizeURLs(jsObject, authority, protocol) {
 
 function withPermissionsDo(req, resourceURL, callback) {
   var user = getUser(req);
-  var permissionsURL = PROTOCOL + '://' + req.headers.host + '/allowed-actions?resource=' + resourceURL;
+  var permissionsURL = '/allowed-actions?resource=' + resourceURL;
   if (user !== null) {
     permissionsURL += '&user=' + user;
   }
@@ -210,36 +221,39 @@ function withPermissionsDo(req, resourceURL, callback) {
   if (req.headers.authorization) {
     headers.authorization = req.headers.authorization; 
   }
+  var hostParts = req.headers.host.split(':');
   var options = {
-    url: permissionsURL,
+    protocol: PROTOCOL,
+    hostname: hostParts[0],
+    path: permissionsURL,
+    method: 'GET',
     headers: headers
   };
-  request(options, function (err, response, body) {
-    if (err) {
-      callback(err, resourceURL);
-    }
-    else {
-      if (response.statusCode == 200) { 
-        callback(null, resourceURL, body)
+  if (hostParts.length > 1) {
+    options.port = hostParts[1];
+  }
+  var client_req = http.request(options, function (res) {
+    getClientResponseBody(res, function(body) {
+      if (res.statusCode == 200) { 
+        body = JSON.parse(body);
+        internalizeURLs(body, req.headers.host);
+        callback(null, resourceURL, body);
       } else {
-        callback(response.statusCode, resourceURL)
+        callback(response.statusCode, resourceURL);
       }
-    }
+    });
   });
+  client_req.on('error', function (err) {
+    callback(err, resourceURL);
+  });
+  client_req.end();
 }
 
-function createPermissonsFor(req, res, resourceURL, permissions, callback) {
-  var user = getUser(req);
+function createPermissonsFor(server_req, server_res, resourceURL, permissions, callback) {
+  var user = getUser(server_req);
   if (user == null) {
-    unauthorized(req, res);
+    unauthorized(server_req, server_res);
   } else {
-    var permissionsURL = PROTOCOL + '://' + req.headers.host + '/permissions';
-    var headers = {
-      'Accept': 'application/json'
-    }
-    if (req.headers.authorization) {
-      headers.authorization = req.headers.authorization; 
-    }
     if (permissions === null || permissions === undefined) {
       permissions = {
         isA: 'Permissions',
@@ -256,46 +270,65 @@ function createPermissonsFor(req, res, resourceURL, permissions, callback) {
       }  
     } else {
       if (permissions.governs === undefined) {
-        badRequest(res, 'governs must be set ofr permissions')
+        badRequest(server_res, 'governs must be set ofr permissions')
       } else {
         if (permissions.governs._self === undefined) {
           permissions.governs._self = resourceURL
         } else {
           if (permissions.governs._self != resourceURL) {
-            badRequest(res, 'value of governs must match resourceURL')
+            badRequest(server_res, 'value of governs must match resourceURL')
           }
         }
       }
     }
+    var postData = JSON.stringify(permissions);
+    var headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    }
+    if (server_req.headers.authorization) {
+      headers.authorization = server_req.headers.authorization; 
+    }
+    var hostParts = server_req.headers.host.split(':');
     var options = {
-      url: permissionsURL,
-      headers: headers,
+      protocol: PROTOCOL,
+      hostname: hostParts[0],
+      path: '/permissions',
       method: 'POST',
-      json: permissions
+      headers: headers
+    };
+    if (hostParts.length > 1) {
+      options.port = hostParts[1];
     }
-    request(options, function (err, response, body) {
-      if (err) {
-        internalError(res, err);
-      }
-      else {
-        if (response.statusCode == 201) { 
+    var body = JSON.stringify(permissions);
+    var client_req = http.request(options, function (client_res) {
+      getClientResponseBody(client_res, function(body) {
+        if (client_res.statusCode == 201) { 
+          body = JSON.parse(body);
+          internalizeURLs(body, server_req.headers.host);
           callback(resourceURL, body);
-        } else if (response.statusCode == 400) {
-          badRequest(res, body);
+        } else if (client_res.statusCode == 400) {
+          badRequest(server_res, body);
         } else {
-          var err = {statusCode: response.statusCode,
-            msg: 'failed to create permissions for ' + resourceURL + ' statusCode ' + response.statusCode + ' message ' + JSON.stringify(response.body)
+          var err = {statusCode: client_res.statusCode,
+            msg: 'failed to create permissions for ' + resourceURL + ' statusCode ' + client_res.statusCode + ' message ' + JSON.stringify(client_res.body)
           }
-          internalError(res, err)
+          internalError(server_res, err);
         }
-      }
+      });
     });
+    client_req.on('error', function (err) {
+      internalError(server_res, err);
+    });
+    client_req.write(postData);
+    client_req.end();
   }
 }
 
 function ifUserHasRequestTargetPermissionThen(req, res, action, callback) {
   var user = getUser(req);
-  var resourceURL = PROTOCOL + '://' + req.host + req.url;
+  var resourceURL = PROTOCOL + '//' + req.host + req.url;
   withPermissionsDo(req, resourceURL, function (err, resourceURL, permissions) {
     if (err) {
       internalError(res, err);
@@ -394,7 +427,8 @@ function createResource(req, res, resource, primCreate) {
   }
 }
 
-exports.getPostBody = getPostBody;
+exports.getServerPostBody = getServerPostBody;
+exports.getClientResponseBody = getClientResponseBody;
 exports.methodNotAllowed = methodNotAllowed;
 exports.notFound = notFound;
 exports.badRequest = badRequest;
