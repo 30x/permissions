@@ -19,7 +19,7 @@ var config = {
 
 var pool = new Pool(config);
 
-function verifyPermissions(permissions, req) {
+function verifyPermissions(req, permissions) {
   if (permissions.isA == undefined && permissions.governs !== undefined) {
     permissions.isA = 'Permissions';
   }
@@ -76,7 +76,7 @@ function createPermissions(req, res, permissions) {
   if (user == null) {
     lib.unauthorized(req, res)
   } else {
-    var err = verifyPermissions(permissions, req);
+    var err = verifyPermissions(req, permissions);
     if (err === null) {
       err = lib.setStandardCreationProperties(permissions, req, user);
     }
@@ -174,6 +174,7 @@ function updatePermissions(req, res, patch) {
     if (req.headers['if-match'] == etag) { 
       lib.internalizeURLs(patch, req.headers.host);
       var patchedPermissions = lib.mergePatch(permissions, patch);
+
       calculateSharedWith(req, patchedPermissions);
       var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 AND etag = $3 RETURNING etag'
       var key = lib.internalizeURL(subject, req.headers.host)
