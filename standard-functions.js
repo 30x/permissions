@@ -231,7 +231,7 @@ function withPermissionsDo(req, resourceURL, callback) {
 function createPermissonsFor(req, res, resourceURL, permissions, callback) {
   var user = getUser(req);
   if (user == null) {
-    lib.unauthorized(req, res);
+    unauthorized(req, res);
   } else {
     var permissionsURL = PROTOCOL + '://' + req.headers.host + '/permissions';
     var headers = {
@@ -286,7 +286,7 @@ function createPermissonsFor(req, res, resourceURL, permissions, callback) {
           var err = {statusCode: response.statusCode,
             msg: 'failed to create permissions for ' + resourceURL + ' statusCode ' + response.statusCode + ' message ' + JSON.stringify(response.body)
           }
-          lib.internalError(res, err)
+          internalError(res, err)
         }
       }
     });

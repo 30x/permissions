@@ -125,7 +125,9 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
             lib.internalError(res, err);
           } else {
             var allowedActions = {};
-            addAllowedActions(req, row.data, actors, allowedActions, permissionsOfPermissions, action, function() {
+            var recursion_set = {};
+            recursion_set[subject] = true;
+            addAllowedActions(req, row.data, actors, allowedActions, permissionsOfPermissions, action, recursion_set, function() {
               if (action in allowedActions) {
                 lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
                 addCalculatedProperties(row.data, req); 
@@ -200,7 +202,7 @@ function updatePermissions(req, res, patch) {
   });
 }
 
-function addAllowedActions(req, data, actors, result, permissionsOfPermissions, action, callback) {
+function addAllowedActions(req, data, actors, result, permissionsOfPermissions, action, recursion_set, callback) {
   var permissions;
   if (permissionsOfPermissions) { 
     permissions = data;
@@ -225,10 +227,13 @@ function addAllowedActions(req, data, actors, result, permissionsOfPermissions, 
     }
   }
   var inheritsPermissionsOf = data.governs.inheritsPermissionsOf;
+  if (inheritsPermissionsOf !== undefined) {
+    inheritsPermissionsOf = inheritsPermissionsOf.filter((x) => {return !(x in recursion_set);})
+  } 
   if (!(action in result) && inheritsPermissionsOf !== undefined && inheritsPermissionsOf.length > 0) {
     var count = 0;
     for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-      readAllowedActions(req, inheritsPermissionsOf[j], actors, result, permissionsOfPermissions, action, function() {
+      readAllowedActions(req, inheritsPermissionsOf[j], actors, result, permissionsOfPermissions, action, recursion_set, function() {
         if (++count == inheritsPermissionsOf.length) {
           callback(200);
         }
@@ -239,9 +244,10 @@ function addAllowedActions(req, data, actors, result, permissionsOfPermissions, 
   }
 }
 
-function readAllowedActions(req, resource, actors, result, permissionsOfPermissions, action, callback) {
+function readAllowedActions(req, resource, actors, result, permissionsOfPermissions, action, recursion_set, callback) {
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   var key = lib.internalizeURL(resource, req.headers.host)
+  recursion_set[key] = true;
   pool.query(query, [key], function (err, pg_res) {
     if (err) { 
       callback(err);
@@ -249,7 +255,7 @@ function readAllowedActions(req, resource, actors, result, permissionsOfPermissi
       if (pg_res.rowCount === 0) { 
         callback(404);
       } else {
-        addAllowedActions(req, pg_res.rows[0].data, actors, result, permissionsOfPermissions, action, callback);
+        addAllowedActions(req, pg_res.rows[0].data, actors, result, permissionsOfPermissions, action, recursion_set, callback);
       }
     }
   });

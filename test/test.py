@@ -192,6 +192,14 @@ def main():
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
     
+    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.get(team_permissions, headers=headers, json=permissions)
+    if r.status_code == 200:
+        server_permission = r.json()
+        print 'correctly retrieved permissions'
+    else:
+        print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
+    
     # Retrieve Coke org heirs
 
     url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
