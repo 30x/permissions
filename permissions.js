@@ -204,7 +204,7 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
       else {
         var row = pg_res.rows[0];
         var user = lib.getUser(req);
-        withActorsDo(req, user, function(err, user, actors) {
+        withTeamsDo(req, user, function(err, user, actors) {
           if (err) {
             lib.internalError(res, err);
           } else {
@@ -362,7 +362,7 @@ function getAllowedActions(req, res, queryString) {
   if (queryParts.user !== undefined) {
     user = lib.internalizeURL(queryParts.user, req.headers.host);
   }
-  withActorsDo(req, user, function(err, user, actors) {
+  withTeamsDo(req, user, function(err, user, actors) {
     if (err) {
       lib.internalError(res, err);
     } else {
@@ -470,7 +470,7 @@ function getPermissionsHeirs(req, res, securedObject) {
   });
 }
 
-function withActorsDo(req, user, callback) {
+function withTeamsDo(req, user, callback) {
   if (user !== null) {
     var teamsURL = PROTOCOL + '://' + req.headers.host + '/teams?' + user;
     var headers = {
