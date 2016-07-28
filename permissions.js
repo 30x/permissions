@@ -56,7 +56,7 @@ function verifyPermissions(permissions, req) {
 var OPERATIONPROPERTIES = ['creators', 'readers', 'updaters', 'deleters'];
 var OPERATIONS = ['create', 'read', 'update', 'delete'];
 
-function calculateCaches(req, res, permissions, callback) {
+function calculateSharedWith(req, res, permissions) {
   function listUsers (obj, result) {
     for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
       var actors = obj[OPERATIONPROPERTIES[i]];
@@ -68,25 +68,53 @@ function calculateCaches(req, res, permissions, callback) {
   var result = {};
   listUsers(permissions, result);
   listUsers(permissions.governs, result);
-  permissions._sharedWith = Object.keys(result);
+  permissions._sharedWith = result;
+}
+
+function calculateMerged(permissions) {
+  permissions._merged = {};
+  for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
+    var action = OPERATIONPROPERTIES[i]
+    var actors = permissions.governs[action];
+    permissions._merged[action] = [];
+    if (actors !== undefined) {
+      permissions._merged[action] = permissions._merged[action].concat(actors);
+    }
+    for (var parent in permissions._inherited) {
+      var inherited = permissions._inherited[parent][action];
+      if (inherited !== undefined) {
+        permissions._merged[action] = permissions._merged[action].concat(inherited);
+      }
+    }
+  }
+}
+
+function calculateInherited(req, res, permissions, parents, callback) {
   var parents = permissions.governs.inheritsPermissionsOf;
-  if (parents !== undefined) {
-    permissions._inherited = {};
+  if (parents !== undefined && parents !== null && parents.length > 0) {
+    if (permissions._inherited === undefined){
+      permissions._inherited = {};
+    };
     var response_count = 0;
     var response_errors = 0;
     for (var k = 0; k < parents.length; k++) {
-      withPermissionsDo(req, parents[k], function(err, parent, inheritedPermissions){
+      withInheritedPermissionsDo(req, parents[k], function(err, parent, inheritedPermissions){
         if (err) {
           if (response_errors++ == 0) {
-            lib.internalError(res, err);
+            if (err == 404) {
+              lib.badRequest(res, 'Canot inherit permissions from unknown resource ' + parents[k]);
+            } else {
+              lib.internalError(res, err);
+            }
           }
         } else {
           permissions._inherited[parent] = {};
-          var inherited = permissions._inherited[parent]
+          var inherited = permissions._inherited[parent];
           for (var l = 0; l < OPERATIONPROPERTIES.length; l++) {
-            var perm = inheritedPermissions.governs[OPERATIONPROPERTIES[l]];
-            if (perm !== undefined) {
-              inherited[OPERATIONPROPERTIES[l]] = perm;
+            var action = OPERATIONPROPERTIES[l];
+            var actors = inheritedPermissions._merged[action];
+            if (actors !== undefined) {
+              inherited[action] = actors;
             }
           }
         }
@@ -98,6 +126,14 @@ function calculateCaches(req, res, permissions, callback) {
   } else {
     callback(permissions);
   }
+}
+
+function calculateCaches(req, res, permissions, callback) {
+  calculateInherited(req, res, permissions, permissions.governs.inheritsPermissionsOf, function() {
+    calculateSharedWith(req, res, permissions);
+    calculateMerged(permissions);
+    callback();
+  });
 }
 
 function createPermissions(req, res, permissions) {
@@ -136,7 +172,7 @@ function addCalculatedProperties(permissions, req) {
   permissions._self = PROTOCOL + '://' + req.headers.host + '/permissions?' + permissions.governs._self;
 }
 
-function withPermissionsDo(req, subject, callback) {
+function withInheritedPermissionsDo(req, subject, callback) {
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   var key = lib.internalizeURL(subject, req.headers.host)
   pool.query(query,[key], function (err, pg_res) {
@@ -145,7 +181,7 @@ function withPermissionsDo(req, subject, callback) {
     }
     else {
       if (pg_res.rowCount === 0) { 
-        callback(400);
+        callback(404);
       }
       else {
         callback(null, subject, pg_res.rows[0].data);
@@ -218,22 +254,38 @@ function updatePermissions(req, res, patch) {
   var subject = url.parse(req.url).search.substring(1);
   getPermissionsThen(req, res, subject, 'update', true, function(permissions, etag) {
     if (req.headers['if-match'] == etag) { 
+      lib.internalizeURLs(patch, req.headers.host);
       var patchedPermissions = lib.mergePatch(permissions, patch);
-      lib.internalizeURLs(patchedPermissions, req.headers.host);
-      var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 RETURNING etag'
-      var key = lib.internalizeURL(subject, req.headers.host)
-      pool.query(query, [patchedPermissions, key], function (err, pg_res) {
-        if (err) { 
-          lib.badRequest(res, err);
-        } else {
-          if (pg_res.rowCount === 0) { 
-            lib.notFound(req, res);
-          } else {
-            var row = pg_res.rows[0];
-            addCalculatedProperties(patchedPermissions, req); 
-            lib.found(req, res, permissions, row.etag);
-          }
+      var inheritsFrom = patchedPermissions.governs.inheritsPermissionsOf || [];
+      for (var guardian in patchedPermissions._inherited) {
+        if (inheritsFrom.indexOf(guardian) = -1) {
+          delete patchedPermissions._inherited[guardian];
         }
+      }
+      var new_guardians = [];
+      for (var guardian in inheritsFrom) {
+        if (!guardian in patchedPermissions._inherited) {
+          new_guardians.push(guardian);
+        }
+      }
+      calculateInherited(req, res, patchedPermissions, new_guardians, function() {
+        calculateSharedWith(req, res, patchedPermissions);
+        calculateMerged(patchedPermissions);
+        var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 RETURNING etag'
+        var key = lib.internalizeURL(subject, req.headers.host)
+        pool.query(query, [patchedPermissions, key], function (err, pg_res) {
+          if (err) { 
+            lib.badRequest(res, err);
+          } else {
+            if (pg_res.rowCount === 0) { 
+              lib.notFound(req, res);
+            } else {
+              var row = pg_res.rows[0];
+              addCalculatedProperties(patchedPermissions, req); 
+              lib.found(req, res, permissions, row.etag);
+            }
+          }
+        });
       });
     } else {
       var err;

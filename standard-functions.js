@@ -314,9 +314,11 @@ function ifUserHasRequestTargetPermissionThen(req, res, action, callback) {
 }
 
 function mergePatch(target, patch) {
-  if (typeof patch == 'object') {
+  if (typeof patch == 'object' && !Array.isArray(patch)) {
     if (typeof target != 'object') {
       target = {}; // don't just return patch since it may have nulls; perform the merge
+    } else {
+      target = Object.assign({}, target);
     }
     for (var name in patch) {
       if (patch.hasOwnProperty(name)) {
