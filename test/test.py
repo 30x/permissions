@@ -36,7 +36,7 @@ def main():
     permissions = {
     'isA': 'Permissions',
     'governs': 
-        {'_self': 'http://apigee.com/o/coke',
+        {'_self': 'http://apigee.com/o/acme',
         'updaters': [USER1],
         'readers': [USER1],
         'deleters': [USER1],
@@ -73,7 +73,7 @@ def main():
         server_permission = r.json()
         if all(item in server_permission.items() for item in permissions.items()):
             if ('Etag' in r.headers):
-                coke_org_if_match = r.headers['Etag']
+                acme_org_if_match = r.headers['Etag']
                 print 'correctly retrieved permissions'
             else:
                 print 'failed to provide etag in create response'
@@ -87,8 +87,8 @@ def main():
     permissions = {
     'isA': 'Permissions',
     'governs': 
-        {'_self': 'http://apigee.com/o/coke/teams',
-        'inheritsPermissionsOf': ['http://apigee.com/o/coke']
+        {'_self': 'http://apigee.com/o/acme/teams',
+        'inheritsPermissionsOf': ['http://apigee.com/o/acme']
         }
     }
 
@@ -111,21 +111,21 @@ def main():
     
     # Read heirs of Coke org (succeed)
 
-    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
+    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/acme'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/coke/teams']:
-            print 'correctly returned permissions heirs of http://apigee.com/o/coke'
+        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/acme/teams']:
+            print 'correctly returned permissions heirs of http://apigee.com/o/acme'
         else:
-            print 'incorrect resources permissions heirs of http://apigee.com/o/coke %s' % heirs
+            print 'incorrect resources permissions heirs of http://apigee.com/o/acme %s' % heirs
     else:
-        print 'failed to return permissions heirs of http://apigee.com/o/coke %s %s' % (r.status_code, r.text)
+        print 'failed to return permissions heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
     
     # Read heirs of Coke org (fail)
 
-    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
+    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/acme'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN2}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 403:
@@ -138,7 +138,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Org admins',
-        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/coke/teams']}},
+        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme/teams']}},
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 
@@ -154,7 +154,7 @@ def main():
 
     permissions_patch = {
     'governs': 
-        {'_self': 'http://apigee.com/o/coke',
+        {'_self': 'http://apigee.com/o/acme',
         'updaters': [TEAM1],
         'readers': [TEAM1],
         'deleters': [TEAM1],
@@ -172,7 +172,7 @@ def main():
     else:
         print 'failed to patch permissions %s %s' % (r.status_code, r.text)
     
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1, 'If-Match': coke_org_if_match}
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1, 'If-Match': acme_org_if_match}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 200:
         print 'correctly patched permissions' 
@@ -202,17 +202,17 @@ def main():
     
     # Retrieve Coke org heirs
 
-    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/coke'
+    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/acme'
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/coke/teams']:
-            print 'correctly returned heirs of http://apigee.com/o/coke after update of permissions to use team'
+        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/acme/teams']:
+            print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team'
         else:
-            print 'incorrect heirs of http://apigee.com/o/coke %s' % heirs
+            print 'incorrect heirs of http://apigee.com/o/acme %s' % heirs
     else:
-        print 'failed to return heirs of http://apigee.com/o/coke %s %s' % (r.status_code, r.text)
+        print 'failed to return heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
 
 if __name__ == '__main__':
     main()
