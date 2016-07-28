@@ -29,6 +29,10 @@ with open('token2.txt') as f:
     TOKEN2 = f.read()
     USER2 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
 
+with open('token3.txt') as f:
+    TOKEN3 = f.read()
+    USER3 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
+
 def main():
     
     permissions = {
@@ -97,7 +101,7 @@ def main():
         'isA': 'Team',
         'name': 'Acme Business Users',
         'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
-        'members': [USER1, USER2] 
+        'members': [USER2] 
         }
     url = 'http://localhost:8080' + '/teams' 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
@@ -105,6 +109,21 @@ def main():
     if r.status_code == 201:
         print 'correctly created team'
         BUSINESS_USERS = r.headers['location']
+    else:
+        print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
+
+    team = {
+        'isA': 'Team',
+        'name': 'Acme Ordinary Users',
+        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
+        'members': [USER3] 
+        }
+    url = 'http://localhost:8080' + '/teams' 
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.post(url, headers=headers, json=team)
+    if r.status_code == 201:
+        print 'correctly created team'
+        ORDINARY_USERS = r.headers['location']
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
 
@@ -131,13 +150,13 @@ def main():
     'governs': 
         {'_self': 'http://apigee.com/o/acme',
         'updaters': [ORG_ADMINS],
-        'readers': [ORG_ADMINS, BUSINESS_USERS],
+        'readers': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
         'deleters': [ORG_ADMINS],
-        'creators': [ORG_ADMINS, BUSINESS_USERS]
+        'creators': [ORG_ADMINS]
         },
     'readers': [ORG_ADMINS],
     'deleters': [ORG_ADMINS],
-    'updaters': [ORG_ADMINS]     
+    'updaters': [ORG_ADMINS]
     }
 
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
@@ -181,12 +200,64 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if [perm['_self'] for perm in heirs] == [ORG_ADMINS, BUSINESS_USERS]:
+        if [perm['_self'] for perm in heirs] == [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS]:
             print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team' 
         else:
             print 'incorrect heirs of http://apigee.com/o/acme %s' % heirs
     else:
         print 'failed to return heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
+
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    sharingSets = ['/appkeys', '/applications', '/deployments', 'devConnectUser', '/devPortalButton',]    
+    for item in sharingSets:
+        permissions = {
+            'isA': 'Permissions',
+            'governs': 
+                {'_self': 'http://apigee.com/o/acme%s' % item,
+                'inheritsPermissionsOf': ['http://apigee.com/o/acme']
+                }
+            }
+        r = requests.post(permissions_url, headers=headers, json=permissions)
+        if r.status_code == 201:
+            print 'correctly created permission' 
+        else:
+            print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
+
+    sharingSets = ['/apiproducts', '/apps', '/axCustomReports', '/companies', '/developers', '/reports']    
+    for item in sharingSets:
+        permissions = {
+            'isA': 'Permissions',
+            'governs': 
+                {'_self': 'http://apigee.com/o/acme%s' % item,
+                'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
+                'updaters': [BUSINESS_USERS],
+                'creators': [BUSINESS_USERS],
+                'deleters': [BUSINESS_USERS]
+                }
+            }
+        r = requests.post(permissions_url, headers=headers, json=permissions)
+        if r.status_code == 201:
+            print 'correctly created permission' 
+        else:
+            print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
+
+    sharingSets = ['/keyValueMaps']    
+    for item in sharingSets:
+        permissions = {
+            'isA': 'Permissions',
+            'governs': 
+                {'_self': 'http://apigee.com/o/acme%s' % item,
+                'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
+                'updaters': [BUSINESS_USERS, ORDINARY_USERS],
+                'creators': [BUSINESS_USERS, ORDINARY_USERS],
+                'deleters': [BUSINESS_USERS, ORDINARY_USERS]
+                }
+            }
+        r = requests.post(permissions_url, headers=headers, json=permissions)
+        if r.status_code == 201:
+            print 'correctly created permission' 
+        else:
+            print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
 if __name__ == '__main__':
     main()
