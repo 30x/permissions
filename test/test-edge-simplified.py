@@ -182,7 +182,7 @@ def main():
     if r.status_code == 200:
         heirs = r.json()
         if [perm['_self'] for perm in heirs] == [ORG_ADMINS, BUSINESS_USERS]:
-            print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team %s' % [ORG_ADMINS, BUSINESS_USERS]
+            print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team' 
         else:
             print 'incorrect heirs of http://apigee.com/o/acme %s' % heirs
     else:
