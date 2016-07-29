@@ -152,6 +152,7 @@ function respond(req, res, status, headers, body) {
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
     body = JSON.stringify(body);
+    body += '\n';
     headers['Content-Length'] = Buffer.byteLength(body);
     res.writeHead(status, headers);
     res.end(body);

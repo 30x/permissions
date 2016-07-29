@@ -64,7 +64,6 @@ function createTeam(req, res, team) {
   } else { 
     var err = verifyTeam(team);
     if (err !== null) {
-        console.log('cucou', err)
         lib.badRequest(res, err);
     } else {
         lib.createResource(req, res, team, primCreateTeam);
