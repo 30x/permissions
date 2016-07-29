@@ -9,7 +9,8 @@ var teamCache = {};
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 
-function withTeamsDo(req, user, callback) {
+function withTeamsDo(req, res, user, callback) {
+  console.log(user);
   if (user !== null) {
     var headers = {
       'Accept': 'application/json'
@@ -34,18 +35,18 @@ function withTeamsDo(req, user, callback) {
           var actors = JSON.parse(body);
           actors.push(user);
           lib.internalizeURLs(actors, req.headers.host);
-          callback(null, actors);
+          callback(actors);
         } else {
-          callback(client_response.statusCode, user);
+          lib.internalError(res, client_response.statusCode);
         }
       });
     });
     client_req.on('error', function (err) {
-      callback(err, user);
+      lib.internalError(res, err);
     });
     client_req.end();
   } else {
-    callback(null, user, null);
+    callback([]);
   }
 }
 
@@ -91,6 +92,10 @@ function addAllowedActions(req, data, actors, result, permissionsOfPermissions, 
   }
 }
 
+function cache(resource, permissions) {
+  permissionsCache[resource] = permissions;
+}
+
 function getPermissionsThen(req, resource, callback) {
   var permissions = permissionsCache[resource];
   if (permissions !== undefined) {
@@ -98,34 +103,37 @@ function getPermissionsThen(req, resource, callback) {
   } else {
     crud.getPermissionsThen(req, null, resource, function(err, permissions, etag) {
       if (err == null) {
-        permissionsCache[resource] = permissions;
+        cache(resource, permissions);
       }
-      callback(err, permissions)
+      callback(err, permissions);
     });
   }
 }
 
-function primIfAllowedThen(req, user, resource, action, permissionsOfPermissions, callback) {}
-
-function ifAllowedThen(req, user, resource, action, permissionsOfPermissions, callback) {
-  withTeamsDo(req, user, function() {
-
-  });
-  
+function primIfAllowedThen(req, res, actors, resource, action, permissionsOfPermissions, callback) {
   getPermissionsThen(req, resource, function(err, permissions) {
     if (err !== null) {
       callback(err);
     } else {
-      var permissionsObject = permissions.governs;
-      if (permissionsOfPermissions) {permissionsObject = permissions;}
+      var permissionsObject = permissionsOfPermissions ? permissions : permissions.governs;
       var allowedActors = permissionsObject[action];
       if (action in permissionsObject) {
-        for (var i; i < allowedActors; i++) {}
+        for (var i; i < allowedActors; i++) {
+          if (actors.indexOf(allowedActors[i]) > -1) {
+            callback(null);
+          }
+        }
         callback(null);
       } else {
         callback()
       }
     }
+  });
+}
+
+function ifAllowedThen(req, res, resource, action, permissionsOfPermissions, callback) {
+  withTeamsDo(req, res, function() {  
+    (req, res, actors, resource, action, permissionsOfPermissions, callback)
   });
 }
 

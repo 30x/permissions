@@ -129,23 +129,19 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
       else {
         var row = pg_res.rows[0];
         var user = lib.getUser(req);
-        perm.withTeamsDo(req, user, function(err, actors) {
-          if (err) {
-            lib.internalError(res, err);
-          } else {
-            var allowedActions = {};
-            var recursion_set = {};
-            recursion_set[subject] = true;
-            addAllowedActions(req, row.data, actors, allowedActions, permissionsOfPermissions, action, recursion_set, function() {
-              if (action in allowedActions) {
-                lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
-                addCalculatedProperties(row.data, req); 
-                callback(row.data, row.etag);
-              } else { 
-                lib.forbidden(req, res);
-              }
-            });
-          }
+        perm.withTeamsDo(req, res, user, function(actors) {
+          var allowedActions = {};
+          var recursion_set = {};
+          recursion_set[subject] = true;
+          addAllowedActions(req, row.data, actors, allowedActions, permissionsOfPermissions, action, recursion_set, function() {
+            if (action in allowedActions) {
+              lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
+              addCalculatedProperties(row.data, req); 
+              callback(row.data, row.etag);
+            } else { 
+              lib.forbidden(req, res);
+            }
+          });
         });
       }
     }
@@ -279,20 +275,16 @@ function getAllowedActions(req, res, queryString) {
   if (queryParts.user !== undefined) {
     user = lib.internalizeURL(queryParts.user, req.headers.host);
   }
-  perm.withTeamsDo(req, user, function(err, actors) {
-    if (err) {
-      lib.internalError(res, err);
-    } else {
-      withPermissionsDo(req, resource, actors, allowedActions, false, null, {}, function(statusCode) {
-        if (statusCode == 200) {
-          lib.found(req, res, Object.keys(allowedActions));
-        } else if (statusCode == 404) {
-          lib.notFound(req, res)
-        } else {
-          lib.internalError(statusCode)
-        }
-      });
-    }
+  perm.withTeamsDo(req, res, user, function(actors) {
+    withPermissionsDo(req, resource, actors, allowedActions, false, null, {}, function(statusCode) {
+      if (statusCode == 200) {
+        lib.found(req, res, Object.keys(allowedActions));
+      } else if (statusCode == 404) {
+        lib.notFound(req, res)
+      } else {
+        lib.internalError(statusCode)
+      }
+    });
   });
 }
 
