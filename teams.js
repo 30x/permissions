@@ -134,9 +134,9 @@ function updateTeam(req, res, id, patch) {
 }
 
 function getTeamsForUser(req, res, user) {
-  var requesting_user = lib.getUser(req);
+  var requestingUser = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
-  if (user == requesting_user) {
+  if (user == requestingUser) {
     var query = "SELECT id FROM teams, jsonb_array_elements(teams.data->'members') AS member WHERE member = $1"
     //var query = 'SELECT id FROM teams WHERE $1 IN teams.data.members';
     pool.query(query, [JSON.stringify(user)], function (err, pg_res) {

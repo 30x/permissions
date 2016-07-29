@@ -27,11 +27,11 @@ with open('token.txt') as f:
 
 with open('token2.txt') as f:
     TOKEN2 = f.read()
-    USER2 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
+    USER2 = json.loads(b64_decode(TOKEN2.split('.')[1]))['user_id']
 
 with open('token3.txt') as f:
     TOKEN3 = f.read()
-    USER3 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
+    USER3 = json.loads(b64_decode(TOKEN3.split('.')[1]))['user_id']
 
 def main():
     
@@ -241,7 +241,7 @@ def main():
         else:
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
-    sharingSets = ['/keyValueMaps']    
+    sharingSets = ['/keyvaluemaps']    
     for item in sharingSets:
         permissions = {
             'isA': 'Permissions',

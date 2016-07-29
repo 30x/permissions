@@ -402,15 +402,15 @@ function withTeamsDo(req, user, callback) {
     if (hostParts.length > 1) {
       options.port = hostParts[1];
     }
-    var client_req = http.request(options, function (res) {
-      lib.getClientResponseBody(res, function(body) {
-        if (res.statusCode == 200) { 
+    var client_req = http.request(options, function (client_response) {
+      lib.getClientResponseBody(client_response, function(body) {
+        if (client_response.statusCode == 200) { 
           body = JSON.parse(body);
           body.push(user);
           lib.internalizeURLs(body, req.headers.host);
           callback(null, user, body);
         } else {
-          callback(response.statusCode, user);
+          callback(client_response.statusCode, user);
         }
       });
     });
