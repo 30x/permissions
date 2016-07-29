@@ -72,11 +72,11 @@ def main():
                 acme_org_if_match = r.headers['Etag']
                 print 'correctly retrieved permissions'
             else:
-                print 'failed to provide etag in create response'
+                print 'failed to provide etag in get response'
         else:
             print 'retrieved permissions but comparison failed'
     else:
-        print 'failed to create permissions %s %s' % (r.status_code, r.text)
+        print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
     
     # Create Acme Org Admins team
 

@@ -8,8 +8,18 @@ Adding simple library prereqs could be OK if the value they bring is in proporti
 var Pool = require('pg').Pool;
 var lib = require('./standard-functions.js');
 
-function getPermissionsThen(res, subject, callback) {
+var config = {
+  host: 'localhost',
+  user: 'martinnally',
+  password: 'martinnally',
+  database: 'permissions'
+};
+
+var pool = new Pool(config);
+
+function getPermissionsThen(req, res, subject, callback) {
   // fetch the permissions resource for `subject`.
+  console.log('about to SELECT', subject)
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   pool.query(query,[subject], function (err, pg_res) {
     if (err) {
@@ -41,3 +51,5 @@ function getPermissionsThen(res, subject, callback) {
     }
   });
 }
+
+exports.getPermissionsThen = getPermissionsThen;

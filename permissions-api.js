@@ -117,8 +117,8 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
   // on subject. This may require walking up the inheritance tree. if `permissionsOfPermisions` is true, the caller
   // is trying to access the permissions document itself, otherwise the subject.
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
-  var key = lib.internalizeURL(subject, req.headers.host)
-  pool.query(query,[key], function (err, pg_res) {
+  subject = lib.internalizeURL(subject, req.headers.host)
+  pool.query(query,[subject], function (err, pg_res) {
     if (err) {
       lib.badRequest(res, err);
     }
@@ -128,20 +128,9 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
       }
       else {
         var row = pg_res.rows[0];
-        var user = lib.getUser(req);
-        perm.withTeamsDo(req, res, user, function(actors) {
-          var allowedActions = {};
-          var recursion_set = {};
-          recursion_set[subject] = true;
-          addAllowedActions(req, row.data, actors, allowedActions, permissionsOfPermissions, action, recursion_set, function() {
-            if (action in allowedActions) {
-              lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
-              addCalculatedProperties(row.data, req); 
-              callback(row.data, row.etag);
-            } else { 
-              lib.forbidden(req, res);
-            }
-          });
+        perm.cache(row.data, row.etag);
+        perm.ifUserAllowedThen(req, res, subject, action, permissionsOfPermissions, function() {
+          callback(row.data, row.etag);
         });
       }
     }
