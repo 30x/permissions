@@ -10,6 +10,7 @@ var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
+var auth = require('./permissions-authority');
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
@@ -112,6 +113,9 @@ function addCalculatedProperties(permissions, req) {
 }
 
 function getPermissionsThen(req, res, subject, action, permissionsOfPermissions, callback) {
+  // fetch the permissions resource for `subject`. Call the callback only if the user has permissions to perform `action`
+  // on subject. This may require walking up the inheritance tree. if `permissionsOfPermisions` is true, the caller
+  // is trying to access the permissions document itself, otherwise the subject.
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   var key = lib.internalizeURL(subject, req.headers.host)
   pool.query(query,[key], function (err, pg_res) {
@@ -125,7 +129,7 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
       else {
         var row = pg_res.rows[0];
         var user = lib.getUser(req);
-        withTeamsDo(req, user, function(err, user, actors) {
+        auth.withTeamsDo(req, user, function(err, user, actors) {
           if (err) {
             lib.internalError(res, err);
           } else {
@@ -275,7 +279,7 @@ function getAllowedActions(req, res, queryString) {
   if (queryParts.user !== undefined) {
     user = lib.internalizeURL(queryParts.user, req.headers.host);
   }
-  withTeamsDo(req, user, function(err, user, actors) {
+  auth.withTeamsDo(req, user, function(err, user, actors) {
     if (err) {
       lib.internalError(res, err);
     } else {
@@ -365,7 +369,7 @@ function getResourcesSharedWith(req, res, user) {
 
 function getPermissionsHeirs(req, res, securedObject) {
   securedObject = lib.internalizeURL(securedObject, req.headers.host);
-  getPermissionsThen(req, res, securedObject, 'read', false, function(permissions, etag) {
+  getPermissionsThen(req, res, securedObject, 'read', false, function() {
     pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"inheritsPermissionsOf":["' + securedObject + '"]}}\'', function (err, pg_res) {
       if (err) {
         lib.badRequest(res, err);
@@ -381,46 +385,6 @@ function getPermissionsHeirs(req, res, securedObject) {
       }
     });
   });
-}
-
-function withTeamsDo(req, user, callback) {
-  if (user !== null) {
-    var headers = {
-      'Accept': 'application/json'
-    }
-    if (req.headers.authorization !== undefined) {
-      headers.authorization = req.headers.authorization; 
-    }
-    var hostParts = req.headers.host.split(':');
-    var options = {
-      protocol: PROTOCOL,
-      hostname: hostParts[0],
-      path: '/teams?' + user,
-      method: 'GET',
-      headers: headers
-    };
-    if (hostParts.length > 1) {
-      options.port = hostParts[1];
-    }
-    var client_req = http.request(options, function (client_response) {
-      lib.getClientResponseBody(client_response, function(body) {
-        if (client_response.statusCode == 200) { 
-          body = JSON.parse(body);
-          body.push(user);
-          lib.internalizeURLs(body, req.headers.host);
-          callback(null, user, body);
-        } else {
-          callback(client_response.statusCode, user);
-        }
-      });
-    });
-    client_req.on('error', function (err) {
-      callback(err, user);
-    });
-    client_req.end();
-  } else {
-    callback(null, user, null);
-  }
 }
 
 function requestHandler(req, res) {
