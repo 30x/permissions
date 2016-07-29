@@ -46,6 +46,17 @@ function getClientResponseBody(res, callback) {
   });
 }
 
+function getUserFromToken(token) {
+  var claims64 = token.split('.');
+  if (claims64.length != 3) {
+    return null;
+  } else {
+    var claimsString = new Buffer(claims64[1], 'base64').toString();
+    var claims = JSON.parse(claimsString);
+    return claims.user_id;
+  }
+}
+
 function getUser(req) {
   var auth = req.headers.authorization;
   if (auth == undefined) {
@@ -55,15 +66,7 @@ function getUser(req) {
     if (auth_parts.length < 2 || auth_parts[0].toLowerCase() != 'bearer') {
       return null;
     } else {
-      var token = auth_parts[1];
-      var claims64 = token.split('.');
-      if (claims64.length != 3) {
-        return null;
-      } else {
-        var claimsString = new Buffer(claims64[1], 'base64').toString();
-        var claims = JSON.parse(claimsString);
-        return claims.user_id;
-      }
+      return getUserFromToken(auth_parts[1]);
     }
   }
 }
@@ -455,3 +458,4 @@ exports.internalError = internalError;
 exports.createPermissonsFor = createPermissonsFor;
 exports.createResource = createResource;
 exports.setStandardCreationProperties = setStandardCreationProperties;
+exports.getUserFromToken = getUserFromToken;

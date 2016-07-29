@@ -279,7 +279,7 @@ function getAllowedActions(req, res, queryString) {
     if (err) {
       lib.internalError(res, err);
     } else {
-      readAllowedActions(req, resource, actors, allowedActions, false, null, function(statusCode) {
+      readAllowedActions(req, resource, actors, allowedActions, false, null, {}, function(statusCode) {
         if (statusCode == 200) {
           lib.found(req, res, Object.keys(allowedActions));
         } else if (statusCode == 404) {
