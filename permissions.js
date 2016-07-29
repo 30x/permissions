@@ -239,7 +239,7 @@ function addAllowedActions(req, data, actors, result, permissionsOfPermissions, 
   if (!(action in result) && inheritsPermissionsOf !== undefined && inheritsPermissionsOf.length > 0) {
     var count = 0;
     for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-      readAllowedActions(req, inheritsPermissionsOf[j], actors, result, permissionsOfPermissions, action, recursion_set, function() {
+      withPermissionsDo(req, inheritsPermissionsOf[j], actors, result, permissionsOfPermissions, action, recursion_set, function() {
         if (++count == inheritsPermissionsOf.length) {
           callback(200);
         }
@@ -250,7 +250,7 @@ function addAllowedActions(req, data, actors, result, permissionsOfPermissions, 
   }
 }
 
-function readAllowedActions(req, resource, actors, result, permissionsOfPermissions, action, recursion_set, callback) {
+function withPermissionsDo(req, resource, actors, result, permissionsOfPermissions, action, recursion_set, callback) {
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   var key = lib.internalizeURL(resource, req.headers.host)
   recursion_set[key] = true;
@@ -279,7 +279,7 @@ function getAllowedActions(req, res, queryString) {
     if (err) {
       lib.internalError(res, err);
     } else {
-      readAllowedActions(req, resource, actors, allowedActions, false, null, {}, function(statusCode) {
+      withPermissionsDo(req, resource, actors, allowedActions, false, null, {}, function(statusCode) {
         if (statusCode == 200) {
           lib.found(req, res, Object.keys(allowedActions));
         } else if (statusCode == 404) {
