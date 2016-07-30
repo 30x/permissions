@@ -192,7 +192,7 @@ function addUsersWhoCanSee(req, res, permissions, result, callback) {
 function getUsersWhoCanSee(req, res, resource) {
   var result = {};
   resource = lib.internalizeURL(resource, req.headers.host);
-  perm.ifAllowedDo(req, res, resource, "read", true, function (permissions, etag) {
+  perm.ifAllowedDo(req, res, resource, 'read', true, function (permissions, etag) {
     addUsersWhoCanSee(req, res, permissions, result, function() {
       lib.found(req, res, Object.keys(result));
     });

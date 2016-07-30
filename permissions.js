@@ -136,12 +136,12 @@ function ifAllowedDo(req, res, originalResource, action, permissionsOfPermission
   function ifActorsAllowedDo(actors, resource, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
       if (permissionsOfPermissions && resource == originalResource) {
-        originalPermissons = JSON.parse(JSON.stringify(permissions));
+        originalPermissons = permissions;
       }
       var allowed = isActionAllowed(permissionsOfPermissions ? permissions : permissions.governs, actors, action);
       if (allowed) {
         if (permissionsOfPermissions) {
-          callback(originalPermissons, originalPermissons._Etag)
+          callback(JSON.parse(JSON.stringify(originalPermissons)), originalPermissons._Etag)
         } else {
           callback();
         }
@@ -155,7 +155,7 @@ function ifAllowedDo(req, res, originalResource, action, permissionsOfPermission
               ifActorsAllowedDo(actors, inheritsPermissionsOf[j], function() {
                 if (++count == inheritsPermissionsOf.length) {
                   if (permissionsOfPermissions) {
-                    callback(originalPermissons, originalPermissons._Etag)
+                    callback(JSON.parse(JSON.stringify(originalPermissons)), originalPermissons._Etag)
                   } else {
                     callback();
                   }
