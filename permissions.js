@@ -111,11 +111,11 @@ function cache(resource, permissions, etag) {
 }
 
 function invalidate(resource, permissions, etag) {
-  if (resource !== undefined && resource !== null) {
-    cache(resource, permissions, etag);
-  } else {
+//  if (resource !== undefined && resource !== null) {
+//    cache(resource, permissions, etag);
+//  } else {
     delete permissionsCache[resource];
-  } 
+//  } 
 }
 
 function withPermissionsDo(req, res, resource, callback) {
@@ -128,6 +128,12 @@ function withPermissionsDo(req, res, resource, callback) {
       callback(permissions, etag);
     });
   }
+}
+
+function withExportedPermissionsDo(req, res, resource, callback) {
+  withPermissionsDo(req, res, resource, function(permissions, etag) {
+    callback(JSON.parse(JSON.stringify(permissions)), etag);
+  });
 }
 
 function ifAllowedDo(req, res, resource, action, permissionsOfPermissions, callback) {
@@ -202,4 +208,4 @@ function withAllowedActionsDo(req, res, resource, permissionsOfPermissions, call
 exports.ifAllowedDo = ifAllowedDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
-exports.withPermissionsDo = withPermissionsDo;
+exports.withPermissionsDo = withExportedPermissionsDo;

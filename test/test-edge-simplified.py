@@ -208,6 +208,7 @@ def main():
             print 'incorrect heirs of http://apigee.com/o/acme %s' % heirs
     else:
         print 'failed to return heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
+        return
 
     # Retrieve allowed actions
 

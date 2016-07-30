@@ -135,7 +135,7 @@ function found(req, res, body, etag, location) {
   if (etag !== undefined) {
     headers['Etag'] = etag;
   } 
-  respond(req, res, 200, headers, externalizeURLs(body, req.headers.host));
+  respond(req, res, 200, headers, body);
 }
 
 function created(req, res, body, location, etag) {
@@ -152,6 +152,7 @@ function created(req, res, body, location, etag) {
 function respond(req, res, status, headers, body) {
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
+    externalizeURLs(body, req.headers.host);
     body = JSON.stringify(body);
     body += '\n';
     headers['Content-Length'] = Buffer.byteLength(body);
@@ -177,43 +178,37 @@ function internalizeURL(anURL, authority) {
 
 function internalizeURLs(jsObject, authority) {
   //strip the http://authority or https://authority from the front of any urls
-  if (typeof jsObject == 'object') {
-    var httpString = 'http://' + authority;
-    var httpsString = 'https://' + authority;
+  if (Array.isArray(jsObject)) {
+    for (var i = 0; i < jsObject.length; i++) {
+      jsObject[i] = internalizeURLs(jsObject[i], authority);
+    }             
+  } else if (typeof jsObject == 'object') {
     for(var key in jsObject) {
       if (jsObject.hasOwnProperty(key)) {
         jsObject[key] = internalizeURLs(jsObject[key], authority);
       }
     }
-  } else if (Array.isArray(jsObject)) {
-    for (var i = 0; i < jsObject.length; i++) {
-      jsObject[i] = internalizeURLs(jsObject[i], authority);
-    }             
-  } else if (typeof vali == 'string') {
-    if (jsObject.lastIndexOf(httpString) === 0) {
-      return INTERNALURLPREFIX + jsObject.substring(httpString.length);
-    } else if (jsObject.lastIndexOf(httpsString) === 0) {
-      return INTERNALURLPREFIX + jsObject.substring(httpsString.length);
-    }
+  } else if (typeof jsObject == 'string') {
+    return internalizeURL(jsObject, authority)
   }
   return jsObject;
 }
 
-function externalizeURLs(jsObject, authority, protocol) {
+function externalizeURLs(jsObject, authority) {
   //add http://authority or https://authority to the front of any urls
-  if (typeof jsObject == 'object') {
-    var prefix = protocol + '//' + authority;
+  if (Array.isArray(jsObject)) {
+    for (var i = 0; i < jsObject.length; i++) {
+      jsObject[i] = externalizeURLs(jsObject[i], authority);
+    }
+  } else if (typeof jsObject == 'object') {
     for(var key in jsObject) {
       if (jsObject.hasOwnProperty(key)) {
         jsObject[key] = externalizeURLs(jsObject[key], authority);
       }
     }
-  } else if (Array.isArray(jsObject)) {
-    for (var i = 0; i < jsObject.length; i++) {
-      jsObject[i] = externalizeURLs(jsObject[i], authority);
-    }
   } else if (typeof jsObject == 'string') {
-    if (jsObject.lastIndexOf('INTERNALURLPREFIX') === 0) {
+    if (jsObject.lastIndexOf(INTERNALURLPREFIX) === 0) {
+      var prefix = PROTOCOL + '//' + authority;
       return prefix + jsObject.substring(INTERNALURLPREFIX.length);
     }
   }             

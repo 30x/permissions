@@ -132,7 +132,7 @@ function deletePermissions(req, res, subject) {
 }
 
 function updatePermissions(req, res, patch) {
-  patch = lib.internalizeURLs(patch);
+  patch = lib.internalizeURLs(patch, req.headers.host);
   var subject = url.parse(req.url).search.substring(1);
   getPermissionsThen(req, res, subject, 'update', true, function(permissions, etag) {
     if (req.headers['if-match'] == etag) { 
@@ -240,7 +240,6 @@ function getResourcesSharedWith(req, res, user) {
 }
 
 function getPermissionsHeirs(req, res, securedObject) {
-  securedObject = lib.internalizeURL(securedObject, req.headers.host);
   perm.ifAllowedDo(req, res, securedObject, 'read', false, function() {
     pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"inheritsPermissionsOf":["' + securedObject + '"]}}\'', function (err, pg_res) {
       if (err) {
@@ -250,7 +249,6 @@ function getPermissionsHeirs(req, res, securedObject) {
         var result = [];
         var rows = pg_res.rows;
         for (var i = 0; i < rows.length; i++) {
-            lib.externalizeURLs(rows[i].data.governs, req.host); 
             result.push(rows[i].data.governs);
         }
         lib.found(req, res, result);
@@ -270,9 +268,9 @@ function requestHandler(req, res) {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search !== null) {
       if (req.method == 'GET') { 
-        getPermissions(req, res, lib.internalizeURL(req_url.search.substring(1)));
+        getPermissions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else if (req.method == 'DELETE') { 
-        deletePermissions(req, res, lib.internalizeURL(req_url.search.substring(1)));
+        deletePermissions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else if (req.method == 'PATCH') { 
         lib.getServerPostBody(req, res, updatePermissions);
       } else {
@@ -280,25 +278,25 @@ function requestHandler(req, res) {
       }
     } else if (req_url.pathname == '/allowed-actions' && req_url.search !== null){ 
       if (req.method == 'GET') {
-        getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1)));
+        getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
         lib.methodNotAllowed(req, res);
       }
     } else if (req_url.pathname == '/resources-shared-with' && req_url.search !== null) {
       if (req.method == 'GET') {
-        getResourcesSharedWith(req, res, lib.internalizeURL(req_url.search.substring(1)));
+        getResourcesSharedWith(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
         lib.methodNotAllowed(req, res);
       }
     } else  if (req_url.pathname == '/permissions-heirs' && req_url.search !== null) {
       if (req.method == 'GET') {
-        getPermissionsHeirs(req, res, lib.internalizeURL(req_url.search.substring(1)));
+        getPermissionsHeirs(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
         lib.methodNotAllowed(req, res);
       }
     } else if (req_url.pathname == '/users-who-can-access' && req_url.search !== null) {
       if (req.method == 'GET') {
-        getUsersWhoCanSee(req, res, lib.internalizeURL(req_url.search.substring(1)));
+        getUsersWhoCanSee(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
         lib.methodNotAllowed(req, res);
       }
