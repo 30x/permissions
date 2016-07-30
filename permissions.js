@@ -130,19 +130,21 @@ function withPermissionsDo(req, res, resource, callback) {
   }
 }
 
-function withExportedPermissionsDo(req, res, resource, callback) {
-  withPermissionsDo(req, res, resource, function(permissions, etag) {
-    callback(JSON.parse(JSON.stringify(permissions)), etag);
-  });
-}
-
-function ifAllowedDo(req, res, resource, action, permissionsOfPermissions, callback) {
+function ifAllowedDo(req, res, originalResource, action, permissionsOfPermissions, callback) {
   var recursionSet = {};
-  function ifActorsAllowedDo(req, res, actors, resource, action, permissionsOfPermissions, callback) {
+  var originalPermissons = null;
+  function ifActorsAllowedDo(actors, resource, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
+      if (permissionsOfPermissions && resource == originalResource) {
+        originalPermissons = JSON.parse(JSON.stringify(permissions));
+      }
       var allowed = isActionAllowed(permissionsOfPermissions ? permissions : permissions.governs, actors, action);
       if (allowed) {
-        callback();
+        if (permissionsOfPermissions) {
+          callback(originalPermissons, originalPermissons._Etag)
+        } else {
+          callback();
+        }
       } else {
         var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
@@ -150,9 +152,13 @@ function ifAllowedDo(req, res, resource, action, permissionsOfPermissions, callb
           if (inheritsPermissionsOf.length > 0) {
             var count = 0;
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-              ifActorsAllowedDo(req, res, actors, inheritsPermissionsOf[j], action, permissionsOfPermissions, function() {
+              ifActorsAllowedDo(actors, inheritsPermissionsOf[j], function() {
                 if (++count == inheritsPermissionsOf.length) {
-                  callback();
+                  if (permissionsOfPermissions) {
+                    callback(originalPermissons, originalPermissons._Etag)
+                  } else {
+                    callback();
+                  }
                 }
               });
             }
@@ -167,7 +173,7 @@ function ifAllowedDo(req, res, resource, action, permissionsOfPermissions, callb
   }
   var user = lib.getUser(req);
   withTeamsDo(req, res, user, function(actors) {  
-    ifActorsAllowedDo(req, res, actors, resource, action, permissionsOfPermissions, callback)
+    ifActorsAllowedDo(actors, originalResource, callback);
   });
 }
 
@@ -208,4 +214,3 @@ function withAllowedActionsDo(req, res, resource, permissionsOfPermissions, call
 exports.ifAllowedDo = ifAllowedDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
-exports.withPermissionsDo = withExportedPermissionsDo;

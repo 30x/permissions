@@ -104,19 +104,8 @@ function addCalculatedProperties(req, permissions) {
   permissions._self = PROTOCOL + '//' + req.headers.host + '/permissions?' + permissions.governs._self;
 }
 
-function getPermissionsThen(req, res, subject, action, permissionsOfPermissions, callback) {
-  // fetch the permissions resource for `subject`. Call the callback only if the user has permissions to perform `action`
-  // on subject. This may require walking up the inheritance tree. if `permissionsOfPermisions` is true, the caller
-  // is trying to access the permissions document itself, otherwise the subject.
-  perm.withPermissionsDo(req, res, subject, function(permissions, etag) {
-    perm.ifAllowedDo(req, res, subject, action, permissionsOfPermissions, function() {
-      callback(permissions, etag);
-    });
-  });
-}
-
 function getPermissions(req, res, subject) {
-  getPermissionsThen(req, res, subject, 'read', true, function(permissions, etag) {
+  perm.ifAllowedDo(req, res, subject, 'read', true, function(permissions, etag) {
     lib.found(req, res, permissions, etag);
   });
 }
@@ -134,7 +123,7 @@ function deletePermissions(req, res, subject) {
 function updatePermissions(req, res, patch) {
   patch = lib.internalizeURLs(patch, req.headers.host);
   var subject = url.parse(req.url).search.substring(1);
-  getPermissionsThen(req, res, subject, 'update', true, function(permissions, etag) {
+  perm.ifAllowedDo(req, res, subject, 'update', true, function(permissions, etag) {
     if (req.headers['if-match'] == etag) { 
       lib.internalizeURLs(patch, req.headers.host);
       var patchedPermissions = lib.mergePatch(permissions, patch);
@@ -191,7 +180,7 @@ function addUsersWhoCanSee(req, res, permissions, result, callback) {
   if (inheritsPermissionsOf !== undefined) {
     var count = 0;
     for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-      getPermissionsThen(req, res, inheritsPermissionsOf[j], 'read', true, function(permissions, etag) {
+      perm.ifAllowedDo(req, res, inheritsPermissionsOf[j], 'read', true, function(permissions, etag) {
         addUsersWhoCanSee(req, res, permissions, result, function() {if (++count == inheritsPermissionsOf.length) {callback();}});
       });
     }
@@ -203,7 +192,7 @@ function addUsersWhoCanSee(req, res, permissions, result, callback) {
 function getUsersWhoCanSee(req, res, resource) {
   var result = {};
   resource = lib.internalizeURL(resource, req.headers.host);
-  getPermissionsThen(req, res, resource, "read", true, function (permissions, etag) {
+  perm.ifAllowedDo(req, res, resource, "read", true, function (permissions, etag) {
     addUsersWhoCanSee(req, res, permissions, result, function() {
       lib.found(req, res, Object.keys(result));
     });
