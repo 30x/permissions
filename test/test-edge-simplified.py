@@ -77,6 +77,7 @@ def main():
             print 'retrieved permissions but comparison failed'
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
+        return
     
     # Create Acme Org Admins team
 
@@ -142,7 +143,8 @@ def main():
         else:
             print 'retrieved permissions but comparison failed'
     else:
-        print 'failed to create permissions %s %s' % (r.status_code, r.text)
+        print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
+        return
 
     # Patch Acme org permissions to use team
 
@@ -272,6 +274,21 @@ def main():
             print 'correctly created permission' 
         else:
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
+
+    # Retrieve allowed actions
+
+    url = 'http://localhost:8080/users-who-can-access?%s' % 'http://apigee.com/o/acme/keyvaluemaps'
+    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        users = r.json()
+        if all([item in users for item in [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS]]):
+            print 'correctly returned allowed actions of http://apigee.com/o/acme for USER1 after update of permissions to use team' 
+        else:
+            print 'incorrect returned actions of http://apigee.com/o/acme for USER1 %s' % actions
+    else:
+        print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
+
 
 if __name__ == '__main__':
     main()

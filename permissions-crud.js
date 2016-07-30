@@ -40,4 +40,22 @@ function getPermissionsThen(req, res, subject, callback) {
   });
 }
 
+function createPermissionsThen(req, res, permissions, callback) {
+  // fetch the permissions resource for `subject`.
+  lib.internalizeURLs(permissions, req.headers.host);
+  pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs._self, permissions], function (err, pg_res) {
+    if (err) {
+      if (err.code == 23505){ 
+        lib.duplicate(res, err);
+      } else { 
+        lib.badRequest(res, err);
+      }
+    } else {
+      var etag = pg_res.rows[0].etag;
+      callback(permissions, etag);
+    }
+  });
+}
+
 exports.getPermissionsThen = getPermissionsThen;
+exports.createPermissionsThen = createPermissionsThen;

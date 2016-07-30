@@ -57,15 +57,19 @@ function getAllowedActions(permissionsObject, actors) {
   var allowedActions = {};
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     var actionProperty = OPERATIONPROPERTIES[i];
-    if (permissionsObject[actionProperty] !== undefined) {
-      if (permissionsObject[actionProperty].indexOf(INCOGNITO) > -1) { 
+    var allowedActors = permissionsObject[actionProperty];
+    if (allowedActors !== undefined) {
+      if (allowedActors.indexOf(INCOGNITO) > -1) { 
         allowedActions[OPERATIONS[i]] = true;
       } else if (actors !== null) {
-        for (var j=0; j<actors.length; j++) {
-          var user = actors[j];
-          if (permissionsObject[actionProperty].indexOf(ANYONE) > -1 ||
-              permissionsObject[actionProperty].indexOf(user) > -1 ) { 
-            allowedActions[OPERATIONS[i]] = true;
+        if (allowedActors.indexOf(ANYONE) > -1) {
+          allowedActions[OPERATIONS[i]] = true;          
+        } else {
+          for (var j=0; j<actors.length; j++) {
+            var user = actors[j];
+            if (allowedActors.indexOf(user) > -1 ) { 
+              allowedActions[OPERATIONS[i]] = true;
+            }
           }
         }
       }
@@ -76,15 +80,19 @@ function getAllowedActions(permissionsObject, actors) {
 
 function isActionAllowed(permissionsObject, actors, action) {
   var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
-  if (permissionsObject[actionProperty] !== undefined) {
-    if (permissionsObject[actionProperty].indexOf(INCOGNITO) > -1) { 
+  var allowedActors = permissionsObject[actionProperty];
+  if (allowedActors !== undefined) {
+    if (allowedActors.indexOf(INCOGNITO) > -1) { 
       return true;
     } else if (actors !== null) {
-      for (var j=0; j<actors.length; j++) {
-        var user = actors[j];
-        if (permissionsObject[actionProperty].indexOf(ANYONE) > -1 ||
-            permissionsObject[actionProperty].indexOf(user) > -1 ) { 
-          return true;
+      if (allowedActors.indexOf(ANYONE) > -1) {
+        return true;
+      } else {
+        for (var j=0; j<actors.length; j++) {
+          var actor = actors[j];
+          if (allowedActors.indexOf(actor) > -1 ) {
+            return true;
+          }
         }
       }
     }
@@ -126,7 +134,7 @@ function ifAllowedDo(req, res, resource, action, permissionsOfPermissions, callb
           if (inheritsPermissionsOf.length > 0) {
             var count = 0;
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-              ifActorsAllowedThen(req, res, actors, inheritsPermissionsOf[j], action, permissionsOfPermissions, function() {
+              ifActorsAllowedDo(req, res, actors, inheritsPermissionsOf[j], action, permissionsOfPermissions, function() {
                 if (++count == inheritsPermissionsOf.length) {
                   callback();
                 }
