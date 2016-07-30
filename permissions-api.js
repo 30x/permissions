@@ -129,7 +129,7 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
       else {
         var row = pg_res.rows[0];
         perm.cache(row.data, row.etag);
-        perm.ifUserAllowedThen(req, res, subject, action, permissionsOfPermissions, function() {
+        perm.ifAllowedDo(req, res, subject, action, permissionsOfPermissions, function() {
           callback(row.data, row.etag);
         });
       }
@@ -197,84 +197,17 @@ function updatePermissions(req, res, patch) {
   });
 }
 
-function addAllowedActions(req, data, actors, result, permissionsOfPermissions, action, recursion_set, callback) {
-  var permissions;
-  if (permissionsOfPermissions) { 
-    permissions = data;
-  } else {
-    permissions = data.governs;
-  }
-  for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
-    if (permissions[OPERATIONPROPERTIES[i]] !== undefined) {
-      if (actors === null) {
-        if (permissions[OPERATIONPROPERTIES[i]].indexOf(INCOGNITO) > -1) { 
-          result[OPERATIONS[i]] = true;
-        }
-      } else {
-        for (var j=0; j<actors.length; j++) {
-          var user = actors[j];
-          if (permissions[OPERATIONPROPERTIES[i]].indexOf(ANYONE) > -1 ||
-              permissions[OPERATIONPROPERTIES[i]].indexOf(user) > -1 ) { 
-            result[OPERATIONS[i]] = true;
-          }
-        }
-      }
-    }
-  }
-  var inheritsPermissionsOf = data.governs.inheritsPermissionsOf;
-  if (inheritsPermissionsOf !== undefined) {
-    inheritsPermissionsOf = inheritsPermissionsOf.filter((x) => {return !(x in recursion_set);})
-  } 
-  if (!(action in result) && inheritsPermissionsOf !== undefined && inheritsPermissionsOf.length > 0) {
-    var count = 0;
-    for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-      withPermissionsDo(req, inheritsPermissionsOf[j], actors, result, permissionsOfPermissions, action, recursion_set, function() {
-        if (++count == inheritsPermissionsOf.length) {
-          callback(200);
-        }
-      });
-    }
-  } else {
-    callback(200);
-  }
-}
-
-function withPermissionsDo(req, resource, actors, result, permissionsOfPermissions, action, recursion_set, callback) {
-  var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
-  var key = lib.internalizeURL(resource, req.headers.host)
-  recursion_set[key] = true;
-  pool.query(query, [key], function (err, pg_res) {
-    if (err) { 
-      callback(err);
-    } else { 
-      if (pg_res.rowCount === 0) { 
-        callback(404);
-      } else {
-        addAllowedActions(req, pg_res.rows[0].data, actors, result, permissionsOfPermissions, action, recursion_set, callback);
-      }
-    }
-  });
-}
-
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
-  var allowedActions = {};
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
-  var user = null;
-  if (queryParts.user !== undefined) {
-    user = lib.internalizeURL(queryParts.user, req.headers.host);
-  }
-  perm.withTeamsDo(req, res, user, function(actors) {
-    withPermissionsDo(req, resource, actors, allowedActions, false, null, {}, function(statusCode) {
-      if (statusCode == 200) {
-        lib.found(req, res, Object.keys(allowedActions));
-      } else if (statusCode == 404) {
-        lib.notFound(req, res)
-      } else {
-        lib.internalError(statusCode)
-      }
+  var user = queryParts.user
+  if (user == lib.getUser(req)) { 
+    perm.withAllowedActionsDo(req, res, resource, false, function(allowedActions) {
+      lib.found(req, res, allowedActions);
     });
-  });
+  } else {
+    lib.badRequest(res, 'user in query string must match user credentials')
+  }
 }
 
 function addUsersWhoCanSee(permissions, result, callback) {

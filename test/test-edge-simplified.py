@@ -207,6 +207,20 @@ def main():
     else:
         print 'failed to return heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
 
+    # Retrieve allowed actions
+
+    url = 'http://localhost:8080' + '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1)
+    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        actions = r.json()
+        if all([item in actions for item in ['create', 'read', 'update', 'delete']]):
+            print 'correctly returned allowed actions of http://apigee.com/o/acme for USER1 after update of permissions to use team' 
+        else:
+            print 'incorrect returned actions of http://apigee.com/o/acme for USER1 %s' % actions
+    else:
+        print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
+
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
     sharingSets = ['/appkeys', '/applications', '/deployments', 'devConnectUser', '/devPortalButton',]    
     for item in sharingSets:

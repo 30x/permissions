@@ -19,7 +19,7 @@ var pool = new Pool(config);
 
 function getPermissionsThen(req, res, subject, callback) {
   // fetch the permissions resource for `subject`.
-  console.log('about to SELECT', subject)
+  subject = lib.internalizeURL(subject, req.headers.host)
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   pool.query(query,[subject], function (err, pg_res) {
     if (err) {

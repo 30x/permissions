@@ -54,7 +54,7 @@ function withTeamsDo(req, res, user, callback) {
 }
 
 function getAllowedActions(permissionsObject, actors) {
-  allowedActions = {};
+  var allowedActions = {};
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     var actionProperty = OPERATIONPROPERTIES[i];
     if (permissionsObject[actionProperty] !== undefined) {
@@ -108,41 +108,76 @@ function getPermissionsThen(req, res, resource, callback) {
   }
 }
 
-function ifActorsAllowedThen(req, res, actors, resource, action, permissionsOfPermissions, recursionSet, callback) {
-  getPermissionsThen(req, res, resource, function(permissions) {
-    var allowed = isActionAllowed(permissionsOfPermissions ? permissions : permissions.governs, actors, action);
-    if (allowed) {
-      callback();
-    } else {
-      var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
-      if (inheritsPermissionsOf !== undefined) {
-        inheritsPermissionsOf = inheritsPermissionsOf.filter((x) => {return !(x in recursion_set);}) 
-        if (inheritsPermissionsOf.length > 0) {
-          var count = 0;
-          for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-            ifActorsAllowedThen(req, res, actors, inheritsPermissionsOf[j], action, permissionsOfPermissions, recursion_set, function() {
-              if (++count == inheritsPermissionsOf.length) {
-                callback();
-              }
-            });
+function ifAllowedDo(req, res, resource, action, permissionsOfPermissions, callback) {
+  var recursionSet = {};
+  function ifActorsAllowedDo(req, res, actors, resource, action, permissionsOfPermissions, callback) {
+    getPermissionsThen(req, res, resource, function(permissions) {
+      var allowed = isActionAllowed(permissionsOfPermissions ? permissions : permissions.governs, actors, action);
+      if (allowed) {
+        callback();
+      } else {
+        var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
+        if (inheritsPermissionsOf !== undefined) {
+          inheritsPermissionsOf = inheritsPermissionsOf.filter((x) => {return !(x in recursionSet);}) 
+          if (inheritsPermissionsOf.length > 0) {
+            var count = 0;
+            for (var j = 0; j < inheritsPermissionsOf.length; j++) {
+              ifActorsAllowedThen(req, res, actors, inheritsPermissionsOf[j], action, permissionsOfPermissions, function() {
+                if (++count == inheritsPermissionsOf.length) {
+                  callback();
+                }
+              });
+            }
+          } else {
+            lib.forbidden(req, res);
           }
         } else {
           lib.forbidden(req, res);
         }
-      } else {
-        lib.forbidden(req, res);
       }
-    }
+    });
+  }
+  var user = lib.getUser(req);
+  withTeamsDo(req, res, user, function(actors) {  
+    ifActorsAllowedDo(req, res, actors, resource, action, permissionsOfPermissions, callback)
   });
 }
 
-function ifUserAllowedThen(req, res, resource, action, permissionsOfPermissions, callback) {
+function withAllowedActionsDo(req, res, resource, permissionsOfPermissions, callback) {
+  var recursionSet = {};
+  function withActorsAllowedActionsDo(req, res, actors, resource, permissionsOfPermissions, callback) {
+    getPermissionsThen(req, res, resource, function(permissions) {
+      var actions = getAllowedActions(permissionsOfPermissions ? permissions : permissions.governs, actors);
+      var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
+      if (inheritsPermissionsOf !== undefined) {
+        inheritsPermissionsOf = inheritsPermissionsOf.filter((x) => {return !(x in recursionSet);}) 
+        if (inheritsPermissionsOf.length > 0) {
+          var count = 0;
+          for (var j = 0; j < inheritsPermissionsOf.length; j++) {
+            withActorsAllowedActionsDo(req, res, actors, resource, actions, permissionsOfPermissions, function(nestedActions) {
+              Object.assign(actions, nestedActions);
+              if (++count == inheritsPermissionsOf.length) {
+                callback(actions);
+              }
+            });
+          }
+        } else {
+          callback(actions);
+        }
+      } else {
+        callback(actions);
+      }
+    });
+  }
   var user = lib.getUser(req);
   withTeamsDo(req, res, user, function(actors) {  
-    ifActorsAllowedThen(req, res, actors, resource, action, permissionsOfPermissions, {}, callback)
+    withActorsAllowedActionsDo(req, res, actors, resource, permissionsOfPermissions, function(actions) {
+      callback(Object.keys(actions));
+    });
   });
 }
 
 exports.withTeamsDo = withTeamsDo;
-exports.ifUserAllowedThen = ifUserAllowedThen;
+exports.ifAllowedDo = ifAllowedDo;
+exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.cache = cache;
