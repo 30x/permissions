@@ -30,11 +30,26 @@ function getPermissionsThen(req, res, subject, callback) {
       }
       else {
         var row = pg_res.rows[0];
-        if (err) {
-          lib.internalError(res, err);
-        } else {
-          callback(row.data, row.etag);
-        }
+        callback(row.data, row.etag);
+      }
+    }
+  });
+}
+
+function deletePermissionsThen(req, res, subject, callback) {
+  // fetch the permissions resource for `subject`.
+  subject = lib.internalizeURL(subject, req.headers.host)
+  var query = 'DELETE FROM permissions WHERE subject = $1 RETURNING *'
+  pool.query(query,[subject], function (err, pg_res) {
+    if (err) {
+      lib.badRequest(res, err);
+    } else {
+      if (pg_res.rowCount === 0) { 
+        lib.notFound(req, res);
+      }
+      else {
+        var row = pg_res.rows[0];
+        callback(row.data, row.etag);
       }
     }
   });
@@ -52,10 +67,11 @@ function createPermissionsThen(req, res, permissions, callback) {
       }
     } else {
       var etag = pg_res.rows[0].etag;
-      callback(permissions, etag);
+      callback(permissions, pg_res.rows[0].etag);
     }
   });
 }
 
 exports.getPermissionsThen = getPermissionsThen;
 exports.createPermissionsThen = createPermissionsThen;
+exports.deletePermissionsThen = deletePermissionsThen;

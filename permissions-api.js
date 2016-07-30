@@ -123,20 +123,10 @@ function getPermissions(req, res, subject) {
 
 function deletePermissions(req, res, subject) {
   perm.ifAllowedDo(req, res, subject, 'delete', true, function() {
-    var query = 'DELETE FROM permissions WHERE subject = $1 RETURNING *'
-    pool.query(query, [subject], function (err, pg_res) {
-      if (err) { 
-        lib.badRequest(res, err);
-      } else { 
-        if (pg_res.rowCount === 0) {
-          lib.notFound(req, res);
-        } else {
-          perm.invalidate(subject);
-          var row = pg_res.rows[0];
-          addCalculatedProperties(req, row.data); 
-          lib.found(req, res, row.data, row.etag);
-        }
-      }
+    crud.deletePermissionsThen(req, res, subject, function(permissions, etag) {
+      perm.invalidate(subject);
+      addCalculatedProperties(req, permissions); 
+      lib.found(req, res, permissions, etag);
     });
   });
 }
