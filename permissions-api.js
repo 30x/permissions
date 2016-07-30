@@ -1,7 +1,8 @@
 'use strict';
 /* 
-We dislike prerequisites and avoid them where possible. We especially dislike prereqs that have a 'framework' style; simple libraries are more palatable.
-The current code uses http and pg. Because of Node's callback style, these have a slightly 'frameworky' feel, but it is not practical to avoid these libraries.
+We dislike prerequisites and avoid them where possible. We especially dislike prereqs that have a 'framework' style; 
+simple libraries are more palatable. The current code uses http and pg. Because of Node's callback style, these have a slightly 
+'frameworky' feel, but it is not practical to avoid these libraries.
 Please do not add any framework to this preqs. We do not want express or anything like it. We do not want any sort of "ORM" or similar.
 Adding simple library prereqs could be OK if the value they bring is in proportion to the problme being solved.
 */
@@ -107,8 +108,7 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
   // fetch the permissions resource for `subject`. Call the callback only if the user has permissions to perform `action`
   // on subject. This may require walking up the inheritance tree. if `permissionsOfPermisions` is true, the caller
   // is trying to access the permissions document itself, otherwise the subject.
-  perm.getPermissionsThen(req, res, subject, function(permissions, etag) {
-    perm.cache(permissions, etag);
+  perm.withPermissionsDo(req, res, subject, function(permissions, etag) {
     perm.ifAllowedDo(req, res, subject, action, permissionsOfPermissions, function() {
       callback(permissions, etag);
     });
@@ -149,7 +149,7 @@ function updatePermissions(req, res, patch) {
             lib.notFound(req, res);
           } else {
             var row = pg_res.rows[0];
-            perm.cache(key, patchedPermissions, row.etag);
+            perm.invalidate(key, patchedPermissions, row.etag);
             addCalculatedProperties(req, patchedPermissions); 
             lib.found(req, res, permissions, row.etag);
           }

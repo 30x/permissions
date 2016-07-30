@@ -1,11 +1,16 @@
 'use strict';
+/* 
+We dislike prerequisites and avoid them where possible. We especially dislike prereqs that have a 'framework' style; 
+simple libraries are more palatable. The current code uses http. Because of Node's callback style, these have a slightly 
+'frameworky' feel, but it is not practical to avoid these libraries.
+Please do not add any framework to this preqs. We do not want express or anything like it. We do not want any sort of "ORM" or similar.
+Adding simple library prereqs could be OK if the value they bring is in proportion to the problme being solved.
+*/
 var http = require('http');
 var lib = require('./standard-functions.js');
 var crud = require('./permissions-crud.js');
 
 var permissionsCache = {};
-var userCache = {};
-var teamCache = {};
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
@@ -101,19 +106,24 @@ function isActionAllowed(permissionsObject, actors, action) {
 }
 
 function cache(resource, permissions, etag) {
-  permissionsCache[resource] = [permissions, etag];
+  permissions._Etag = etag;
+  permissionsCache[resource] = permissions;
 }
 
-function invalidate(resource) {
-  delete permissionsCache[resource];
+function invalidate(resource, permissions, etag) {
+  if (resource !== undefined && resource !== null) {
+    cache(resource, permissions, etag);
+  } else {
+    delete permissionsCache[resource];
+  } 
 }
 
-function getPermissionsThen(req, res, resource, callback) {
+function withPermissionsDo(req, res, resource, callback) {
   var permissions = permissionsCache[resource];
   if (permissions !== undefined) {
-    callback(permissions[0], permissions[1]);
+    callback(permissions, permissions._Etag);
   } else {
-    crud.getPermissionsThen(req, res, resource, function(permissions, etag) {
+    crud.withPermissionsDo(req, res, resource, function(permissions, etag) {
       cache(resource, permissions, etag);
       callback(permissions, etag);
     });
@@ -123,7 +133,7 @@ function getPermissionsThen(req, res, resource, callback) {
 function ifAllowedDo(req, res, resource, action, permissionsOfPermissions, callback) {
   var recursionSet = {};
   function ifActorsAllowedDo(req, res, actors, resource, action, permissionsOfPermissions, callback) {
-    getPermissionsThen(req, res, resource, function(permissions) {
+    withPermissionsDo(req, res, resource, function(permissions) {
       var allowed = isActionAllowed(permissionsOfPermissions ? permissions : permissions.governs, actors, action);
       if (allowed) {
         callback();
@@ -158,7 +168,7 @@ function ifAllowedDo(req, res, resource, action, permissionsOfPermissions, callb
 function withAllowedActionsDo(req, res, resource, permissionsOfPermissions, callback) {
   var recursionSet = {};
   function withActorsAllowedActionsDo(req, res, actors, resource, permissionsOfPermissions, callback) {
-    getPermissionsThen(req, res, resource, function(permissions) {
+    withPermissionsDo(req, res, resource, function(permissions) {
       var actions = getAllowedActions(permissionsOfPermissions ? permissions : permissions.governs, actors);
       var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
       if (inheritsPermissionsOf !== undefined) {
@@ -189,9 +199,7 @@ function withAllowedActionsDo(req, res, resource, permissionsOfPermissions, call
   });
 }
 
-exports.withTeamsDo = withTeamsDo;
 exports.ifAllowedDo = ifAllowedDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
-exports.cache = cache;
 exports.invalidate = invalidate;
-exports.getPermissionsThen = getPermissionsThen;
+exports.withPermissionsDo = withPermissionsDo;
