@@ -107,7 +107,7 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
   // fetch the permissions resource for `subject`. Call the callback only if the user has permissions to perform `action`
   // on subject. This may require walking up the inheritance tree. if `permissionsOfPermisions` is true, the caller
   // is trying to access the permissions document itself, otherwise the subject.
-  crud.getPermissionsThen(req, res, subject, function(permissions, etag) {
+  perm.getPermissionsThen(req, res, subject, function(permissions, etag) {
     perm.cache(permissions, etag);
     perm.ifAllowedDo(req, res, subject, action, permissionsOfPermissions, function() {
       callback(permissions, etag);

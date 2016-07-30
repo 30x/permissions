@@ -101,7 +101,7 @@ function isActionAllowed(permissionsObject, actors, action) {
 }
 
 function cache(resource, permissions, etag) {
-  permissionsCache[resource] = permissions;
+  permissionsCache[resource] = [permissions, etag];
 }
 
 function invalidate(resource) {
@@ -111,11 +111,11 @@ function invalidate(resource) {
 function getPermissionsThen(req, res, resource, callback) {
   var permissions = permissionsCache[resource];
   if (permissions !== undefined) {
-    callback(permissions);
+    callback(permissions[0], permissions[1]);
   } else {
     crud.getPermissionsThen(req, res, resource, function(permissions, etag) {
       cache(resource, permissions, etag);
-      callback(permissions);
+      callback(permissions, etag);
     });
   }
 }
@@ -194,3 +194,4 @@ exports.ifAllowedDo = ifAllowedDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.cache = cache;
 exports.invalidate = invalidate;
+exports.getPermissionsThen = getPermissionsThen;
