@@ -11,6 +11,7 @@ var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
 var perm = require('./permissions.js');
+var crud = require('./permissions-crud.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
@@ -116,24 +117,11 @@ function getPermissionsThen(req, res, subject, action, permissionsOfPermissions,
   // fetch the permissions resource for `subject`. Call the callback only if the user has permissions to perform `action`
   // on subject. This may require walking up the inheritance tree. if `permissionsOfPermisions` is true, the caller
   // is trying to access the permissions document itself, otherwise the subject.
-  var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
-  subject = lib.internalizeURL(subject, req.headers.host)
-  pool.query(query,[subject], function (err, pg_res) {
-    if (err) {
-      lib.badRequest(res, err);
-    }
-    else {
-      if (pg_res.rowCount === 0) { 
-        lib.notFound(req, res);
-      }
-      else {
-        var row = pg_res.rows[0];
-        perm.cache(row.data, row.etag);
-        perm.ifAllowedDo(req, res, subject, action, permissionsOfPermissions, function() {
-          callback(row.data, row.etag);
-        });
-      }
-    }
+  crud.getPermissionsThen(req, res, subject, function(permissions, etag) {
+    perm.cache(permissions, etag);
+    perm.ifAllowedDo(req, res, subject, action, permissionsOfPermissions, function() {
+      callback(permissions, etag);
+    });
   });
 }
 
@@ -154,6 +142,7 @@ function deletePermissions(req, res, subject) {
           addCalculatedProperties(permissions, req); 
           lib.notFound(req, res);
         } else {
+          perm.invalidate(subject);
           lib.found(req, res, permissions, etag);
         }
       }
@@ -168,7 +157,6 @@ function updatePermissions(req, res, patch) {
     if (req.headers['if-match'] == etag) { 
       lib.internalizeURLs(patch, req.headers.host);
       var patchedPermissions = lib.mergePatch(permissions, patch);
-
       calculateSharedWith(req, patchedPermissions);
       var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 AND etag = $3 RETURNING etag'
       var key = lib.internalizeURL(subject, req.headers.host)
@@ -180,6 +168,7 @@ function updatePermissions(req, res, patch) {
             lib.notFound(req, res);
           } else {
             var row = pg_res.rows[0];
+            perm.cache(key, patchedPermissions, row.etag);
             addCalculatedProperties(patchedPermissions, req); 
             lib.found(req, res, permissions, row.etag);
           }

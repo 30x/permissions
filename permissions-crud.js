@@ -23,29 +23,17 @@ function getPermissionsThen(req, res, subject, callback) {
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   pool.query(query,[subject], function (err, pg_res) {
     if (err) {
-      if (res !== null) {
-        lib.badRequest(res, err);
-      } else {
-        callback(err);
-      }
+      lib.badRequest(res, err);
     } else {
       if (pg_res.rowCount === 0) { 
-        if (res !== null) {
-          lib.notFound(req, res);
-        } else {
-          callback(404);
-        }
+        lib.notFound(req, res);
       }
       else {
         var row = pg_res.rows[0];
         if (err) {
-          if (res !== null) {
-            lib.internalError(res, err);
-          } else {
-            callback(err);
-          }
+          lib.internalError(res, err);
         } else {
-          callback(null, row.data, row.etag);
+          callback(row.data, row.etag);
         }
       }
     }

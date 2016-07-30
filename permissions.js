@@ -96,12 +96,16 @@ function cache(resource, permissions, etag) {
   permissionsCache[resource] = permissions;
 }
 
+function invalidate(resource) {
+  delete permissionsCache[resource];
+}
+
 function getPermissionsThen(req, res, resource, callback) {
   var permissions = permissionsCache[resource];
   if (permissions !== undefined) {
     callback(permissions);
   } else {
-    crud.getPermissionsThen(req, res, resource, function(err, permissions, etag) {
+    crud.getPermissionsThen(req, res, resource, function(permissions, etag) {
       cache(resource, permissions, etag);
       callback(permissions);
     });
@@ -181,3 +185,4 @@ exports.withTeamsDo = withTeamsDo;
 exports.ifAllowedDo = ifAllowedDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.cache = cache;
+exports.invalidate = invalidate;
