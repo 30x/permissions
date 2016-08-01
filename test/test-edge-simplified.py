@@ -61,7 +61,7 @@ def main():
         print 'failed to create permissions %s %s' % (r.status_code, r.text)
         return
     
-    # Retrieve permissions for Acme org
+    # Retrieve resources shared with USER1
 
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     url = 'http://localhost:8080/resources-shared-with?%s' % USER1 
@@ -69,14 +69,14 @@ def main():
     if r.status_code == 200:
         resources = r.json()
         if resources == ['http://apigee.com/o/acme']:
-            print 'correctly retrieved resource-shared-with for %s' % USER1
+            print 'correctly retrieved resources-shared-with for %s' % USER1
         else:
-            print 'retrieved resource-shared-with for %s but result is wrong %s' % (USER1, resources)
+            print 'retrieved resources-shared-with for %s but result is wrong %s' % (USER1, resources)
     else:
-        print 'failed to retrieve resource-shared-with for %s %s %s' % (USER1, r.status_code, r.text)
+        print 'failed to retrieve resources-shared-with for %s %s %s' % (USER1, r.status_code, r.text)
         return
     
-    # Retrieve resources shared with USER1
+    # Retrieve allowed-actions for Acme org for USER1
 
     url = 'http://localhost:8080' + '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1)
     headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
@@ -235,6 +235,21 @@ def main():
     else:
         print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
 
+    # Retrieve resources shared with USER1
+
+    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    url = 'http://localhost:8080/resources-shared-with?%s' % USER1 
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        resources = r.json()
+        if resources == ['http://apigee.com/o/acme']:
+            print 'correctly retrieved resources-shared-with for %s after update of permissions to use team' % USER1
+        else:
+            print 'retrieved resources-shared-with for %s but result is wrong %s' % (USER1, resources)
+    else:
+        print 'failed to retrieve resources-shared-with for %s %s %s' % (USER1, r.status_code, r.text)
+        return
+    
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
     sharingSets = ['/appkeys', '/applications', '/deployments', 'devConnectUser', '/devPortalButton',]    
     for item in sharingSets:

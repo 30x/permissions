@@ -98,10 +98,10 @@ function updatePermissionsThen(req, res, subject, patchedPermissions, etag, call
   });
 }
 
-function withResourcesSharedWithUserDo(req, res, user, callback) {
-  var actors = JSON.stringify(user !== null ? [user, ANYONE, INCOGNITO] : [INCOGNITO]);
-  var query = `SELECT subject FROM permissions, jsonb_array_elements(permissions.data->'_sharedWith') AS sharedWith WHERE sharedWith <@ '${actors}'`;
-  console.log(query)
+function withResourcesSharedWithActorsDo(req, res, actors, callback) {
+  if (actors == null) {actors = [INCOGNITO]} else {actors = actors.concat([INCOGNITO, ANYONE])};
+  var query = `SELECT subject FROM permissions, jsonb_array_elements(permissions.data->'_sharedWith') 
+               AS sharedWith WHERE sharedWith <@ '${JSON.stringify(actors)}'`;
   pool.query(query, function (err, pg_res) {
     if (err) {
       lib.badRequest(res, err);
@@ -115,4 +115,4 @@ exports.withPermissionsDo = withPermissionsDo;
 exports.createPermissionsThen = createPermissionsThen;
 exports.deletePermissionsThen = deletePermissionsThen;
 exports.updatePermissionsThen = updatePermissionsThen;
-exports.withResourcesSharedWithUserDo = withResourcesSharedWithUserDo;
+exports.withResourcesSharedWithActorsDo = withResourcesSharedWithActorsDo;

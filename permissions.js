@@ -215,3 +215,4 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
 exports.ifAllowedDo = ifAllowedDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
+exports.withTeamsDo = withTeamsDo;

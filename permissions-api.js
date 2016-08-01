@@ -187,11 +187,13 @@ function getUsersWhoCanSee(req, res, resource) {
 }
 
 function getResourcesSharedWith(req, res, user) {
-  var requesting_user = lib.getUser(req);
+  var requestingUser = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
-  if (user == requesting_user) {
-    crud.withResourcesSharedWithUserDo(req, res, user, function(resources) {
-      lib.found(req, res, resources);
+  if (user == requestingUser || user == INCOGNITO || (requestingUser !== null && user == ANYONE)) {
+    perm.withTeamsDo(req, res, user, function(actors) {
+      crud.withResourcesSharedWithActorsDo(req, res, actors, function(resources) {
+        lib.found(req, res, resources);
+      });
     });
   } else {
     lib.forbidden(req, res)
