@@ -20,7 +20,7 @@ function withPermissionsDo(req, res, subject, callback) {
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   pool.query(query,[subject], function (err, pg_res) {
     if (err) {
-      lib.badRequest(res, err);
+      lib.internalError(res, err);
     } else {
       if (pg_res.rowCount === 0) { 
         lib.notFound(req, res);

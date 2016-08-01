@@ -123,7 +123,7 @@ function withPermissionsDo(req, res, resource, callback) {
   }
 }
 
-function ifAllowedDo(req, res, subject, action, subjectIsPermission, callback) {
+function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, callback) {
   subject = lib.internalizeURL(subject);
   var recursionSet = {};
   var originalPermissons = null;
@@ -135,9 +135,9 @@ function ifAllowedDo(req, res, subject, action, subjectIsPermission, callback) {
       var allowed = isActionAllowed(subjectIsPermission ? permissions : permissions.governs, actors, action);
       if (allowed) {
         if (subjectIsPermission) {
-          callback(JSON.parse(JSON.stringify(originalPermissons)), originalPermissons._Etag)
+          callback(true, JSON.parse(JSON.stringify(originalPermissons)), originalPermissons._Etag)
         } else {
-          callback();
+          callback(true);
         }
       } else {
         var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
@@ -149,18 +149,18 @@ function ifAllowedDo(req, res, subject, action, subjectIsPermission, callback) {
               ifActorsAllowedDo(actors, inheritsPermissionsOf[j], function() {
                 if (++count == inheritsPermissionsOf.length) {
                   if (subjectIsPermission) {
-                    callback(JSON.parse(JSON.stringify(originalPermissons)), originalPermissons._Etag)
+                    callback(true, JSON.parse(JSON.stringify(originalPermissons)), originalPermissons._Etag)
                   } else {
-                    callback();
+                    callback(true);
                   }
                 }
               });
             }
           } else {
-            lib.forbidden(req, res);
+            callback(false);
           }
         } else {
-          lib.forbidden(req, res);
+          callback(false);
         }
       }
     });
@@ -214,7 +214,7 @@ function withUsersResourcesDo (req, res, user, callback) {
 }
 
 
-exports.ifAllowedDo = ifAllowedDo;
+exports.withPermissionFlagDo = withPermissionFlagDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
 exports.withUsersResourcesDo = withUsersResourcesDo;

@@ -95,13 +95,13 @@ function addCalculatedProperties(req, permissions) {
 }
 
 function getPermissions(req, res, subject) {
-  perm.ifAllowedDo(req, res, subject, 'read', true, function(permissions, etag) {
+  ifAllowedDo(req, res, subject, 'read', true, function(permissions, etag) {
     lib.found(req, res, permissions, etag);
   });
 }
 
 function deletePermissions(req, res, subject) {
-  perm.ifAllowedDo(req, res, subject, 'delete', true, function() {
+  ifAllowedDo(req, res, subject, 'delete', true, function() {
     db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
       perm.invalidate(subject);
       addCalculatedProperties(req, permissions); 
@@ -112,7 +112,7 @@ function deletePermissions(req, res, subject) {
 
 function updatePermissions(req, res, patch) {
   var subject = url.parse(req.url).search.substring(1);
-  perm.ifAllowedDo(req, res, subject, 'update', true, function(permissions, etag) {
+  ifAllowedDo(req, res, subject, 'update', true, function(permissions, etag) {
     if (req.headers['if-match'] == etag) { 
       var patchedPermissions = lib.mergePatch(permissions, patch);
       calculateSharedWith(req, patchedPermissions);
@@ -146,6 +146,30 @@ function getAllowedActions(req, res, queryString) {
   }
 }
 
+function ifAllowedDo(req, res, subject, action, subjectIsPermission, callback) {
+  perm.withPermissionFlagDo(req, res, subject, action, subjectIsPermission, function(answer, permissions, etag) {
+    if (answer) {
+      callback(permissions, etag);
+    } else {
+      lib.forbidden(req, res)
+    }
+  });
+}
+
+function isAllowed(req, res, queryString) {
+  var queryParts = querystring.parse(queryString);
+  var resource = queryParts.resource;
+  var user = queryParts.user;
+  var action = queryParts.action;
+  if (action !== undefined && resource !== undefined && user == lib.getUser(req)) {
+    perm.withPermissionFlagDo(req, res, resource, action, false, function(answer) {
+      lib.found(req, res, answer);
+    });
+  } else {
+    lib.badRequest(res, 'action and resource must be provided and user in query string must match user credentials ' + req.url)
+  }
+}
+
 function addUsersWhoCanSee(req, res, permissions, result, callback) {
   var sharedWith = permissions._sharedWith;
   if (sharedWith !== undefined) {
@@ -157,7 +181,7 @@ function addUsersWhoCanSee(req, res, permissions, result, callback) {
   if (inheritsPermissionsOf !== undefined) {
     var count = 0;
     for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-      perm.ifAllowedDo(req, res, inheritsPermissionsOf[j], 'read', true, function(permissions, etag) {
+      ifAllowedDo(req, res, inheritsPermissionsOf[j], 'read', true, function(permissions, etag) {
         addUsersWhoCanSee(req, res, permissions, result, function() {if (++count == inheritsPermissionsOf.length) {callback();}});
       });
     }
@@ -169,7 +193,7 @@ function addUsersWhoCanSee(req, res, permissions, result, callback) {
 function getUsersWhoCanSee(req, res, resource) {
   var result = {};
   resource = lib.internalizeURL(resource, req.headers.host);
-  perm.ifAllowedDo(req, res, resource, 'read', true, function (permissions, etag) {
+  ifAllowedDo(req, res, resource, 'read', true, function (permissions, etag) {
     addUsersWhoCanSee(req, res, permissions, result, function() {
       lib.found(req, res, Object.keys(result));
     });
@@ -189,7 +213,7 @@ function getResourcesSharedWith(req, res, user) {
 }
 
 function getPermissionsHeirs(req, res, securedObject) {
-  perm.ifAllowedDo(req, res, securedObject, 'read', false, function() {
+  ifAllowedDo(req, res, securedObject, 'read', false, function() {
     db.withHeirsDo(req, res, securedObject, function(heirs) {
       lib.found(req, res, heirs);
     });
@@ -236,6 +260,12 @@ function requestHandler(req, res) {
     } else if (req_url.pathname == '/users-who-can-access' && req_url.search !== null) {
       if (req.method == 'GET') {
         getUsersWhoCanSee(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
+      } else {
+        lib.methodNotAllowed(req, res);
+      }
+    } else if (req_url.pathname == '/is-allowed' && req_url.search !== null) {
+      if (req.method == 'GET') {
+        isAllowed(req, res, req_url.search.substring(1));
       } else {
         lib.methodNotAllowed(req, res);
       }
