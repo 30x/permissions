@@ -10,7 +10,7 @@ The permissions repository is made up of 4 parts:
 ## permissions.js 
 
 This file uses the permissions database to answer basic questions about users' rights to access resources.
-The questions is can answer are:
+The questions it can answer are:
 
 * is the specified user allowed to perform the specified action on the specified resource?
 * what actions is the specified user allowed to perform on the specified resource?
@@ -28,10 +28,16 @@ cache-invalidation logic, so there has to be exactly one copy of permissions.js.
 
 Currently permissions.js exposes two separate APIs:
 
-* a CRUD API for maintaining permissions
+* an API for maintaining permissions
 * the permissions.js API for checking permissions
 
 The management API uses the permissions-checking API. Currently it does so as a library call—in the future it may use HTTP.
+
+The API for maintaing APIs has the following features:
+
+* CRUD methods
+* get a list of users who can see a resource
+* get a list of resources that directly inherit permissions from a specified resource
 
 ## permissions-db.js
 
