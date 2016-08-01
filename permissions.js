@@ -114,7 +114,7 @@ function invalidate(resource, permissions, etag) {
 //  if (resource !== undefined && resource !== null) {
 //    cache(resource, permissions, etag);
 //  } else {
-    delete permissionsCache[resource];
+    delete permissionsCache[lib.internalizeURL(resource)];
 //  } 
 }
 

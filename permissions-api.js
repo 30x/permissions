@@ -121,28 +121,15 @@ function deletePermissions(req, res, subject) {
 }
 
 function updatePermissions(req, res, patch) {
-  patch = lib.internalizeURLs(patch, req.headers.host);
   var subject = url.parse(req.url).search.substring(1);
   perm.ifAllowedDo(req, res, subject, 'update', true, function(permissions, etag) {
     if (req.headers['if-match'] == etag) { 
-      lib.internalizeURLs(patch, req.headers.host);
       var patchedPermissions = lib.mergePatch(permissions, patch);
       calculateSharedWith(req, patchedPermissions);
-      var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 AND etag = $3 RETURNING etag'
-      var key = lib.internalizeURL(subject, req.headers.host)
-      pool.query(query, [patchedPermissions, key, etag], function (err, pg_res) {
-        if (err) { 
-          lib.badRequest(res, err);
-        } else {
-          if (pg_res.rowCount === 0) { 
-            lib.notFound(req, res);
-          } else {
-            var row = pg_res.rows[0];
-            perm.invalidate(key, patchedPermissions, row.etag);
-            addCalculatedProperties(req, patchedPermissions); 
-            lib.found(req, res, permissions, row.etag);
-          }
-        }
+      crud.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
+        perm.invalidate(subject, patchedPermissions, etag);
+        addCalculatedProperties(req, patchedPermissions); 
+        lib.found(req, res, permissions, etag);
       });
     } else {
       var err;

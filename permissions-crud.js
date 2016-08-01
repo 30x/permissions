@@ -67,8 +67,30 @@ function createPermissionsThen(req, res, permissions, callback) {
         lib.badRequest(res, err);
       }
     } else {
-      var etag = pg_res.rows[0].etag;
-      callback(permissions, pg_res.rows[0].etag);
+      if (pg_res.rowCount === 0) { 
+        lib.internalError(res, 'failed create');
+      } else {
+        callback(permissions, pg_res.rows[0].etag);
+      }
+    }
+  });
+}
+
+function updatePermissionsThen(req, res, subject, patchedPermissions, etag, callback) {
+  var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 AND etag = $3 RETURNING etag'
+  lib.internalizeURLs(patchedPermissions, req.headers.host);
+  var key = lib.internalizeURL(subject, req.headers.host)
+  pool.query(query, [patchedPermissions, key, etag], function (err, pg_res) {
+    if (err) { 
+      lib.badRequest(res, err);
+    } else {
+      if (pg_res.rowCount === 0) {
+        err = 'If-Match header does not match stored etag ' + etag;
+        lib.badRequest(res, err);
+      } else {
+        var row = pg_res.rows[0];
+        callback(patchedPermissions, pg_res.rows[0].etag)
+      }
     }
   });
 }
@@ -76,3 +98,4 @@ function createPermissionsThen(req, res, permissions, callback) {
 exports.withPermissionsDo = withPermissionsDo;
 exports.createPermissionsThen = createPermissionsThen;
 exports.deletePermissionsThen = deletePermissionsThen;
+exports.updatePermissionsThen = updatePermissionsThen;
