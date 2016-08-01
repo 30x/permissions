@@ -111,8 +111,32 @@ function withResourcesSharedWithActorsDo(req, res, actors, callback) {
   });
 }
 
+function withHeirsDo(req, res, securedObject, callback) {
+  var query = `SELECT subject, data FROM permissions WHERE data @> '{"governs": {"inheritsPermissionsOf":["${securedObject}"]}}'`
+  pool.query(query, function (err, pg_res) {
+    if (err) {
+      lib.badRequest(res, err);
+    }
+    else {
+      callback(pg_res.rows.map((row) => {return row.data.governs;}))
+    }
+  });
+}
+
+function createTableThen(callback) {
+  pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pg_res) {
+    if(err) {
+      console.error('error creating permissions table', err);
+    } else {
+      callback()
+    }
+  });    
+}
+
 exports.withPermissionsDo = withPermissionsDo;
 exports.createPermissionsThen = createPermissionsThen;
 exports.deletePermissionsThen = deletePermissionsThen;
 exports.updatePermissionsThen = updatePermissionsThen;
 exports.withResourcesSharedWithActorsDo = withResourcesSharedWithActorsDo;
+exports.withHeirsDo = withHeirsDo;
+exports.createTableThen = createTableThen;

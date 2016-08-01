@@ -202,18 +202,8 @@ function getResourcesSharedWith(req, res, user) {
 
 function getPermissionsHeirs(req, res, securedObject) {
   perm.ifAllowedDo(req, res, securedObject, 'read', false, function() {
-    pool.query( 'SELECT subject, data FROM permissions WHERE data @> \'{"governs": {"inheritsPermissionsOf":["' + securedObject + '"]}}\'', function (err, pg_res) {
-      if (err) {
-        lib.badRequest(res, err);
-      }
-      else {
-        var result = [];
-        var rows = pg_res.rows;
-        for (var i = 0; i < rows.length; i++) {
-            result.push(rows[i].data.governs);
-        }
-        lib.found(req, res, result);
-      }
+    crud.withHeirsDo(req, res, securedObject, function(heirs) {
+      lib.found(req, res, heirs);
     });
   });
 }
@@ -267,12 +257,8 @@ function requestHandler(req, res) {
   }
 }
 
-pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pg_res) {
-  if(err) {
-    console.error('error creating permissions table', err);
-  } else {
-    http.createServer(requestHandler).listen(3001, function() {
-      console.log('server is listening on 3001');
-    });
-  }
+crud.createTableThen(function () {
+  http.createServer(requestHandler).listen(3001, function() {
+    console.log('server is listening on 3001');
+  });
 });
