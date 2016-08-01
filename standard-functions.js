@@ -72,11 +72,12 @@ function getUser(req) {
   }
 }
 
-function methodNotAllowed(req, res) {
+function methodNotAllowed(req, res, allow) {
   var body = 'Method not allowed. request-target: ' + req.url + ' method: ' + req.method + '\n';
   body = JSON.stringify(body);
   res.writeHead(405, {'Content-Type': 'application/json',
-                      'Content-Length': Buffer.byteLength(body)});
+                      'Content-Length': Buffer.byteLength(body),
+                      'Allow': allow.join(', ') });
   res.end(body);
 }
 

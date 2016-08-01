@@ -12,7 +12,7 @@ var lib = require('./standard-functions.js');
 var uuid = require('node-uuid');
 
 var PROTOCOL = process.env.PROTOCOL || 'http';
-var TEAM = '/team/';
+var TEAMS = '/teams/';
 
 var config = {
   host: 'localhost',
@@ -72,7 +72,7 @@ function createTeam(req, res, team) {
 }
 
 function selfURL(key, req) {
-  return PROTOCOL + '://' + req.headers.host + TEAM + key;
+  return PROTOCOL + '://' + req.headers.host + TEAMS + key;
 }
 
 function getTeam(req, res, id) {
@@ -145,7 +145,7 @@ function getTeamsForUser(req, res, user) {
       else {
         var result = [];
         var rows = pg_res.rows;
-        for (var i = 0; i < rows.length; i++) {result.push(PROTOCOL + '://' + req.headers.host + TEAM + rows[i].id);}
+        for (var i = 0; i < rows.length; i++) {result.push(PROTOCOL + '://' + req.headers.host + TEAMS + rows[i].id);}
         lib.found(req, res, result);
       }
     });
@@ -159,12 +159,12 @@ function requestHandler(req, res) {
     if (req.method == 'POST') {
       lib.getServerPostBody(req, res, createTeam);
     } else { 
-      lib.methodNotAllowed(req, res);
+      lib.methodNotAllowed(req, res, ['POST']);
     }
   } else {
     var req_url = url.parse(req.url);
-    if (req_url.pathname.lastIndexOf(TEAM, 0) > -1) {
-      var id = req_url.pathname.substring(TEAM.length);
+    if (req_url.pathname.lastIndexOf(TEAMS, 0) > -1) {
+      var id = req_url.pathname.substring(TEAMS.length);
       if (req.method == 'GET') {
         getTeam(req, res, id);
       } else if (req.method == 'DELETE') { 
@@ -174,7 +174,7 @@ function requestHandler(req, res) {
           updateTeam(req, res, id, jso)
         });
       } else {
-        lib.methodNotAllowed(req, res);
+        lib.methodNotAllowed(req, res, ['GET', 'DELETE', 'PATCH']);
       }
     } else if (req_url.pathname == '/teams' && req_url.search !== null) {
       getTeamsForUser(req, res, req_url.search.substring(1));

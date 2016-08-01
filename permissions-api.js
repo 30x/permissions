@@ -225,7 +225,7 @@ function requestHandler(req, res) {
     if (req.method == 'POST') {
       lib.getServerPostBody(req, res, createPermissions);
     } else { 
-      lib.methodNotAllowed(req, res);
+      lib.methodNotAllowed(req, res, ['POST']);
     }
   } else {
     var req_url = url.parse(req.url);
@@ -237,37 +237,37 @@ function requestHandler(req, res) {
       } else if (req.method == 'PATCH') { 
         lib.getServerPostBody(req, res, updatePermissions);
       } else {
-        lib.methodNotAllowed(req, res);
+        lib.methodNotAllowed(req, res, ['GET', 'DELETE', 'PATCH']);
       }
     } else if (req_url.pathname == '/allowed-actions' && req_url.search !== null){ 
       if (req.method == 'GET') {
         getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
-        lib.methodNotAllowed(req, res);
+        lib.methodNotAllowed(req, res, ['GET']);
       }
     } else if (req_url.pathname == '/resources-shared-with' && req_url.search !== null) {
       if (req.method == 'GET') {
         getResourcesSharedWith(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
-        lib.methodNotAllowed(req, res);
+        lib.methodNotAllowed(req, res, ['GET']);
       }
     } else  if (req_url.pathname == '/permissions-heirs' && req_url.search !== null) {
       if (req.method == 'GET') {
         getPermissionsHeirs(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
-        lib.methodNotAllowed(req, res);
+        lib.methodNotAllowed(req, res, ['GET']);
       }
     } else if (req_url.pathname == '/users-who-can-access' && req_url.search !== null) {
       if (req.method == 'GET') {
         getUsersWhoCanSee(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
-        lib.methodNotAllowed(req, res);
+        lib.methodNotAllowed(req, res, ['GET']);
       }
     } else if (req_url.pathname == '/is-allowed' && req_url.search !== null) {
       if (req.method == 'GET') {
         isAllowed(req, res, req_url.search.substring(1));
       } else {
-        lib.methodNotAllowed(req, res);
+        lib.methodNotAllowed(req, res, ['GET']);
       }
     } else {
       lib.notFound(req, res);
