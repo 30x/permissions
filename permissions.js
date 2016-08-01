@@ -205,7 +205,16 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
   });
 }
 
+function withUsersResourcesDo (req, res, user, callback) {
+  withTeamsDo(req, res, user, function(actors) {
+    db.withResourcesSharedWithActorsDo(req, res, actors, function(resources) {
+      callback(resources);
+    });
+  });
+}
+
+
 exports.ifAllowedDo = ifAllowedDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
-exports.withTeamsDo = withTeamsDo;
+exports.withUsersResourcesDo = withUsersResourcesDo;

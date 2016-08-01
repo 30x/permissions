@@ -11,7 +11,7 @@ var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
 var perm = require('./permissions.js');
-var crud = require('./permissions-db.js');
+var db = require('./permissions-db.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
@@ -87,7 +87,7 @@ function createPermissions(req, res, permissions) {
     }
     if (err === null) {
       calculateSharedWith(req, permissions);
-      crud.createPermissionsThen(req, res, permissions, function(permissions, etag) {
+      db.createPermissionsThen(req, res, permissions, function(permissions, etag) {
         addCalculatedProperties(req, permissions);
         lib.created(req, res, permissions, permissions._self, etag);
       });
@@ -109,7 +109,7 @@ function getPermissions(req, res, subject) {
 
 function deletePermissions(req, res, subject) {
   perm.ifAllowedDo(req, res, subject, 'delete', true, function() {
-    crud.deletePermissionsThen(req, res, subject, function(permissions, etag) {
+    db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
       perm.invalidate(subject);
       addCalculatedProperties(req, permissions); 
       lib.found(req, res, permissions, etag);
@@ -123,7 +123,7 @@ function updatePermissions(req, res, patch) {
     if (req.headers['if-match'] == etag) { 
       var patchedPermissions = lib.mergePatch(permissions, patch);
       calculateSharedWith(req, patchedPermissions);
-      crud.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
+      db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
         perm.invalidate(subject, patchedPermissions, etag);
         addCalculatedProperties(req, patchedPermissions); 
         lib.found(req, res, permissions, etag);
@@ -187,10 +187,8 @@ function getResourcesSharedWith(req, res, user) {
   var requestingUser = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
   if (user == requestingUser || user == INCOGNITO || (requestingUser !== null && user == ANYONE)) {
-    perm.withTeamsDo(req, res, user, function(actors) {
-      crud.withResourcesSharedWithActorsDo(req, res, actors, function(resources) {
+    perm.withUsersResourcesDo(req, res, user, function(resources) {
         lib.found(req, res, resources);
-      });
     });
   } else {
     lib.forbidden(req, res)
@@ -199,7 +197,7 @@ function getResourcesSharedWith(req, res, user) {
 
 function getPermissionsHeirs(req, res, securedObject) {
   perm.ifAllowedDo(req, res, securedObject, 'read', false, function() {
-    crud.withHeirsDo(req, res, securedObject, function(heirs) {
+    db.withHeirsDo(req, res, securedObject, function(heirs) {
       lib.found(req, res, heirs);
     });
   });
@@ -254,7 +252,7 @@ function requestHandler(req, res) {
   }
 }
 
-crud.createTableThen(function () {
+db.createTableThen(function () {
   http.createServer(requestHandler).listen(3001, function() {
     console.log('server is listening on 3001');
   });
