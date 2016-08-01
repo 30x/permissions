@@ -1,13 +1,12 @@
 'use strict';
 /* 
 We dislike prerequisites and avoid them where possible. We especially dislike prereqs that have a 'framework' style; 
-simple libraries are more palatable. The current code uses http and pg. Because of Node's callback style, these have a slightly 
-'frameworky' feel, but it is not practical to avoid these libraries.
+simple libraries are more palatable.
 Please do not add any framework to this preqs. We do not want express or anything like it. We do not want any sort of "ORM" or similar.
-Adding simple library prereqs could be OK if the value they bring is in proportion to the problme being solved.
+Adding simple library prereqs could be OK if the value they bring is in proportion to their size and complexity 
+and is warranted by the difficulty of the problem being solved.
 */
 var http = require('http');
-var Pool = require('pg').Pool;
 var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
@@ -24,8 +23,6 @@ var config = {
   password: 'martinnally',
   database: 'permissions'
 };
-
-var pool = new Pool(config);
 
 function verifyPermissions(req, permissions) {
   if (permissions.isA == undefined && permissions.governs !== undefined) {
