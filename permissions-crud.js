@@ -99,7 +99,7 @@ function updatePermissionsThen(req, res, subject, patchedPermissions, etag, call
 }
 
 function withResourcesSharedWithActorsDo(req, res, actors, callback) {
-  if (actors == null) {actors = [INCOGNITO]} else {actors = actors.concat([INCOGNITO, ANYONE])};
+  actors = actors == null ? [INCOGNITO] : actors.concat([INCOGNITO, ANYONE]);
   var query = `SELECT subject FROM permissions, jsonb_array_elements(permissions.data->'_sharedWith') 
                AS sharedWith WHERE sharedWith <@ '${JSON.stringify(actors)}'`;
   pool.query(query, function (err, pg_res) {
