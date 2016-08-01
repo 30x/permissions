@@ -190,25 +190,8 @@ function getResourcesSharedWith(req, res, user) {
   var requesting_user = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
   if (user == requesting_user) {
-    var query = "SELECT subject FROM permissions, jsonb_array_elements(permissions.data->'_sharedWith') AS sharedWith WHERE sharedWith <@ '";
-    var params;
-    if (user !== null) {
-      params = [user, ANYONE, INCOGNITO]
-    } else {
-      params = [INCOGNITO]
-    }
-    query += JSON.stringify(params);
-    query += "'";
-    pool.query(query, function (err, pg_res) {
-      if (err) {
-        lib.badRequest(res, err);
-      }
-      else {
-        var result = [];
-        var rows = pg_res.rows;
-        for (var i = 0; i < rows.length; i++) {result.push(rows[i].subject);}
-        lib.found(req, res, result);
-      }
+    crud.withResourcesSharedWithUserDo(req, res, user, function(resources) {
+      lib.found(req, res, resources);
     });
   } else {
     lib.forbidden(req, res)

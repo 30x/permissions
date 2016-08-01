@@ -9,6 +9,9 @@ Adding simple library prereqs could be OK if the value they bring is in proporti
 var Pool = require('pg').Pool;
 var lib = require('./standard-functions.js');
 
+var ANYONE = 'http://apigee.com/users/anyone';
+var INCOGNITO = 'http://apigee.com/users/incognito';
+
 var config = {
   host: 'localhost',
   user: 'martinnally',
@@ -95,7 +98,21 @@ function updatePermissionsThen(req, res, subject, patchedPermissions, etag, call
   });
 }
 
+function withResourcesSharedWithUserDo(req, res, user, callback) {
+  var actors = JSON.stringify(user !== null ? [user, ANYONE, INCOGNITO] : [INCOGNITO]);
+  var query = `SELECT subject FROM permissions, jsonb_array_elements(permissions.data->'_sharedWith') AS sharedWith WHERE sharedWith <@ '${actors}'`;
+  console.log(query)
+  pool.query(query, function (err, pg_res) {
+    if (err) {
+      lib.badRequest(res, err);
+    } else {
+      callback(pg_res.rows.map((row) => {return row.subject;}))
+    }
+  });
+}
+
 exports.withPermissionsDo = withPermissionsDo;
 exports.createPermissionsThen = createPermissionsThen;
 exports.deletePermissionsThen = deletePermissionsThen;
 exports.updatePermissionsThen = updatePermissionsThen;
+exports.withResourcesSharedWithUserDo = withResourcesSharedWithUserDo;

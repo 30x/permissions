@@ -48,7 +48,7 @@ def main():
     'deleters': [USER1],
     'updaters': [USER1]     
     }
-    permissions_url = 'http://localhost:8080' + '/permissions' 
+    permissions_url = 'http://localhost:8080/permissions' 
     
     # Create permissions for Acme org (succeed)
 
@@ -64,21 +64,32 @@ def main():
     # Retrieve permissions for Acme org
 
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
-    r = requests.get(org_permissions, headers=headers, json=permissions)
+    url = 'http://localhost:8080/resources-shared-with?%s' % USER1 
+    r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
-        server_permission = r.json()
-        if all(item in server_permission.items() for item in permissions.items()):
-            if ('Etag' in r.headers):
-                acme_org_if_match = r.headers['Etag']
-                print 'correctly retrieved permissions'
-            else:
-                print 'failed to provide etag in get response'
+        resources = r.json()
+        if resources == ['http://apigee.com/o/acme']:
+            print 'correctly retrieved resource-shared-with for %s' % USER1
         else:
-            print 'retrieved permissions but comparison failed'
+            print 'retrieved resource-shared-with for %s but result is wrong %s' % (USER1, resources)
     else:
-        print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
+        print 'failed to retrieve resource-shared-with for %s %s %s' % (USER1, r.status_code, r.text)
         return
     
+    # Retrieve resources shared with USER1
+
+    url = 'http://localhost:8080' + '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1)
+    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        actions = r.json()
+        if all([item in actions for item in ['create', 'read', 'update', 'delete']]):
+            print 'correctly returned allowed actions of http://apigee.com/o/acme for USER1 after update of permissions to use team' 
+        else:
+            print 'incorrect returned actions of http://apigee.com/o/acme for USER1 %s' % actions
+    else:
+        print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
+
     # Create Acme Org Admins team
 
     team = {
