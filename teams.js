@@ -188,8 +188,9 @@ pool.query('CREATE TABLE IF NOT EXISTS teams (id text primary key, etag serial, 
   if(err) {
     console.error('error creating teams table', err);
   } else {
-    http.createServer(requestHandler).listen(3002, function() {
-      console.log('server is listening on 3002');
+    var port = process.env.PERMISSIONSPORT || 3002;
+    http.createServer(requestHandler).listen(port, function() {
+      console.log(`server is listening on ${port}`);
     });
   }
 });

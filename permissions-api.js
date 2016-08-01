@@ -17,13 +17,6 @@ var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
 
-var config = {
-  host: 'localhost',
-  user: 'martinnally',
-  password: 'martinnally',
-  database: 'permissions'
-};
-
 function verifyPermissions(req, permissions) {
   if (permissions.isA == undefined && permissions.governs !== undefined) {
     permissions.isA = 'Permissions';
@@ -253,7 +246,8 @@ function requestHandler(req, res) {
 }
 
 db.createTableThen(function () {
-  http.createServer(requestHandler).listen(3001, function() {
-    console.log('server is listening on 3001');
+  var port = process.env.PERMISSIONS_PORT || 3001;
+  http.createServer(requestHandler).listen(port, function() {
+    console.log(`server is listening on ${port}`);
   });
 });
