@@ -11,7 +11,7 @@ var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
 var perm = require('./permissions.js');
-var crud = require('./permissions-crud.js');
+var crud = require('./permissions-db.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';

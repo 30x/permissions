@@ -1,7 +1,7 @@
 'use strict';
 var http = require('http');
 var lib = require('./standard-functions.js');
-var crud = require('./permissions-crud.js');
+var db = require('./permissions-db.js');
 
 var permissionsCache = {};
 
@@ -116,7 +116,7 @@ function withPermissionsDo(req, res, resource, callback) {
   if (permissions !== undefined) {
     callback(permissions, permissions._Etag);
   } else {
-    crud.withPermissionsDo(req, res, resource, function(permissions, etag) {
+    db.withPermissionsDo(req, res, resource, function(permissions, etag) {
       cache(resource, permissions, etag);
       callback(permissions, etag);
     });
