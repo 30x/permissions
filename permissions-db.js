@@ -116,12 +116,71 @@ function withHeirsDo(req, res, securedObject, callback) {
   });
 }
 
-function createTableThen(callback) {
+var FIVEMINUTES = 5*60*1000;
+var TENMINUTES  = 10*60*1000;
+
+function register_cache(ip_address) {
+  var time = Date.now();
+  pool.query(`DELETE FROM caches WHERE registration_time < ${time-FIVEMINUTES}`, function (err, pg_res) {
+    if (err) {
+      console.log(`unable to delete old cache registrations ${err}`);
+    } else {
+      var query = 'INSERT INTO caches (ip_address, registration_time) values ($1, $2) ON CONFLICT (ip_address) UPDATE SET registration_time = EXCLUDED.registration_time'
+      pool.query(query, [ip_address, time], function (err, pg_res) {
+        if (err) {
+          console.log(`unable to register ip_address ${ip_address}`);
+        }
+      });
+    }
+  });
+}
+
+function checkInvalidations(callback) {
+  pool.query(`DELETE FROM invalidations WHERE invalidation_time < ${time-FIVEMINUTES}`, function (err, pg_res) {
+    if (err) {
+      console.log(`unable to delete old invalidations ${err}`);
+    } else {
+      var query = 'SELECT subject, type, etag FROM invalidations'
+      pool.query(query, [ip_address, time], function (err, pg_res) {
+        if (err) {
+          console.log(`unable to register ip_address ${ip_address}`);
+        } else {
+          callback(pg_res.rows);
+        }
+      });
+    }
+  });
+}
+
+function log_invalidation(subject, type, etag) {
+  var time = Date.now();
+  var query = 'INSERT INTO invalidations (subject, type, etag, invalidation_time) values ($1, $2, $3, $4)'
+  pool.query(query, [subject, type, etag, time], function (err, pg_res) {
+    if (err) {
+      console.log(`unable to register ip_address ${ip_address}`);
+    }
+    // don't wait for the result
+  });
+}
+
+function createTablesThen(callback) {
   pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pg_res) {
     if(err) {
       console.error('error creating permissions table', err);
     } else {
-      callback()
+      pool.query('CREATE TABLE IF NOT EXISTS invalidations (subject text, type text, etag int, invalidation_time bigint);', function(err, pg_res) {
+        if(err) {
+          console.error('error creating permissions table', err);
+        } else {
+          pool.query('CREATE TABLE IF NOT EXISTS caches (ip_address text primary key, registration_time bigint);', function(err, pg_res) {
+            if(err) {
+              console.error('error creating permissions table', err);
+            } else {
+              callback()
+            }
+          });
+        }
+      });
     }
   });    
 }
@@ -132,4 +191,4 @@ exports.deletePermissionsThen = deletePermissionsThen;
 exports.updatePermissionsThen = updatePermissionsThen;
 exports.withResourcesSharedWithActorsDo = withResourcesSharedWithActorsDo;
 exports.withHeirsDo = withHeirsDo;
-exports.createTableThen = createTableThen;
+exports.createTablesThen = createTablesThen;

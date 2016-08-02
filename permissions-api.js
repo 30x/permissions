@@ -275,7 +275,7 @@ function requestHandler(req, res) {
   }
 }
 
-db.createTableThen(function () {
+db.createTablesThen(function () {
   var port = process.env.PERMISSIONS_PORT || 3001;
   http.createServer(requestHandler).listen(port, function() {
     console.log(`server is listening on ${port}`);
