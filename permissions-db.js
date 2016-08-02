@@ -143,29 +143,32 @@ function withHeirsDo(req, res, securedObject, callback) {
   });
 }
 
-var TENMINUTES  = 10*60*1000;
-var ONEHOUR = 60*60*1000;
+function discardCachesOlderThan(interval) {
+  var time = Date.now() - interval;
+  console.log('discardCachesOlderThan:', 'time:', time);
+  pool.query(`DELETE FROM caches WHERE registrationtime < ${time}`, function (err, pgResult) {
+    if (err) {
+      console.log('discardCachesOlderThan:', `unable to delete old invalidations ${err}`);
+    } else {
+      console.log('discardCachesOlderThan:', `trimmed invalidations older than ${time}`)
+    }
+  });
+}
 
 function registerCache(ipaddress, callback) {
   var time = Date.now();
-  pool.query(`DELETE FROM caches WHERE registrationtime < ${time-TENMINUTES}`, function (err, pgResult) {
+  var query = 'INSERT INTO caches (ipaddress, registrationtime) values ($1, $2) ON CONFLICT (ipaddress) DO UPDATE SET registrationtime = EXCLUDED.registrationtime'
+  pool.query(query, [ipaddress, time], function (err, pgResult) {
     if (err) {
-      console.log(`unable to delete old cache registrations ${err}`);
+      console.log(`unable to register ipaddress ${ipaddress} ${err}`);
+    }
+  });
+  var query = 'SELECT ipaddress FROM caches'
+  pool.query(query, function (err, pgResult) {
+    if (err) {
+      console.log(`unable to retrieve ipaddresses from caches ${ipaddress} ${err}`);
     } else {
-      var query = 'INSERT INTO caches (ipaddress, registrationtime) values ($1, $2) ON CONFLICT (ipaddress) DO UPDATE SET registrationtime = EXCLUDED.registrationtime'
-      pool.query(query, [ipaddress, time], function (err, pgResult) {
-        if (err) {
-          console.log(`unable to register ipaddress ${ipaddress} ${err}`);
-        }
-      });
-      var query = 'SELECT ipaddress FROM caches'
-      pool.query(query, function (err, pgResult) {
-        if (err) {
-          console.log(`unable to retrieve ipaddresses from caches ${ipaddress} ${err}`);
-        } else {
-          callback(pgResult.rows.map((row) => {return row.ipaddress;}));
-        }
-      });
+      callback(pgResult.rows.map((row) => {return row.ipaddress;}));
     }
   });
 }
@@ -188,12 +191,13 @@ function discardInvalidationsOlderThan(interval) {
   console.log('discardInvalidationsOlderThan:', 'time:', time);
   pool.query(`DELETE FROM invalidations WHERE invalidationtime < ${time}`, function (err, pgResult) {
     if (err) {
-      console.log(`unable to delete old invalidations ${err}`);
+      console.log('discardInvalidationsOlderThan:', `unable to delete old invalidations ${err}`);
     } else {
-      console.log(`trimmed invalidations older than ${time}`)
+      console.log('discardInvalidationsOlderThan:', `trimmed invalidations older than ${time}`)
     }
   });
 }
+
 
 function logInvalidation(subject, type, etag) {
   var time = Date.now();
@@ -201,6 +205,19 @@ function logInvalidation(subject, type, etag) {
   pool.query(query, [subject, type, etag, time], function (err, pgResult) {
     if (err) {
       console.log(`unable to register ipaddress ${ipaddress}`);
+    }
+  });
+}
+
+function withLastInvalidationID(callback) {
+  var query = 'SELECT last_value FROM invalidations_id_seq'
+  pool.query(query, function(err, pgResult) {
+    if(err) {
+      console.log('error retrieving last invalidation ID', err);
+      callback(err);
+    } else {
+      console.log('retrieved last invalidation ID', pgResult.rows[0].last_value);
+      callback(null, pgResult.rows[0].last_value);
     }
   });
 }
@@ -241,3 +258,5 @@ exports.registerCache = registerCache;
 exports.logInvalidation = logInvalidation;
 exports.withInvalidationsAfter = withInvalidationsAfter;
 exports.discardInvalidationsOlderThan = discardInvalidationsOlderThan;
+exports.withLastInvalidationID = withLastInvalidationID;
+exports.discardCachesOlderThan = discardCachesOlderThan;
