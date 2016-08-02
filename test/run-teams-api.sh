@@ -1,4 +1,5 @@
-export PERMISSIONS_PORT=3002
+export IPADDRESS="127.0.0.1"
+export PORT=3002
 export PG_HOST="localhost"
 export PG_USER="martinnally"
 export PG_PASSWORD="martinnally"

@@ -25,3 +25,15 @@ pool.query('DROP TABLE IF EXISTS teams', function(err, pg_res) {
   else console.log('dropped table teams')
   pool.end()
 })
+
+pool.query('DROP TABLE IF EXISTS invalidations', function(err, pg_res) {
+  if(err) console.error('error dropping invalidations table', err);
+  else console.log('dropped table invalidations')
+  pool.end()
+})
+
+pool.query('DROP TABLE IF EXISTS caches', function(err, pg_res) {
+  if(err) console.error('error dropping caches table', err);
+  else console.log('dropped table caches')
+  pool.end()
+})

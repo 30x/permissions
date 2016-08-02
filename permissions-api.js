@@ -17,6 +17,8 @@ var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
 
+var peerCaches = [];
+
 function verifyPermissions(req, permissions) {
   if (permissions.isA == undefined && permissions.governs !== undefined) {
     permissions.isA = 'Permissions';
@@ -275,9 +277,26 @@ function requestHandler(req, res) {
   }
 }
 
+var ONEMINUTE = 60*1000;
+
+function setPeerCaches(peers) {
+  peerCaches = peers;
+}
+
+var ipAddress = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
+
+function registerCache() {
+  db.registerCache(ipAddress, setPeerCaches)
+}
+
+function checkInvalidations() {}
+
 db.createTablesThen(function () {
-  var port = process.env.PERMISSIONS_PORT || 3001;
+  registerCache()
+  var port = process.env.PORT;
   http.createServer(requestHandler).listen(port, function() {
     console.log(`server is listening on ${port}`);
+    setInterval(registerCache, ONEMINUTE);
+    setInterval(checkInvalidations, ONEMINUTE);
   });
 });

@@ -73,22 +73,46 @@ function createPermissionsThen(req, res, permissions, callback) {
 }
 
 function updatePermissionsThen(req, res, subject, patchedPermissions, etag, callback) {
-  var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 AND etag = $3 RETURNING etag'
-  lib.internalizeURLs(patchedPermissions, req.headers.host);
-  var key = lib.internalizeURL(subject, req.headers.host)
-  pool.query(query, [patchedPermissions, key, etag], function (err, pgResult) {
+  pool.connect(function(err, client, release) {
     if (err) { 
       lib.badRequest(res, err);
     } else {
-      if (pgResult.rowCount === 0) {
-        err = 'If-Match header does not match stored etag ' + etag;
-        lib.badRequest(res, err);
-      } else {
-        var row = pgResult.rows[0];
-        callback(patchedPermissions, pgResult.rows[0].etag)
-      }
+      client.query('BEGIN', function(err) {
+        if(err) {
+          client.query('ROLLBACK', release);
+          lib.internalError(res, err);
+        } else {
+          lib.internalizeURLs(patchedPermissions, req.headers.host);
+          var key = lib.internalizeURL(subject, req.headers.host);
+          var query = 'UPDATE permissions SET data = ($1) WHERE subject = $2 AND etag = $3 RETURNING etag';
+          client.query(query, [patchedPermissions, key, etag], function(err, pgResult) {
+            if(err) {
+              client.query('ROLLBACK', release);
+              lib.internalError(res, err);
+            } else {
+              if (pgResult.rowCount === 0) {
+                client.query('ROLLBACK', release);
+                var resErr = 'If-Match header does not match stored etag ' + etag;
+                lib.badRequest(res, resErr);
+              } else {
+                var time = Date.now();
+                var query = 'INSERT INTO invalidations (subject, type, etag, invalidationtime) values ($1, $2, $3, $4)'
+                client.query(query, [subject, 'permissions', etag, time], function(err) {
+                  if(err) {
+                    client.query('ROLLBACK', release);
+                    lib.internalError(res, err);
+                  } else {
+                    client.query('COMMIT', release);
+                    callback(patchedPermissions, pgResult.rows[0].etag)
+                  }
+                });
+              }
+            }
+          });
+        }
+      });
     }
-  });
+  });  
 }
 
 function withResourcesSharedWithActorsDo(req, res, actors, callback) {
@@ -117,40 +141,42 @@ function withHeirsDo(req, res, securedObject, callback) {
 }
 
 var TENMINUTES  = 10*60*1000;
+var ONEHOUR = 60*60*1000;
 
-function register_cache(ip_address, callback) {
+function registerCache(ipaddress, callback) {
   var time = Date.now();
-  pool.query(`DELETE FROM caches WHERE registration_time < ${time-TENMINUTES}`, function (err, pgResult) {
+  pool.query(`DELETE FROM caches WHERE registrationtime < ${time-TENMINUTES}`, function (err, pgResult) {
     if (err) {
       console.log(`unable to delete old cache registrations ${err}`);
     } else {
-      var query = 'INSERT INTO caches (ip_address, registration_time) values ($1, $2) ON CONFLICT (ip_address) UPDATE SET registration_time = EXCLUDED.registration_time'
-      pool.query(query, [ip_address, time], function (err, pgResult) {
+      var query = 'INSERT INTO caches (ipaddress, registrationtime) values ($1, $2) ON CONFLICT (ipaddress) DO UPDATE SET registrationtime = EXCLUDED.registrationtime'
+      pool.query(query, [ipaddress, time], function (err, pgResult) {
         if (err) {
-          console.log(`unable to register ip_address ${ip_address}`);
+          console.log(`unable to register ipaddress ${ipaddress} ${err}`);
         }
       });
-      var query = 'SELECT ip_address FROM caches'
-      pool.query(query, [ip_address, time], function (err, pgResult) {
+      var query = 'SELECT ipaddress FROM caches'
+      pool.query(query, function (err, pgResult) {
         if (err) {
-          console.log(`unable to register ip_address ${ip_address}`);
+          console.log(`unable to retrieve ipaddresses from caches ${ipaddress} ${err}`);
         } else {
-          callback(pgResult.rows.map((row) => {return row.ip_address;}));
+          callback(pgResult.rows.map((row) => {return row.ipaddress;}));
         }
       });
     }
   });
 }
 
-function checkInvalidations(callback) {
-  pool.query(`DELETE FROM invalidations WHERE invalidation_time < ${time-TENMINUTES}`, function (err, pgResult) {
+function withInvalidationsAfter(invalidationID, callback) {
+  var time = Date.now();
+  pool.query(`DELETE FROM invalidations WHERE invalidationtime < ${time-ONEHOUR}`, function (err, pgResult) {
     if (err) {
       console.log(`unable to delete old invalidations ${err}`);
     } else {
-      var query = 'SELECT subject, type, etag FROM invalidations'
-      pool.query(query, [ip_address, time], function (err, pgResult) {
+      var query = `SELECT subject, type, etag FROM invalidations WHERE invalidationID > ${invalidationID}`;
+      pool.query(query, [ipaddress, time], function (err, pgResult) {
         if (err) {
-          console.log(`unable to register ip_address ${ip_address}`);
+          console.log(`unable to retrieve invalidations ${invalidationID} ${err}`);
         } else {
           callback(pgResult.rows);
         }
@@ -159,29 +185,31 @@ function checkInvalidations(callback) {
   });
 }
 
-function log_invalidation(subject, type, etag) {
+function logInvalidation(subject, type, etag) {
   var time = Date.now();
-  var query = 'INSERT INTO invalidations (subject, type, etag, invalidation_time) values ($1, $2, $3, $4)'
+  var query = 'INSERT INTO invalidations (subject, type, etag, invalidationtime) values ($1, $2, $3, $4)'
   pool.query(query, [subject, type, etag, time], function (err, pgResult) {
     if (err) {
-      console.log(`unable to register ip_address ${ip_address}`);
+      console.log(`unable to register ipaddress ${ipaddress}`);
     }
-    // don't wait for the result
   });
 }
 
 function createTablesThen(callback) {
-  pool.query('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);', function(err, pgResult) {
+  var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);'
+  pool.query(query, function(err, pgResult) {
     if(err) {
       console.error('error creating permissions table', err);
     } else {
-      pool.query('CREATE TABLE IF NOT EXISTS invalidations (subject text, type text, etag int, invalidation_time bigint);', function(err, pgResult) {
+      query = 'CREATE TABLE IF NOT EXISTS invalidations (id bigserial, subject text, type text, etag int, invalidationtime bigint);'
+      pool.query(query, function(err, pgResult) {
         if(err) {
-          console.error('error creating permissions table', err);
+          console.error('error creating invalidations table', err);
         } else {
-          pool.query('CREATE TABLE IF NOT EXISTS caches (ip_address text primary key, registration_time bigint);', function(err, pgResult) {
+          query = 'CREATE TABLE IF NOT EXISTS caches (ipaddress text primary key, registrationtime bigint);'
+          pool.query(query, function(err, pgResult) {
             if(err) {
-              console.error('error creating permissions table', err);
+              console.error('error creating caches table', err);
             } else {
               callback()
             }
@@ -199,3 +227,6 @@ exports.updatePermissionsThen = updatePermissionsThen;
 exports.withResourcesSharedWithActorsDo = withResourcesSharedWithActorsDo;
 exports.withHeirsDo = withHeirsDo;
 exports.createTablesThen = createTablesThen;
+exports.registerCache = registerCache;
+exports.logInvalidation = logInvalidation;
+exports.withInvalidationsAfter = withInvalidationsAfter;

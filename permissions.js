@@ -213,6 +213,18 @@ function withUsersResourcesDo (req, res, user, callback) {
   });
 }
 
+function processStoredInvalidations(invalidations) {
+  for (var i = 0; i < invalidations.length; i++) {
+    var invalidation = invalidations[i];
+    var cacheEntry = permissionsCache[invalidation.subject];
+    if (cacheEntry !== undefined) {
+      if (cacheEntry.etag < invalidation.etag) {
+        console.log(`processing missed invalidation: ${invalidation.subject}`)
+        delete permissionsCache[invalidation.subject];
+      }
+    }
+  }
+}
 
 exports.withPermissionFlagDo = withPermissionFlagDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
