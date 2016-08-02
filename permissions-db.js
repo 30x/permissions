@@ -170,11 +170,11 @@ function registerCache(ipaddress, callback) {
   });
 }
 
-function withInvalidationsAfter(invalidationID, callback) {
-  var query = `SELECT subject, type, etag FROM invalidations WHERE invalidationID > ${invalidationID}`;
-  pool.query(query, [invalidationID], function(err, pgResult) {
+function withInvalidationsAfter(id, callback) {
+  var query = 'SELECT subject, type, etag FROM invalidations WHERE id > $1';
+  pool.query(query, [id], function(err, pgResult) {
     if (err) {
-      console.log(`unable to retrieve validations subsequent to ${invalidationID} ${err}`);      
+      console.log(`unable to retrieve validations subsequent to ${id} ${err}`);      
     } else{
       for (var i=0; i< pgResult.rowCount; i++) {
         callback(pgResult.rows[i]);

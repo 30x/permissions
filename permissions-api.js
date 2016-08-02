@@ -277,9 +277,9 @@ function requestHandler(req, res) {
   }
 }
 
-var ONEMINUTE = 60*1000;
-var TWOMINUTES = 2*60*1000;
-var TENMINUTES = 10*60*1000;
+var ONEMINUTE = 60*100;
+var TWOMINUTES = 2*60*100;
+var TENMINUTES = 10*60*100;
 var ONEHOUR = 60*60*1000;
 
 function setPeerCaches(peers) {
