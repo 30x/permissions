@@ -278,25 +278,31 @@ function requestHandler(req, res) {
 }
 
 var ONEMINUTE = 60*1000;
+var TWOMINUTES = 2*60*1000;
+var TENMINUTES = 10*60*1000;
+var ONEHOUR = 60*60*1000;
 
 function setPeerCaches(peers) {
+  console.log('setPeerCaches:', 'peers:', peers)
   peerCaches = peers;
 }
 
 var ipAddress = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
 
-function registerCache() {
-  db.registerCache(ipAddress, setPeerCaches)
+var lastProcessedInvalidation = -1;
+
+function processStoredInvalidation(invalidation) {
+  console.log('processStoredInvalidation:', 'invalidation:', invalidation);
 }
 
-function checkInvalidations() {}
-
 db.createTablesThen(function () {
-  registerCache()
+  db.registerCache(ipAddress, setPeerCaches);
+  setInterval(db.registerCache, ONEMINUTE, ipAddress, setPeerCaches);
+  setInterval(db.withInvalidationsAfter, TWOMINUTES, lastProcessedInvalidation, processStoredInvalidation);
+  setInterval(db.discardInvalidationsOlderThan, TENMINUTES, ONEHOUR);
+
   var port = process.env.PORT;
   http.createServer(requestHandler).listen(port, function() {
     console.log(`server is listening on ${port}`);
-    setInterval(registerCache, ONEMINUTE);
-    setInterval(checkInvalidations, ONEMINUTE);
   });
 });

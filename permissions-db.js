@@ -73,6 +73,9 @@ function createPermissionsThen(req, res, permissions, callback) {
 }
 
 function updatePermissionsThen(req, res, subject, patchedPermissions, etag, callback) {
+  // We use a transaction here, since its PG and we can. In fact it would be OK to create the invalidation record first and then do the update.
+  // If the update failed we would have created an unnecessary invalidation record, which is not ideal, but probably harmless.
+  // The converse—creating an update without an invalidation record—could be harmful.
   pool.connect(function(err, client, release) {
     if (err) { 
       lib.badRequest(res, err);
@@ -168,19 +171,26 @@ function registerCache(ipaddress, callback) {
 }
 
 function withInvalidationsAfter(invalidationID, callback) {
-  var time = Date.now();
-  pool.query(`DELETE FROM invalidations WHERE invalidationtime < ${time-ONEHOUR}`, function (err, pgResult) {
+  var query = `SELECT subject, type, etag FROM invalidations WHERE invalidationID > ${invalidationID}`;
+  pool.query(query, [invalidationID], function(err, pgResult) {
+    if (err) {
+      console.log(`unable to retrieve validations subsequent to ${invalidationID} ${err}`);      
+    } else{
+      for (var i=0; i< pgResult.rowCount; i++) {
+        callback(pgResult.rows[i]);
+      }
+    }
+  });
+}
+
+function discardInvalidationsOlderThan(interval) {
+  var time = Date.now() - interval;
+  console.log('discardInvalidationsOlderThan:', 'time:', time);
+  pool.query(`DELETE FROM invalidations WHERE invalidationtime < ${time}`, function (err, pgResult) {
     if (err) {
       console.log(`unable to delete old invalidations ${err}`);
     } else {
-      var query = `SELECT subject, type, etag FROM invalidations WHERE invalidationID > ${invalidationID}`;
-      pool.query(query, [ipaddress, time], function (err, pgResult) {
-        if (err) {
-          console.log(`unable to retrieve invalidations ${invalidationID} ${err}`);
-        } else {
-          callback(pgResult.rows);
-        }
-      });
+      console.log(`trimmed invalidations older than ${time}`)
     }
   });
 }
@@ -230,3 +240,4 @@ exports.createTablesThen = createTablesThen;
 exports.registerCache = registerCache;
 exports.logInvalidation = logInvalidation;
 exports.withInvalidationsAfter = withInvalidationsAfter;
+exports.discardInvalidationsOlderThan = discardInvalidationsOlderThan;
