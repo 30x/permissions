@@ -335,21 +335,58 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
   }
 }
 
-function ifUserHasRequestTargetPermissionThen(req, res, action, callback) {
-  var user = getUser(req);
+function withAllowedDo(req, res, action, callback) {
   var resourceURL = PROTOCOL + '//' + req.host + req.url;
-  withAllowedActionsDo(req, resourceURL, function (err, resourceURL, permissions) {
-    if (err) {
-      internalError(res, err);
-    } else {
-      if (body.indexOf(action) > -1) { 
-        callback()
+  var user = getUser(req);
+  var permissionsURL = '/is-allowed?resource=' + resourceURL;
+  if (user !== null) {
+    permissionsURL += '&user=' + user;
+  }
+  if (action !== null) {
+    permissionsURL += '&action=' + action;
+  }
+  var headers = {
+    'Accept': 'application/json'
+  }
+  if (req.headers.authorization) {
+    headers.authorization = req.headers.authorization; 
+  }
+  var hostParts = req.headers.host.split(':');
+  var options = {
+    protocol: PROTOCOL,
+    hostname: hostParts[0],
+    path: permissionsURL,
+    method: 'GET',
+    headers: headers
+  };
+  if (hostParts.length > 1) {
+    options.port = hostParts[1];
+  }
+  var client_req = http.request(options, function (res) {
+    getClientResponseBody(res, function(body) {
+      body = JSON.parse(body);
+      if (res.statusCode == 200) { 
+        callback(body);
       } else {
-        if (user !== null) {
-          forbidden(req, res);
-        } else { 
-          unauthorized(req, res);
-        }
+        internalError(res, `failed permissions request: ${response.statusCode} URL: ${permissionsURL} body: ${body}`);
+      }
+    });
+  });
+  client_req.on('error', function (err) {
+    internalError(res, `failed permissions request: ${err} URL: ${permissionsURL}`);
+  });
+  client_req.end();
+}
+
+function ifAllowedThen(req, res, action, callback) {
+  withAllowedDo(req, res, action, function(allowed) {
+    if (body === true) {
+      callback();
+    } else {
+      if (user !== null) {
+        forbidden(req, res);
+      } else { 
+        unauthorized(req, res);
       }
     }
   });
@@ -419,7 +456,7 @@ exports.externalizeURLs = externalizeURLs;
 exports.getUser = getUser;
 exports.forbidden = forbidden;
 exports.unauthorized = unauthorized;
-exports.ifUserHasRequestTargetPermissionThen = ifUserHasRequestTargetPermissionThen;
+exports.ifAllowedThen = ifAllowedThen;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.mergePatch = mergePatch;
 exports.internalError = internalError;
