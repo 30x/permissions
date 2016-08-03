@@ -1,10 +1,4 @@
 'use strict';
-/* 
-We dislike prerequisites and avoid them where possible. We especially dislike prereqs that have a 'framework' style; simple libraries are more palatable.
-The current code uses http and pg. Because of Node's callback style, these have a slightly 'frameworky' feel, but it is not practical to avoid these libraries.
-Please do not add any framework to this preqs. We do not want express or anything like it. We do not want any sort of "ORM" or similar.
-Adding simple library prereqs could be OK if the value they bring is in proportion to the problme being solved.
-*/
 var http = require('http');
 var Pool = require('pg').Pool;
 var url = require('url');
@@ -47,11 +41,11 @@ function primCreateTeam (req, res, team) {
     // If we do things the other way around, a team without matching permissions could cause problems.
     pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
     if (err) {
-        lib.internalError(res, err);
+      lib.internalError(res, err);
     } else {
-        var etag = pg_res.rows[0].etag;
-        team._self = selfURL(id, req); 
-        lib.created(req, res, team, team._self, etag);
+      var etag = pg_res.rows[0].etag;
+      team._self = selfURL(id, req); 
+      lib.created(req, res, team, team._self, etag);
     }
     });
   });
@@ -64,9 +58,9 @@ function createTeam(req, res, team) {
   } else { 
     var err = verifyTeam(team);
     if (err !== null) {
-        lib.badRequest(res, err);
+      lib.badRequest(res, err);
     } else {
-        lib.createResource(req, res, team, primCreateTeam);
+      lib.createResource(req, res, team, primCreateTeam);
     }
   }
 }

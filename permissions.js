@@ -4,6 +4,7 @@ var lib = require('./standard-functions.js');
 var db = require('./permissions-db.js');
 
 var permissionsCache = {};
+var teamsCache = {};
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
@@ -13,39 +14,48 @@ var OPERATIONS = ['create', 'read', 'update', 'delete'];
 
 function withTeamsDo(req, res, user, callback) {
   if (user !== null) {
-    var headers = {
-      'Accept': 'application/json'
-    }
-    if (req.headers.authorization !== undefined) {
-      headers.authorization = req.headers.authorization; 
-    }
-    var hostParts = req.headers.host.split(':');
-    var options = {
-      protocol: PROTOCOL,
-      hostname: hostParts[0],
-      path: '/teams?' + user,
-      method: 'GET',
-      headers: headers
-    };
-    if (hostParts.length > 1) {
-      options.port = hostParts[1];
-    }
-    var client_req = http.request(options, function (client_response) {
-      lib.getClientResponseBody(client_response, function(body) {
-        if (client_response.statusCode == 200) { 
-          var actors = JSON.parse(body);
-          actors.push(user);
-          lib.internalizeURLs(actors, req.headers.host);
-          callback(actors);
-        } else {
-          lib.internalError(res, client_response.statusCode);
-        }
+    user = lib.internalizeURL(user);
+    var cachedActors = teamsCache[user];
+    if (/*cachedActors === undefined*/ true) {
+      var headers = {
+        'Accept': 'application/json'
+      }
+      if (req.headers.authorization !== undefined) {
+        headers.authorization = req.headers.authorization; 
+      }
+      var hostParts = req.headers.host.split(':');
+      var options = {
+        protocol: PROTOCOL,
+        hostname: hostParts[0],
+        path: '/teams?' + user,
+        method: 'GET',
+        headers: headers
+      };
+      if (hostParts.length > 1) {
+        options.port = hostParts[1];
+      }
+      var client_req = http.request(options, function (client_response) {
+        lib.getClientResponseBody(client_response, function(body) {
+          if (client_response.statusCode == 200) { 
+            var actors = JSON.parse(body);
+            lib.internalizeURLs(actors, req.headers.host);
+            actors.push(user);
+            teamsCache[user] = actors;
+            console.log('retrieved team from service', actors);
+            callback(actors);
+          } else {
+            lib.internalError(res, client_response.statusCode);
+          }
+        });
       });
-    });
-    client_req.on('error', function (err) {
-      lib.internalError(res, err);
-    });
-    client_req.end();
+      client_req.on('error', function (err) {
+        lib.internalError(res, err);
+      });
+      client_req.end();
+    } else {
+      console.log('retrieved team from cache', cachedActors);
+      callback(cachedActors);
+    }
   } else {
     callback(null);
   }

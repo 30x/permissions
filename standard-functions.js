@@ -277,7 +277,7 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
       }  
     } else {
       if (permissions.governs === undefined) {
-        badRequest(server_res, 'governs must be set ofr permissions')
+        badRequest(server_res, 'governs must be set for permissions')
       } else {
         if (permissions.governs._self === undefined) {
           permissions.governs._self = resourceURL
@@ -403,6 +403,7 @@ function setStandardCreationProperties(req, resource, user) {
 }
 
 function createResource(req, res, resource, primCreate) {
+  console.log('TODO: get rid of this');
   var user = getUser(req);
   if (user == null) {
     unauthorized(req, res)

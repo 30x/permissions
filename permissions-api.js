@@ -17,8 +17,6 @@ var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
 
-var peerCaches = [];
-
 function verifyPermissions(req, permissions) {
   if (permissions.isA == undefined && permissions.governs !== undefined) {
     permissions.isA = 'Permissions';
