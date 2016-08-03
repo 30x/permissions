@@ -226,7 +226,78 @@ function processStoredInvalidations(invalidations) {
   }
 }
 
+var ONEMINUTE = 60*100;
+var TWOMINUTES = 2*60*100;
+var TENMINUTES = 10*60*100;
+var ONEHOUR = 60*60*100;
+
+var peerCaches = [];
+
+function setPeerCaches(peers) {
+  console.log('setPeerCaches:', 'peers:', peers)
+  peerCaches = peers;
+}
+
+var ipAddress = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
+
+var processedInvalidations = new Array(1000);       // TODO convert to typed array to increase efficiency
+var lastInvalidationIndex = 0;                      // database index of next expected invalidation. This is the database index of the first entry in processedInvalidations
+var highestProcessedInvalidationIndex = 0;          // highest database index of invalidation processed.
+
+function disposeConsecutiveInvalidations() {
+  var handled = 0;
+  while (processedInvalidations[handled] !== undefined) {handled++;}
+  if (handled > 0) {
+    console.log(`disposing of ${handled} invalidations`)
+    for (var i=0; i < highestProcessedInvalidationIndex - lastInvalidationIndex; i++) {
+      processedInvalidations[i] = processedInvalidations[i+handled];
+      processedInvalidations[i+handled] = undefined;
+    }
+    lastInvalidationIndex += handled;
+  }
+}
+
+function processStoredInvalidations(invalidations) {
+  for (var i=0; i< invalidations.length; i++) {
+    var invalidation = invalidations[i];    
+    console.log('processStoredInvalidation:', 'invalidation:', invalidation.index);
+    var index = parseInt(invalidation.index);
+    processedInvalidations[index - lastInvalidationIndex - 1] = 1;
+    highestProcessedInvalidationIndex = Math.max(highestProcessedInvalidationIndex, index);
+  }
+  disposeConsecutiveInvalidations();
+}
+
+function fetchStoredInvalidations() {
+  disposeConsecutiveInvalidations();
+  db.withInvalidationsAfter(lastInvalidationIndex, processStoredInvalidations);
+}
+
+function init(callback) {
+  db.withLastInvalidationID(function(err, id) {
+    if (err) {
+      console.log('unable to get last value of invalidation ID')
+    } else {
+      lastInvalidationIndex = id - 1;
+      db.registerCache(ipAddress, setPeerCaches);
+      setInterval(db.registerCache, ONEMINUTE, ipAddress, setPeerCaches);
+      setInterval(db.discardCachesOlderThan, TWOMINUTES, TENMINUTES);
+      setInterval(fetchStoredInvalidations, TWOMINUTES);
+      setInterval(db.discardInvalidationsOlderThan, TENMINUTES, ONEHOUR);
+      callback();
+    }
+  });  
+}
+
 exports.withPermissionFlagDo = withPermissionFlagDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
 exports.withUsersResourcesDo = withUsersResourcesDo;
+exports.init=init;
+
+// for unit test
+exports.disposeConsecutiveInvalidations=disposeConsecutiveInvalidations;
+exports.processStoredInvalidations=processStoredInvalidations;
+exports.processedInvalidations=processedInvalidations;
+exports.lastInvalidationIndex=lastInvalidationIndex;
+exports.highestProcessedInvalidationIndex=highestProcessedInvalidationIndex;

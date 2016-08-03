@@ -277,39 +277,11 @@ function requestHandler(req, res) {
   }
 }
 
-var ONEMINUTE = 60*100;
-var TWOMINUTES = 2*60*100;
-var TENMINUTES = 10*60*100;
-var ONEHOUR = 60*60*100;
-
-function setPeerCaches(peers) {
-  console.log('setPeerCaches:', 'peers:', peers)
-  peerCaches = peers;
-}
-
-var ipAddress = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
-
-var lastProcessedInvalidation = -1;
-
-function processStoredInvalidation(invalidation) {
-  console.log('processStoredInvalidation:', 'invalidation:', invalidation);
-}
-
 db.createTablesThen(function () {
-  db.registerCache(ipAddress, setPeerCaches);
-  setInterval(db.registerCache, ONEMINUTE, ipAddress, setPeerCaches);
-  setInterval(db.discardCachesOlderThan, TWOMINUTES, TENMINUTES);
-  setInterval(db.withInvalidationsAfter, TWOMINUTES, lastProcessedInvalidation, processStoredInvalidation);
-  setInterval(db.discardInvalidationsOlderThan, TENMINUTES, ONEHOUR);
-
   var port = process.env.PORT;
-  db.withLastInvalidationID(function(err, id) {
-    if (err) {
-      console.log('unable to get last value of invalidation ID')
-    } else {
-      http.createServer(requestHandler).listen(port, function() {
-        console.log(`server is listening on ${port}`);
-      });
-    }
+  perm.init(function() {
+    http.createServer(requestHandler).listen(port, function() {
+      console.log(`server is listening on ${port}`);
+    });
   });
 });

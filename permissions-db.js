@@ -173,27 +173,25 @@ function registerCache(ipaddress, callback) {
   });
 }
 
-function withInvalidationsAfter(id, callback) {
-  var query = 'SELECT subject, type, etag FROM invalidations WHERE id > $1';
-  pool.query(query, [id], function(err, pgResult) {
+function withInvalidationsAfter(index, callback) {
+  var query = 'SELECT * FROM invalidations WHERE index > $1';
+  pool.query(query, [index], function(err, pgResult) {
     if (err) {
-      console.log(`unable to retrieve validations subsequent to ${id} ${err}`);      
+      console.log(`unable to retrieve validations subsequent to ${index} ${err}`);      
     } else{
-      for (var i=0; i< pgResult.rowCount; i++) {
-        callback(pgResult.rows[i]);
-      }
+      console.log(`retrieved validations subsequent to ${index}`);      
+      callback(pgResult.rows);
     }
   });
 }
 
 function discardInvalidationsOlderThan(interval) {
   var time = Date.now() - interval;
-  console.log('discardInvalidationsOlderThan:', 'time:', time);
   pool.query(`DELETE FROM invalidations WHERE invalidationtime < ${time}`, function (err, pgResult) {
     if (err) {
       console.log('discardInvalidationsOlderThan:', `unable to delete old invalidations ${err}`);
     } else {
-      console.log('discardInvalidationsOlderThan:', `trimmed invalidations older than ${time}`)
+      console.log('discardInvalidationsOlderThan:', time)
     }
   });
 }
@@ -210,7 +208,7 @@ function logInvalidation(subject, type, etag) {
 }
 
 function withLastInvalidationID(callback) {
-  var query = 'SELECT last_value FROM invalidations_id_seq'
+  var query = 'SELECT last_value FROM invalidations_index_seq'
   pool.query(query, function(err, pgResult) {
     if(err) {
       console.log('error retrieving last invalidation ID', err);
@@ -228,7 +226,7 @@ function createTablesThen(callback) {
     if(err) {
       console.error('error creating permissions table', err);
     } else {
-      query = 'CREATE TABLE IF NOT EXISTS invalidations (id bigserial, subject text, type text, etag int, invalidationtime bigint);'
+      query = 'CREATE TABLE IF NOT EXISTS invalidations (index bigserial, subject text, type text, etag int, invalidationtime bigint);'
       pool.query(query, function(err, pgResult) {
         if(err) {
           console.error('error creating invalidations table', err);
