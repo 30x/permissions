@@ -295,7 +295,7 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
   }
 }
 
-function withAllowedDo(req, res, resourceURL, action, callback) {
+function withAllowedDo(req, serverRes, resourceURL, action, callback) {
   var user = getUser(req);
   var permissionsURL = '/is-allowed?resource=' + resourceURL;
   if (user !== null) {
@@ -321,18 +321,18 @@ function withAllowedDo(req, res, resourceURL, action, callback) {
   if (hostParts.length > 1) {
     options.port = hostParts[1];
   }
-  var client_req = http.request(options, function (res) {
-    getClientResponseBody(res, function(body) {
+  var client_req = http.request(options, function (clientRes) {
+    getClientResponseBody(clientRes, function(body) {
       body = JSON.parse(body);
-      if (res.statusCode == 200) { 
+      if (clientRes.statusCode == 200) { 
         callback(body);
       } else {
-        internalError(res, `failed permissions request: ${response.statusCode} URL: ${permissionsURL} body: ${body}`);
+        internalError(serverRes, `failed permissions request: ${clientRes.statusCode} URL: ${permissionsURL} body: ${body}`);
       }
     });
   });
   client_req.on('error', function (err) {
-    internalError(res, `failed permissions request: ${err} URL: ${permissionsURL}`);
+    internalError(serverRes, `failed permissions request: ${err} URL: ${permissionsURL}`);
   });
   client_req.end();
 }

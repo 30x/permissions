@@ -169,9 +169,16 @@ function getAllowedActions(req, res, queryString) {
 }
 
 function ifAllowedDo(req, res, subject, action, subjectIsPermission, callback) {
-  perm.withPermissionFlagDo(req, res, subject, action, subjectIsPermission, function(answer, permissions, etag) {
+  var realSubject = subjectIsPermission ? `/permissions?${subject}` : subject;
+  lib.withAllowedDo(req, res, realSubject, action, function(answer) {
     if (answer) {
-      callback(permissions, etag);
+      if (subjectIsPermission) {
+        db.withPermissionsDo(req, res, subject, function(permissions, etag) {
+          callback(permissions, etag);
+        });
+      } else {
+        callback();
+      }
     } else {
       lib.forbidden(req, res)
     }

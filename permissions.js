@@ -2,6 +2,8 @@
 var http = require('http');
 var lib = require('./standard-functions.js');
 var db = require('./permissions-db.js');
+var querystring = require('querystring');
+var url = require('url');
 
 var permissionsCache = {};
 var teamsCache = {};
@@ -230,9 +232,9 @@ function isAllowed(req, res, queryString) {
   var action = queryParts.action;
   var resourceParts = url.parse(resource);
   var subjectIsPermission = false;
-  if (url.pathname == '/permissions' && url.search != null) {
+  if (resourceParts.pathname == '/permissions' && resourceParts.search != null) {
     subjectIsPermission = true;
-    resource = url.search.substring(1);
+    resource = resourceParts.search.substring(1);
   }
   if (action !== undefined && resource !== undefined && user == lib.getUser(req)) {
     withPermissionFlagDo(req, res, resource, action, subjectIsPermission, function(answer) {
@@ -326,6 +328,7 @@ exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
 exports.withUsersResourcesDo = withUsersResourcesDo;
 exports.init=init;
+exports.isAllowed=isAllowed;
 
 // for unit test
 exports.disposeConsecutiveInvalidations=disposeConsecutiveInvalidations;
