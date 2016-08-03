@@ -67,7 +67,7 @@ function selfURL(key, req) {
 }
 
 function getTeam(req, res, id) {
-  lib.ifUserHasRequestTargetPermissionThen(req, res, 'read', function() {
+  lib.ifAllowedThen(req, res, 'read', function() {
     pool.query('SELECT etag, data FROM teams WHERE id = $1', [id], function (err, pg_res) {
       if (err) {
         lib.internalError(res, err);
@@ -88,7 +88,7 @@ function getTeam(req, res, id) {
 }
 
 function deleteTeam(req, res, id) {
-  lib.ifUserHasRequestTargetPermissionThen(req, res, 'delete', function() {
+  lib.ifAllowedThen(req, res, 'delete', function() {
     pool.query('DELETE FROM teams WHERE id = $1 RETURNING *', [id], function (err, pg_res) {
       if (err) { 
         lib.badRequest(res, err);
@@ -105,7 +105,7 @@ function deleteTeam(req, res, id) {
 }
 
 function updateTeam(req, res, id, patch) {
-  lib.ifUserHasRequestTargetPermissionThen(req, res, 'update', function(team, etag) {
+  lib.ifAllowedThen(req, res, 'update', function(team, etag) {
     var patchedTeam = mergePatch(team, patch);
     pool.query('UPDATE team SET data = ($1) WHERE id = $2 RETURNING etag' , [patchedPermissions, id], function (err, pg_res) {
       if (err) { 
