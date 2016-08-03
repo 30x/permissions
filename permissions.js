@@ -289,6 +289,7 @@ exports.invalidate = invalidate;
 exports.init=init;
 exports.isAllowed=isAllowed;
 exports.getAllowedActions=getAllowedActions;
+exports.processPermissionsModification=processPermissionsModification;
 
 // for unit test
 exports.disposeConsecutiveInvalidations=disposeConsecutiveInvalidations;
