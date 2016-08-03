@@ -223,6 +223,28 @@ function withUsersResourcesDo (req, res, user, callback) {
   });
 }
 
+function isAllowed(req, res, queryString) {
+  var queryParts = querystring.parse(queryString);
+  var resource = lib.internalizeURL(queryParts.resource);
+  var user = queryParts.user;
+  var action = queryParts.action;
+  var resourceParts = url.parse(resource);
+  var subjectIsPermission = false;
+  if (url.pathname == '/permissions' && url.search != null) {
+    subjectIsPermission = true;
+    resource = url.search.substring(1);
+  }
+  if (action !== undefined && resource !== undefined && user == lib.getUser(req)) {
+    withPermissionFlagDo(req, res, resource, action, subjectIsPermission, function(answer) {
+      lib.found(req, res, answer);
+    });
+  } else {
+    lib.badRequest(res, 'action and resource must be provided and user in query string must match user credentials ' + req.url)
+  }
+}
+
+// cache handling
+
 function processStoredInvalidations(invalidations) {
   for (var i = 0; i < invalidations.length; i++) {
     var invalidation = invalidations[i];

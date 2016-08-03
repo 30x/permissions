@@ -216,46 +216,6 @@ function externalizeURLs(jsObject, authority) {
   return jsObject
 }  
 
-function withAllowedActionsDo(req, resourceURL, callback) {
-  var user = getUser(req);
-  var permissionsURL = '/allowed-actions?resource=' + resourceURL;
-  if (user !== null) {
-    permissionsURL += '&user=' + user;
-  }
-  var headers = {
-    'Accept': 'application/json'
-  }
-  if (req.headers.authorization) {
-    headers.authorization = req.headers.authorization; 
-  }
-  var hostParts = req.headers.host.split(':');
-  var options = {
-    protocol: PROTOCOL,
-    hostname: hostParts[0],
-    path: permissionsURL,
-    method: 'GET',
-    headers: headers
-  };
-  if (hostParts.length > 1) {
-    options.port = hostParts[1];
-  }
-  var client_req = http.request(options, function (res) {
-    getClientResponseBody(res, function(body) {
-      if (res.statusCode == 200) { 
-        body = JSON.parse(body);
-        internalizeURLs(body, req.headers.host);
-        callback(null, resourceURL, body);
-      } else {
-        callback(response.statusCode, resourceURL);
-      }
-    });
-  });
-  client_req.on('error', function (err) {
-    callback(err, resourceURL);
-  });
-  client_req.end();
-}
-
 function createPermissonsFor(server_req, server_res, resourceURL, permissions, callback) {
   var user = getUser(server_req);
   if (user == null) {
@@ -335,8 +295,7 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
   }
 }
 
-function withAllowedDo(req, res, action, callback) {
-  var resourceURL = PROTOCOL + '//' + req.host + req.url;
+function withAllowedDo(req, res, resourceURL, action, callback) {
   var user = getUser(req);
   var permissionsURL = '/is-allowed?resource=' + resourceURL;
   if (user !== null) {
@@ -379,7 +338,8 @@ function withAllowedDo(req, res, action, callback) {
 }
 
 function ifAllowedThen(req, res, action, callback) {
-  withAllowedDo(req, res, action, function(allowed) {
+  var resourceURL = PROTOCOL + '//' + req.host + req.url;
+  withAllowedDo(req, res, resourceURL, action, function(allowed) {
     if (body === true) {
       callback();
     } else {
@@ -457,7 +417,7 @@ exports.getUser = getUser;
 exports.forbidden = forbidden;
 exports.unauthorized = unauthorized;
 exports.ifAllowedThen = ifAllowedThen;
-exports.withAllowedActionsDo = withAllowedActionsDo;
+exports.withAllowedDo = withAllowedDo;
 exports.mergePatch = mergePatch;
 exports.internalError = internalError;
 exports.createPermissonsFor = createPermissonsFor;

@@ -178,20 +178,6 @@ function ifAllowedDo(req, res, subject, action, subjectIsPermission, callback) {
   });
 }
 
-function isAllowed(req, res, queryString) {
-  var queryParts = querystring.parse(queryString);
-  var resource = queryParts.resource;
-  var user = queryParts.user;
-  var action = queryParts.action;
-  if (action !== undefined && resource !== undefined && user == lib.getUser(req)) {
-    perm.withPermissionFlagDo(req, res, resource, action, false, function(answer) {
-      lib.found(req, res, answer);
-    });
-  } else {
-    lib.badRequest(res, 'action and resource must be provided and user in query string must match user credentials ' + req.url)
-  }
-}
-
 function addUsersWhoCanSee(req, res, permissions, result, callback) {
   var sharedWith = permissions._sharedWith;
   if (sharedWith !== undefined) {
@@ -287,7 +273,7 @@ function requestHandler(req, res) {
       }
     } else if (req_url.pathname == '/is-allowed' && req_url.search !== null) {
       if (req.method == 'GET') {
-        isAllowed(req, res, req_url.search.substring(1));
+        perm.isAllowed(req, res, req_url.search.substring(1));
       } else {
         lib.methodNotAllowed(req, res, ['GET']);
       }
