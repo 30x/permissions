@@ -11,6 +11,48 @@ var http = require('http');
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var INTERNALURLPREFIX = 'protocol://authority';
 
+function withTeamsDo(req, res, user, callback) {
+  if (user !== null) {
+    user = internalizeURL(user);
+    var headers = {
+      'Accept': 'application/json'
+    }
+    if (req.headers.authorization !== undefined) {
+      headers.authorization = req.headers.authorization; 
+    }
+    var hostParts = req.headers.host.split(':');
+    var options = {
+      protocol: PROTOCOL,
+      hostname: hostParts[0],
+      path: '/teams?' + user,
+      method: 'GET',
+      headers: headers
+    };
+    if (hostParts.length > 1) {
+      options.port = hostParts[1];
+    }
+    var client_req = http.request(options, function (client_response) {
+      getClientResponseBody(client_response, function(body) {
+        if (client_response.statusCode == 200) { 
+          var actors = JSON.parse(body);
+          internalizeURLs(actors, req.headers.host);
+          actors.push(user);
+          console.log('retrieved team from service', actors);
+          callback(actors);
+        } else {
+          internalError(res, client_response.statusCode);
+        }
+      });
+    });
+    client_req.on('error', function (err) {
+      internalError(res, err);
+    });
+    client_req.end();
+  } else {
+    callback(null);
+  }
+}
+
 function getServerPostBody(req, res, callback) {
   var body = '';
 
@@ -423,3 +465,4 @@ exports.internalError = internalError;
 exports.createPermissonsFor = createPermissonsFor;
 exports.setStandardCreationProperties = setStandardCreationProperties;
 exports.getUserFromToken = getUserFromToken;
+exports.withTeamsDo=withTeamsDo;

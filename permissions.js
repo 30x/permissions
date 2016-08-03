@@ -15,52 +15,7 @@ var OPERATIONPROPERTIES = ['creators', 'readers', 'updaters', 'deleters'];
 var OPERATIONS = ['create', 'read', 'update', 'delete'];
 
 function withTeamsDo(req, res, user, callback) {
-  if (user !== null) {
-    user = lib.internalizeURL(user);
-    var cachedActors = teamsCache[user];
-    if (/*cachedActors === undefined*/ true) {
-      var headers = {
-        'Accept': 'application/json'
-      }
-      if (req.headers.authorization !== undefined) {
-        headers.authorization = req.headers.authorization; 
-      }
-      var hostParts = req.headers.host.split(':');
-      var options = {
-        protocol: PROTOCOL,
-        hostname: hostParts[0],
-        path: '/teams?' + user,
-        method: 'GET',
-        headers: headers
-      };
-      if (hostParts.length > 1) {
-        options.port = hostParts[1];
-      }
-      var client_req = http.request(options, function (client_response) {
-        lib.getClientResponseBody(client_response, function(body) {
-          if (client_response.statusCode == 200) { 
-            var actors = JSON.parse(body);
-            lib.internalizeURLs(actors, req.headers.host);
-            actors.push(user);
-            teamsCache[user] = actors;
-            console.log('retrieved team from service', actors);
-            callback(actors);
-          } else {
-            lib.internalError(res, client_response.statusCode);
-          }
-        });
-      });
-      client_req.on('error', function (err) {
-        lib.internalError(res, err);
-      });
-      client_req.end();
-    } else {
-      console.log('retrieved team from cache', cachedActors);
-      callback(cachedActors);
-    }
-  } else {
-    callback(null);
-  }
+  return lib.withTeamsDo(req, res, user, callback)
 }
 
 function getAllowedActions(permissionsObject, actors) {
@@ -217,14 +172,6 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
   });
 }
 
-function withUsersResourcesDo (req, res, user, callback) {
-  withTeamsDo(req, res, user, function(actors) {
-    db.withResourcesSharedWithActorsDo(req, res, actors, function(resources) {
-      callback(resources);
-    });
-  });
-}
-
 function isAllowed(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource);
@@ -326,7 +273,6 @@ function init(callback) {
 exports.withPermissionFlagDo = withPermissionFlagDo;
 exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
-exports.withUsersResourcesDo = withUsersResourcesDo;
 exports.init=init;
 exports.isAllowed=isAllowed;
 

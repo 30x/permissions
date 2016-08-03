@@ -219,8 +219,10 @@ function getResourcesSharedWith(req, res, user) {
   var requestingUser = lib.getUser(req);
   user = lib.internalizeURL(user, req.headers.host);
   if (user == requestingUser || user == INCOGNITO || (requestingUser !== null && user == ANYONE)) {
-    perm.withUsersResourcesDo(req, res, user, function(resources) {
+    lib.withTeamsDo(req, res, user, function(actors) {
+      db.withResourcesSharedWithActorsDo(req, res, actors, function(resources) {
         lib.found(req, res, resources);
+      });
     });
   } else {
     lib.forbidden(req, res)
