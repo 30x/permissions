@@ -83,12 +83,8 @@ function cache(resource, permissions, etag) {
   permissionsCache[resource] = permissions;
 }
 
-function invalidate(resource, permissions, etag) {
-//  if (resource !== undefined && resource !== null) {
-//    cache(resource, permissions, etag);
-//  } else {
-    delete permissionsCache[lib.internalizeURL(resource)];
-//  } 
+function invalidate(resource) {
+  delete permissionsCache[lib.internalizeURL(resource)];
 }
 
 function withPermissionsDo(req, res, resource, callback) {
@@ -203,6 +199,10 @@ function isAllowed(req, res, queryString) {
   } else {
     lib.badRequest(res, 'action and resource must be provided and user in query string must match user credentials ' + req.url)
   }
+}
+
+function processPermissionsModification(req, res, modification) {
+  invalidate(modification.subject)
 }
 
 // cache handling

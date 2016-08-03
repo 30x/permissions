@@ -31,7 +31,7 @@ function withTeamsDo(req, res, user, callback) {
     if (hostParts.length > 1) {
       options.port = hostParts[1];
     }
-    var client_req = http.request(options, function (client_response) {
+    var clientReq = http.request(options, function (client_response) {
       getClientResponseBody(client_response, function(body) {
         if (client_response.statusCode == 200) { 
           var actors = JSON.parse(body);
@@ -43,10 +43,10 @@ function withTeamsDo(req, res, user, callback) {
         }
       });
     });
-    client_req.on('error', function (err) {
+    clientReq.on('error', function (err) {
       internalError(res, err);
     });
-    client_req.end();
+    clientReq.end();
   } else {
     callback(null);
   }
@@ -257,10 +257,10 @@ function externalizeURLs(jsObject, authority) {
   return jsObject
 }  
 
-function createPermissonsFor(server_req, server_res, resourceURL, permissions, callback) {
-  var user = getUser(server_req);
+function createPermissonsFor(serverReq, serverRes, resourceURL, permissions, callback) {
+  var user = getUser(serverReq);
   if (user == null) {
-    unauthorized(server_req, server_res);
+    unauthorized(serverReq, serverRes);
   } else {
     if (permissions === null || permissions === undefined) {
       permissions = {
@@ -278,13 +278,13 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
       }  
     } else {
       if (permissions.governs === undefined) {
-        badRequest(server_res, 'governs must be set for permissions')
+        badRequest(serverRes, 'governs must be set for permissions')
       } else {
         if (permissions.governs._self === undefined) {
           permissions.governs._self = resourceURL
         } else {
           if (permissions.governs._self != resourceURL) {
-            badRequest(server_res, 'value of governs must match resourceURL')
+            badRequest(serverRes, 'value of governs must match resourceURL')
           }
         }
       }
@@ -295,10 +295,10 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
       'Content-Type': 'application/json',
       'Content-Length': Buffer.byteLength(postData)
     }
-    if (server_req.headers.authorization) {
-      headers.authorization = server_req.headers.authorization; 
+    if (serverReq.headers.authorization) {
+      headers.authorization = serverReq.headers.authorization; 
     }
-    var hostParts = server_req.headers.host.split(':');
+    var hostParts = serverReq.headers.host.split(':');
     var options = {
       protocol: PROTOCOL,
       hostname: hostParts[0],
@@ -310,29 +310,29 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
       options.port = hostParts[1];
     }
     var body = JSON.stringify(permissions);
-    var client_req = http.request(options, function (client_res) {
-      getClientResponseBody(client_res, function(body) {
-        if (client_res.statusCode == 201) { 
+    var clientReq = http.request(options, function (clientRes) {
+      getClientResponseBody(clientRes, function(body) {
+        if (clientRes.statusCode == 201) { 
           body = JSON.parse(body);
-          internalizeURLs(body, server_req.headers.host);
+          internalizeURLs(body, serverReq.headers.host);
           callback(resourceURL, body);
-        } else if (client_res.statusCode == 400) {
-          badRequest(server_res, body);
-        } else if (client_res.statusCode == 403) {
-          forbidden(server_req, server_res);
+        } else if (clientRes.statusCode == 400) {
+          badRequest(serverRes, body);
+        } else if (clientRes.statusCode == 403) {
+          forbidden(serverReq, serverRes);
         } else {
-          var err = {statusCode: client_res.statusCode,
-            msg: 'failed to create permissions for ' + resourceURL + ' statusCode ' + client_res.statusCode + ' message ' + JSON.stringify(client_res.body)
+          var err = {statusCode: clientRes.statusCode,
+            msg: 'failed to create permissions for ' + resourceURL + ' statusCode ' + clientRes.statusCode + ' message ' + JSON.stringify(clientRes.body)
           }
-          internalError(server_res, err);
+          internalError(serverRes, err);
         }
       });
     });
-    client_req.on('error', function (err) {
-      internalError(server_res, err);
+    clientReq.on('error', function (err) {
+      internalError(serverRes, err);
     });
-    client_req.write(postData);
-    client_req.end();
+    clientReq.write(postData);
+    clientReq.end();
   }
 }
 
@@ -362,7 +362,7 @@ function withAllowedDo(req, serverRes, resourceURL, action, callback) {
   if (hostParts.length > 1) {
     options.port = hostParts[1];
   }
-  var client_req = http.request(options, function (clientRes) {
+  var clientReq = http.request(options, function (clientRes) {
     getClientResponseBody(clientRes, function(body) {
       body = JSON.parse(body);
       if (clientRes.statusCode == 200) { 
@@ -372,10 +372,10 @@ function withAllowedDo(req, serverRes, resourceURL, action, callback) {
       }
     });
   });
-  client_req.on('error', function (err) {
+  clientReq.on('error', function (err) {
     internalError(serverRes, `failed permissions request: ${err} URL: ${permissionsURL}`);
   });
-  client_req.end();
+  clientReq.end();
 }
 
 function ifAllowedThen(req, res, action, callback) {

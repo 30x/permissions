@@ -122,6 +122,44 @@ function getPermissions(req, res, subject) {
   });
 }
 
+function invalidate(serverReq, serverRes, subject, callback) {
+  var postData = JSON.stringify(subject);
+  var headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(postData)
+  }
+  if (server_req.headers.authorization) {
+    headers.authorization = server_req.headers.authorization; 
+  }
+  var hostParts = server_req.headers.host.split(':');
+  var options = {
+    protocol: PROTOCOL,
+    hostname: hostParts[0],
+    path: '/permissionsModifications',
+    method: 'POST',
+    headers: headers
+  };
+  if (hostParts.length > 1) {
+    options.port = hostParts[1];
+  }
+  var body = JSON.stringify(permissions);
+  var client_req = http.request(options, function (client_res) {
+    getClientResponseBody(client_res, function(body) {
+      if (client_res.statusCode == 200) { 
+        callback();
+      } else {
+        internalError(serverRes, 'unable to invalidate caches');
+      }
+    });
+  });
+  client_req.on('error', function (err) {
+    internalError(serverRes, err);
+  });
+  client_req.write(postData);
+  client_req.end();
+}
+
 function deletePermissions(req, res, subject) {
   ifAllowedDo(req, res, subject, 'delete', true, function() {
     db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
@@ -228,6 +266,12 @@ function requestHandler(req, res) {
   if (req.url == '/permissions') {
     if (req.method == 'POST') {
       lib.getServerPostBody(req, res, createPermissions);
+    } else { 
+      lib.methodNotAllowed(req, res, ['POST']);
+    }
+  } else if (req.url == '/permissionsModification') {
+    if (req.method == 'POST') {
+      lib.getServerPostBody(req, res, perm.processPermissionsModification);
     } else { 
       lib.methodNotAllowed(req, res, ['POST']);
     }
