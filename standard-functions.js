@@ -37,7 +37,6 @@ function withTeamsDo(req, res, user, callback) {
           var actors = JSON.parse(body);
           internalizeURLs(actors, req.headers.host);
           actors.push(user);
-          console.log('retrieved team from service', actors);
           callback(actors);
         } else {
           internalError(res, client_response.statusCode);

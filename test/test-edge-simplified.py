@@ -252,6 +252,7 @@ def main():
             print 'correctly retrieved resources-shared-with for %s after update of permissions to use team' % USER1
         else:
             print 'retrieved resources-shared-with for %s but result is wrong %s' % (USER1, resources)
+            return
     else:
         print 'failed to retrieve resources-shared-with for %s %s %s' % (USER1, r.status_code, r.text)
         return

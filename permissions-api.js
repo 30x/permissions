@@ -92,7 +92,7 @@ function createPermissions(req, res, permissions) {
         for (var i=0; i < numberOfSharingsets; i++) {
           var sharingSet = permissions.governs.inheritsPermissionsOf[i];
           var allowedByAll = true;
-          perm.withPermissionFlagDo(req, res, sharingSet, 'create', true, function(allowed) {
+          lib.withAllowedDo(req, res, `/permissions?${sharingSet}`, 'create', function(allowed) {
             allowedByAll = allowedByAll && allowed;
             if (++count == numberOfSharingsets) {
               if (allowedByAll) {
@@ -153,19 +153,6 @@ function updatePermissions(req, res, patch) {
       lib.badRequest(res, err);
     }
   });
-}
-
-function getAllowedActions(req, res, queryString) {
-  var queryParts = querystring.parse(queryString);
-  var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
-  var user = queryParts.user
-  if (user == lib.getUser(req)) { 
-    perm.withAllowedActionsDo(req, res, resource, false, function(allowedActions) {
-      lib.found(req, res, allowedActions);
-    });
-  } else {
-    lib.badRequest(res, 'user in query string must match user credentials')
-  }
 }
 
 function ifAllowedDo(req, res, subject, action, subjectIsPermission, callback) {
@@ -258,7 +245,7 @@ function requestHandler(req, res) {
       }
     } else if (req_url.pathname == '/allowed-actions' && req_url.search !== null){ 
       if (req.method == 'GET') {
-        getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
+        perm.getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
       } else {
         lib.methodNotAllowed(req, res, ['GET']);
       }

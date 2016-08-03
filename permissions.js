@@ -18,7 +18,20 @@ function withTeamsDo(req, res, user, callback) {
   return lib.withTeamsDo(req, res, user, callback)
 }
 
-function getAllowedActions(permissionsObject, actors) {
+function getAllowedActions(req, res, queryString) {
+  var queryParts = querystring.parse(queryString);
+  var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
+  var user = queryParts.user
+  if (user == lib.getUser(req)) { 
+    withAllowedActionsDo(req, res, resource, false, function(allowedActions) {
+      lib.found(req, res, allowedActions);
+    });
+  } else {
+    lib.badRequest(res, 'user in query string must match user credentials')
+  }
+}
+
+function collateAllowedActions(permissionsObject, actors) {
   var allowedActions = {};
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     var actionProperty = OPERATIONPROPERTIES[i];
@@ -142,7 +155,7 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
   var recursionSet = {};
   function withActorsAllowedActionsDo(req, res, actors, resource, subjectIsPermission, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
-      var actions = getAllowedActions(subjectIsPermission ? permissions : permissions.governs, actors);
+      var actions = collateAllowedActions(subjectIsPermission ? permissions : permissions.governs, actors);
       var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
       if (inheritsPermissionsOf !== undefined) {
         inheritsPermissionsOf = inheritsPermissionsOf.filter((x) => {return !(x in recursionSet);}) 
@@ -275,6 +288,7 @@ exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.invalidate = invalidate;
 exports.init=init;
 exports.isAllowed=isAllowed;
+exports.getAllowedActions=getAllowedActions;
 
 // for unit test
 exports.disposeConsecutiveInvalidations=disposeConsecutiveInvalidations;
