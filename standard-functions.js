@@ -317,6 +317,8 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
           callback(resourceURL, body);
         } else if (client_res.statusCode == 400) {
           badRequest(server_res, body);
+        } else if (client_res.statusCode == 403) {
+          forbidden(server_req, server_res);
         } else {
           var err = {statusCode: client_res.statusCode,
             msg: 'failed to create permissions for ' + resourceURL + ' statusCode ' + client_res.statusCode + ' message ' + JSON.stringify(client_res.body)
@@ -402,39 +404,6 @@ function setStandardCreationProperties(req, resource, user) {
   return null;
 }
 
-function createResource(req, res, resource, primCreate) {
-  console.log('TODO: get rid of this');
-  var user = getUser(req);
-  if (user == null) {
-    unauthorized(req, res)
-  } else {
-    var count = 0;
-    var errors = [];
-    if (resource.inheritsPermissionsOf !== undefined) {
-      for (var i=0; i < resource.inheritsPermissionsOf.length; i++) {
-        withPermissionsDo(req, resource.inheritsPermissionsOf[i], function(err, sharingSet, actions){
-          if (err == 404) {
-            errors.push('sharingSet ' + sharingSet + ' is not a governed resource');
-          } else if (err !== null) {
-            errors.push(err);
-          } else if (actions.indexOf('create') == -1) {
-            errors.push('user not permitted to create in sharingSet ' + sharingSet);
-          }
-          if (++count == resource.inheritsPermissionsOf.length) {
-            if (errors.length == 0) {
-              primCreate(req, res, resource);
-            } else {
-              badRequest(res, errors);
-            }
-          }
-        });
-      }
-    } else {
-      primCreate(req, res, resource);
-    }
-  }
-}
-
 exports.getServerPostBody = getServerPostBody;
 exports.getClientResponseBody = getClientResponseBody;
 exports.methodNotAllowed = methodNotAllowed;
@@ -455,6 +424,5 @@ exports.withPermissionsDo = withPermissionsDo;
 exports.mergePatch = mergePatch;
 exports.internalError = internalError;
 exports.createPermissonsFor = createPermissonsFor;
-exports.createResource = createResource;
 exports.setStandardCreationProperties = setStandardCreationProperties;
 exports.getUserFromToken = getUserFromToken;

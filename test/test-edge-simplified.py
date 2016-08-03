@@ -50,7 +50,8 @@ def main():
         },
     'readers': [USER1],
     'deleters': [USER1],
-    'updaters': [USER1]     
+    'updaters': [USER1],     
+    'creators': [USER1]     
     }
     permissions_url = 'http://localhost:8080/permissions' 
     
@@ -110,6 +111,7 @@ def main():
         ORG_ADMINS = r.headers['location']
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
+        return
     
     # Create Acme Business Users team
 

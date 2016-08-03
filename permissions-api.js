@@ -79,11 +79,33 @@ function createPermissions(req, res, permissions) {
       err = lib.setStandardCreationProperties(permissions, req, user);
     }
     if (err === null) {
-      calculateSharedWith(req, permissions);
-      db.createPermissionsThen(req, res, permissions, function(permissions, etag) {
-        addCalculatedProperties(req, permissions);
-        lib.created(req, res, permissions, permissions._self, etag);
-      });
+      function primCreate(req, res, permissions) {
+        calculateSharedWith(req, permissions);
+        db.createPermissionsThen(req, res, permissions, function(permissions, etag) {
+          addCalculatedProperties(req, permissions);
+          lib.created(req, res, permissions, permissions._self, etag);
+        });        
+      }
+      if (permissions.governs.inheritsPermissionsOf !== undefined) {
+        var numberOfSharingsets = permissions.governs.inheritsPermissionsOf.length;
+        var count = 0;
+        for (var i=0; i < numberOfSharingsets; i++) {
+          var sharingSet = permissions.governs.inheritsPermissionsOf[i];
+          var allowedByAll = true;
+          perm.withPermissionFlagDo(req, res, sharingSet, 'create', true, function(allowed) {
+            allowedByAll = allowedByAll && allowed;
+            if (++count == numberOfSharingsets) {
+              if (allowedByAll) {
+                primCreate(req, res, permissions);
+              } else {
+                lib.forbidden(req, res);
+              }
+            } 
+          });
+        }
+      } else {
+        primCreate(req, res, permissions);
+      }
     } else {
       lib.badRequest(res, err);
     }

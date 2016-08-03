@@ -29,28 +29,6 @@ function verifyTeam(team) {
   }
 }
 
-function primCreateTeam (req, res, team) {
-  lib.internalizeURLs(team, req.headers.host); 
-  var permissions = team.permissions;
-  if (permissions !== undefined) {
-    delete team.permissions;
-  }
-  var id = uuid();
-  lib.createPermissonsFor(req, res, selfURL(id, req), permissions, function(permissionsURL, permissions){
-    // Create permissions first. If this fails, there will be a useless but harmless permissions document.
-    // If we do things the other way around, a team without matching permissions could cause problems.
-    pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
-    if (err) {
-      lib.internalError(res, err);
-    } else {
-      var etag = pg_res.rows[0].etag;
-      team._self = selfURL(id, req); 
-      lib.created(req, res, team, team._self, etag);
-    }
-    });
-  });
-}
-
 function createTeam(req, res, team) {
   var user = lib.getUser(req);
   if (user == null) {
@@ -60,7 +38,26 @@ function createTeam(req, res, team) {
     if (err !== null) {
       lib.badRequest(res, err);
     } else {
-      lib.createResource(req, res, team, primCreateTeam);
+      lib.internalizeURLs(team, req.headers.host); 
+      var permissions = team.permissions;
+      if (permissions !== undefined) {
+        delete team.permissions;
+      }
+      var id = uuid();
+      lib.createPermissonsFor(req, res, selfURL(id, req), permissions, function(permissionsURL, permissions){
+        // Create permissions first. If we fail after creating the permissions resource but before creating the main resource, 
+        // there will be a useless but harmless permissions document.
+        // If we do things the other way around, a team without matching permissions could cause problems.
+        pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
+          if (err) {
+            lib.internalError(res, err);
+          } else {
+            var etag = pg_res.rows[0].etag;
+            team._self = selfURL(id, req); 
+            lib.created(req, res, team, team._self, etag);
+          }
+        });
+      });
     }
   }
 }
