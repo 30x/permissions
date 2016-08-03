@@ -216,7 +216,7 @@ function externalizeURLs(jsObject, authority) {
   return jsObject
 }  
 
-function withPermissionsDo(req, resourceURL, callback) {
+function withAllowedActionsDo(req, resourceURL, callback) {
   var user = getUser(req);
   var permissionsURL = '/allowed-actions?resource=' + resourceURL;
   if (user !== null) {
@@ -338,7 +338,7 @@ function createPermissonsFor(server_req, server_res, resourceURL, permissions, c
 function ifUserHasRequestTargetPermissionThen(req, res, action, callback) {
   var user = getUser(req);
   var resourceURL = PROTOCOL + '//' + req.host + req.url;
-  withPermissionsDo(req, resourceURL, function (err, resourceURL, permissions) {
+  withAllowedActionsDo(req, resourceURL, function (err, resourceURL, permissions) {
     if (err) {
       internalError(res, err);
     } else {
@@ -420,7 +420,7 @@ exports.getUser = getUser;
 exports.forbidden = forbidden;
 exports.unauthorized = unauthorized;
 exports.ifUserHasRequestTargetPermissionThen = ifUserHasRequestTargetPermissionThen;
-exports.withPermissionsDo = withPermissionsDo;
+exports.withAllowedActionsDo = withAllowedActionsDo;
 exports.mergePatch = mergePatch;
 exports.internalError = internalError;
 exports.createPermissonsFor = createPermissonsFor;
