@@ -462,7 +462,7 @@ function sendInvalidationThen(serverReq, subject, host, callback) {
       if (client_res.statusCode == 200) { 
         callback(null);
       } else {
-        callback(`unable to invalidate cache: ${host} statusCode: ${client_res.statusCode}`);
+        callback(`unable to send invalidation: ${host} statusCode: ${client_res.statusCode}`);
       }
     });
   });

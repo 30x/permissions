@@ -90,7 +90,7 @@ function invalidate(req, res, subject) {
   for (var i; i < peerCaches.length; i++) {
     var cache = peerCaches[i];
     if (cache != selfAuthority) {
-      lib.sendInvalidationThen(req, res, subject, req.headers.host, function(err) {
+      lib.sendInvalidationThen(req, res, subject, cache, function(err) {
         if (err) {
           console.log(`failed to send invalidation to ${cache}`)
         }

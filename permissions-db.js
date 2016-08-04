@@ -16,8 +16,8 @@ var pool = new Pool(config);
 
 function withPermissionsDo(req, res, subject, callback) {
   // fetch the permissions resource for `subject`.
-  subject = lib.internalizeURL(subject, req.headers.host)
-  var query = 'SELECT etag, data FROM permissions WHERE subject = $1'
+  subject = lib.internalizeURL(subject, req.headers.host);
+  var query = 'SELECT etag, data FROM permissions WHERE subject = $1';
   pool.query(query,[subject], function (err, pgResult) {
     if (err) {
       lib.internalError(res, err);
@@ -65,7 +65,7 @@ function deletePermissionsThen(req, res, subject, callback) {
                     lib.internalError(res, err);
                   } else {
                     client.query('COMMIT', release);
-                    callback(patchedPermissions, pgResult.rows[0].etag)
+                    callback(patchedPermissions, pgResult.rows[0].etag);
                   }
                 });
               }
@@ -112,7 +112,7 @@ function createPermissionsThen(req, res, permissions, callback) {
                     lib.internalError(res, err);
                   } else {
                     client.query('COMMIT', release);
-                    callback(permissions, pgResult.rows[0].etag)
+                    callback(permissions, pgResult.rows[0].etag);
                   }
                 });
               }
@@ -159,7 +159,7 @@ function updatePermissionsThen(req, res, subject, patchedPermissions, etag, call
                     lib.internalError(res, err);
                   } else {
                     client.query('COMMIT', release);
-                    callback(patchedPermissions, pgResult.rows[0].etag)
+                    callback(patchedPermissions, pgResult.rows[0].etag);
                   }
                 });
               }

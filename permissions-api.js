@@ -81,6 +81,11 @@ function createPermissions(req, res, permissions) {
       function primCreate(req, res, permissions) {
         calculateSharedWith(req, permissions);
         db.createPermissionsThen(req, res, permissions, function(permissions, etag) {
+          lib.sendInvalidationThen(req, permissions._self, req.headers.host, function(err) {
+            if (err) {
+              console.log('unable to send cache invalidation')
+            }
+          });
           addCalculatedProperties(req, permissions);
           lib.created(req, res, permissions, permissions._self, etag);
         });        
@@ -123,15 +128,14 @@ function getPermissions(req, res, subject) {
 
 function deletePermissions(req, res, subject) {
   ifAllowedDo(req, res, subject, 'delete', true, function() {
-    lib.sendInvalidationThen(req, subject, req.headers.host, function(err) {
-      if (err) {
-        lib.internalError(res, 'unable to invalidate cache')
-      } else {
-        db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
-          addCalculatedProperties(req, permissions); 
-          lib.found(req, res, permissions, etag);
+    db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
+      lib.sendInvalidationThen(req, subject, req.headers.host, function(err) {
+        if (err) {
+          console.log('unable to send cache invalidation')
+        }
         });
-      }
+      addCalculatedProperties(req, permissions); 
+      lib.found(req, res, permissions, etag);
     });
   });
 }
