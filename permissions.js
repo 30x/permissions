@@ -83,8 +83,21 @@ function cache(resource, permissions, etag) {
   permissionsCache[resource] = permissions;
 }
 
-function invalidate(resource) {
-  delete permissionsCache[lib.internalizeURL(resource)];
+function invalidate(req, res, subject) {
+  console.log(peerCaches)
+  console.log('\n\n', peerCaches, selfAuthority, '\n\n');
+  delete permissionsCache[lib.internalizeURL(subject)];
+  for (var i; i < peerCaches.length; i++) {
+    var cache = peerCaches[i];
+    if (cache != selfAuthority) {
+      lib.sendInvalidationThen(req, res, subject, req.headers.host, function(err) {
+        if (err) {
+          console.log(`failed to send invalidation to ${cache}`)
+        }
+    });
+    }
+  }
+  lib.found(req, res);
 }
 
 function withPermissionsDo(req, res, resource, callback) {
@@ -201,11 +214,6 @@ function isAllowed(req, res, queryString) {
   }
 }
 
-function processPermissionsModification(req, res, modification) {
-  invalidate(modification)
-  lib.found(req, res);
-}
-
 // cache handling
 
 function processStoredInvalidations(invalidations) {
@@ -227,6 +235,10 @@ var TENMINUTES = 10*60*100;
 var ONEHOUR = 60*60*100;
 
 var peerCaches = [];
+var selfAuthority = process.env.IPADDRESS;
+if (process.env.PORT) {
+  selfAuthority += `:${process.env.PORT}`
+}
 
 function setPeerCaches(peers) {
   console.log('setPeerCaches:', 'peers:', peers)
@@ -287,7 +299,7 @@ function init(callback) {
 function requestHandler(req, res) {
   if (req.url == '/invalidations') {
     if (req.method == 'POST') {
-      lib.getServerPostBody(req, res, processPermissionsModification);
+      lib.getServerPostBody(req, res, invalidate);
     } else { 
       lib.methodNotAllowed(req, res, ['POST']);
     }

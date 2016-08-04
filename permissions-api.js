@@ -121,52 +121,17 @@ function getPermissions(req, res, subject) {
   });
 }
 
-function invalidate(serverReq, serverRes, subject, callback) {
-  var postData = JSON.stringify(subject);
-  console.log(postData)
-  var headers = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'Content-Length': Buffer.byteLength(postData)
-  }
-  if (serverReq.headers.authorization) {
-    headers.authorization = serverReq.headers.authorization; 
-  }
-  var hostParts = serverReq.headers.host.split(':');
-  var options = {
-    protocol: PROTOCOL,
-    hostname: hostParts[0],
-    path: '/invalidations',
-    method: 'POST',
-    headers: headers
-  };
-  if (hostParts.length > 1) {
-    options.port = hostParts[1];
-  }
-  var body = JSON.stringify(subject);
-  var client_req = http.request(options, function (client_res) {
-    lib.getClientResponseBody(client_res, function(body) {
-      if (client_res.statusCode == 200) { 
-        callback();
-      } else {
-        lib.internalError(serverRes, `unable to invalidate caches ${client_res.statusCode}`);
-      }
-    });
-  });
-  client_req.on('error', function (err) {
-    lib.internalError(serverRes, err);
-  });
-  client_req.write(postData);
-  client_req.end();
-}
-
 function deletePermissions(req, res, subject) {
   ifAllowedDo(req, res, subject, 'delete', true, function() {
-    invalidate(req, res, subject, function() {
-      db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
-        addCalculatedProperties(req, permissions); 
-        lib.found(req, res, permissions, etag);
-      });
+    lib.sendInvalidationThen(req, subject, req.headers.host, function(err) {
+      if (err) {
+        lib.internalError(res, 'unable to invalidate cache')
+      } else {
+        db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
+          addCalculatedProperties(req, permissions); 
+          lib.found(req, res, permissions, etag);
+        });
+      }
     });
   });
 }
@@ -177,11 +142,15 @@ function updatePermissions(req, res, patch) {
     if (req.headers['if-match'] == etag) { 
       var patchedPermissions = lib.mergePatch(permissions, patch);
       calculateSharedWith(req, patchedPermissions);
-      invalidate(req, res, subject, function () {
-        db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
-          addCalculatedProperties(req, patchedPermissions); 
-          lib.found(req, res, permissions, etag);
-        });
+      lib.sendInvalidationThen(req, subject, req.headers.host, function (err) {
+        if (err) {
+          lib.internalError(res, 'unable to invalidate cache')
+        } else {
+          db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
+            addCalculatedProperties(req, patchedPermissions); 
+            lib.found(req, res, permissions, etag);
+          });
+        }
       });
     } else {
       var err;
