@@ -449,7 +449,7 @@ function sendEventThen(serverReq, event, host, callback) {
   var options = {
     protocol: PROTOCOL,
     hostname: hostParts[0],
-    path: '/invalidations',
+    path: '/events',
     method: 'POST',
     headers: headers
   };
@@ -461,7 +461,7 @@ function sendEventThen(serverReq, event, host, callback) {
       if (client_res.statusCode == 200) { 
         callback(null);
       } else {
-        callback(`unable to send invalidation: ${host} statusCode: ${client_res.statusCode}`);
+        callback(`unable to send event: ${host} statusCode: ${client_res.statusCode}`);
       }
     });
   });

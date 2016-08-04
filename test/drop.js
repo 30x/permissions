@@ -26,9 +26,9 @@ pool.query('DROP TABLE IF EXISTS teams', function(err, pg_res) {
   pool.end()
 })
 
-pool.query('DROP TABLE IF EXISTS invalidations', function(err, pg_res) {
-  if(err) console.error('error dropping invalidations table', err);
-  else console.log('dropped table invalidations')
+pool.query('DROP TABLE IF EXISTS events', function(err, pg_res) {
+  if(err) console.error('error dropping events table', err);
+  else console.log('dropped table events')
   pool.end()
 })
 

@@ -6,38 +6,35 @@ The permissions repository is made up of 4 parts:
 * permissions-api.js
 * permissions-db.js
 * teams.js
+* standard-functions.js
 
 ## permissions.js 
 
-This file uses the permissions database to answer basic questions about users' rights to access resources.
+This application uses the permissions database to answer basic questions about users' rights to access resources.
 The questions it can answer are:
 
 * is the specified user allowed to perform the specified action on the specified resource?
 * what actions is the specified user allowed to perform on the specified resource?
-* what resources have been explicitly shared with the specified user or a team the user belongs to?
 
-permissons.js could be run as an independent HTTP service. Currently its URLs are exposed through permisions-api.js. Creating a separate server would require
-permissions-api.js to make HTTP calls to permissions.js, which is not hard but hasn't been written.
+permissons.js runs as an independent HTTP service.
 
 permissions.js uses the permissions-db.js library to access the permissions database directly. permissions.js only does GET requests on permissions.
 
-permissions.js caches permissions. When permissions-api.js changes a permission, it calls invalidate() on permissions.js. Right now there is no distributed
-cache-invalidation logic, so there has to be exactly one copy of permissions.js. This will be changed shortly.
+permissions.js caches permissions. When permissions-api.js changes a permission, it creates and event in the database and posts it to /events. An instance 
+of permissions.js will pick up the event, clear the cache entry, and propagate ethe event to the other instances. The instances also periodically look for
+events in the database in case they missed any. 
 
 ## permisions-api.js 
 
-Currently permissions.js exposes two separate APIs:
+Permissions-api.js implements the API for managing permissions, but does not interpret them. permissions-api.js relies on permissions.js to
+find out who has permissions to change permissions. In other words, permissions-api.js uses permissions.js in the same way any other application would.
 
-* an API for maintaining permissions
-* the permissions.js API for checking permissions
+The API exposed by permissions-api.js includes the following:
 
-The management API uses the permissions-checking API. Currently it does so as a library call—in the future it may use HTTP.
-
-The API for maintaing APIs has the following features:
-
-* CRUD methods
+* CRUD methods for permissions
 * get a list of users who can see a resource
 * get a list of resources that directly inherit permissions from a specified resource
+* get the list of resources shared with a particular user
 
 ## permissions-db.js
 

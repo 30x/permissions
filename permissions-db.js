@@ -139,9 +139,9 @@ function createPermissionsThen(req, res, permissions, callback) {
 }
 
 function updatePermissionsThen(req, res, subject, patchedPermissions, etag, callback) {
-  // We use a transaction here, since its PG and we can. In fact it would be OK to create the invalidation record first and then do the update.
-  // If the update failed we would have created an unnecessary invalidation record, which is not ideal, but probably harmless.
-  // The converse—creating an update without an invalidation record—could be harmful.
+  // We use a transaction here, since its PG and we can. In fact it would be OK to create the event record first and then do the update.
+  // If the update failed we would have created an unnecessary event record, which is not ideal, but probably harmless.
+  // The converse—creating an update without an event record—could be harmful.
   pool.connect(function(err, client, release) {
     if (err) { 
       lib.badRequest(res, err);
@@ -246,7 +246,7 @@ function registerCache(ipaddress, callback) {
   });
 }
 
-function withInvalidationsAfter(index, callback) {
+function withEventsAfter(index, callback) {
   var query = 'SELECT * FROM events WHERE index > $1';
   pool.query(query, [index], function(err, pgResult) {
     if (err) {
@@ -258,25 +258,25 @@ function withInvalidationsAfter(index, callback) {
   });
 }
 
-function discardInvalidationsOlderThan(interval) {
+function discardEventsOlderThan(interval) {
   var time = Date.now() - interval;
   pool.query(`DELETE FROM events WHERE eventtime < ${time}`, function (err, pgResult) {
     if (err) {
-      console.log('discardInvalidationsOlderThan:', `unable to delete old events ${err}`);
+      console.log('discardEventsOlderThan:', `unable to delete old events ${err}`);
     } else {
-      console.log('discardInvalidationsOlderThan:', time)
+      console.log('discardEventsOlderThan:', time)
     }
   });
 }
 
-function withLastInvalidationID(callback) {
+function withLastEventID(callback) {
   var query = 'SELECT last_value FROM events_index_seq'
   pool.query(query, function(err, pgResult) {
     if(err) {
-      console.log('error retrieving last invalidation ID', err);
+      console.log('error retrieving last event ID', err);
       callback(err);
     } else {
-      console.log('retrieved last invalidation ID', pgResult.rows[0].last_value);
+      console.log('retrieved last event ID', pgResult.rows[0].last_value);
       callback(null, pgResult.rows[0].last_value);
     }
   });
@@ -315,7 +315,7 @@ exports.withResourcesSharedWithActorsDo = withResourcesSharedWithActorsDo;
 exports.withHeirsDo = withHeirsDo;
 exports.createTablesThen = createTablesThen;
 exports.registerCache = registerCache;
-exports.withInvalidationsAfter = withInvalidationsAfter;
-exports.discardInvalidationsOlderThan = discardInvalidationsOlderThan;
-exports.withLastInvalidationID = withLastInvalidationID;
+exports.withEventsAfter = withEventsAfter;
+exports.discardEventsOlderThan = discardEventsOlderThan;
+exports.withLastEventID = withLastEventID;
 exports.discardCachesOlderThan = discardCachesOlderThan;

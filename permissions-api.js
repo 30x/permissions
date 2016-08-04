@@ -83,7 +83,7 @@ function createPermissions(req, res, permissions) {
         db.createPermissionsThen(req, res, permissions, function(permissions, etag, event) {
           lib.sendEventThen(req, event, req.headers.host, function(err) {
             if (err) {
-              console.log('unable to send cache invalidation')
+              console.log('unable to send cache event')
             }
           });
           addCalculatedProperties(req, permissions);
@@ -131,7 +131,7 @@ function deletePermissions(req, res, subject) {
     db.deletePermissionsThen(req, res, subject, function(permissions, etag, event) {
       lib.sendEventThen(req, event, req.headers.host, function(err) {
         if (err) {
-          console.log('unable to send cache invalidation')
+          console.log('unable to send cache event')
         }
         });
       addCalculatedProperties(req, permissions); 
@@ -149,7 +149,7 @@ function updatePermissions(req, res, patch) {
       db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag, event) {
         lib.sendEventThen(req, event, req.headers.host, function (err) {
           if (err) {
-            console.log('unable to send cache invalidation message')
+            console.log('unable to send cache event')
           } 
         });
         addCalculatedProperties(req, patchedPermissions); 

@@ -84,16 +84,15 @@ function cache(resource, permissions, etag) {
 }
 
 function processEvent(req, res, event) {
-  console.log('processEvent:' peerCaches:', peerCaches, 'selfAuthority:', selfAuthority, 'event:', event);
-  processedInvalidations[event.index] = 1;
-  highestProcessedInvalidationIndex = Math.max(highestProcessedInvalidationIndex, event.index);
+  console.log('processEvent: peerCaches:', peerCaches, 'selfAuthority:', selfAuthority, 'event:', event);
+  markEvent(parseInt(event.index));
   delete permissionsCache[lib.internalizeURL(event.data.subject)];
   for (var i; i < peerCaches.length; i++) {
     var cache = peerCaches[i];
     if (cache != selfAuthority) {
       lib.sendEventThen(req, res, event, cache, function(err) {
         if (err) {
-          console.log(`failed to send invalidation to ${cache}`)
+          console.log(`failed to send event to ${cache}`)
         }
     });
     }
@@ -217,14 +216,14 @@ function isAllowed(req, res, queryString) {
 
 // cache handling
 
-function processStoredInvalidations(invalidations) {
-  for (var i = 0; i < invalidations.length; i++) {
-    var invalidation = invalidations[i];
-    var cacheEntry = permissionsCache[invalidation.subject];
+function processStoredEvents(events) {
+  for (var i = 0; i < events.length; i++) {
+    var event = events[i];
+    var cacheEntry = permissionsCache[event.subject];
     if (cacheEntry !== undefined) {
-      if (cacheEntry.etag < invalidation.etag) {
-        console.log(`processing missed invalidation: ${invalidation.subject}`)
-        delete permissionsCache[invalidation.subject];
+      if (cacheEntry.etag < event.etag) {
+        console.log(`processing missed event: ${event.subject}`)
+        delete permissionsCache[event.subject];
       }
     }
   }
@@ -248,57 +247,62 @@ function setPeerCaches(peers) {
 
 var ipAddress = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
 
-var processedInvalidations = new Array(1000);       // TODO convert to typed array to increase efficiency
-var lastInvalidationIndex = 0;                      // database index of next expected invalidation. This is the database index of the first entry in processedInvalidations
-var highestProcessedInvalidationIndex = 0;          // highest database index of invalidation processed.
+var processedEvents = new Array(100);        // TODO convert to typed array to increase efficiency
+var lastEventIndex = 0;                      // database index of next expected event. This is the database index of the firstEventOffset entry in processedEvents
+var highestEventIndex = 0;                   // highest database index of event processed.
+var firstEventOffset = 6;                    // offset in processedEvents of lastEventIndex
 
-function disposeConsecutiveInvalidations() {
+function disposeConsecutiveEvents() {
   var handled = 0;
-  while (processedInvalidations[handled] !== undefined) {handled++;}
+  var max = highestEventIndex - lastEventIndex;
+  while (processedEvents[handled + firstEventOffset] !== undefined && handled <= max) {handled++;}
+  console.log(`disposing of ${handled} events. highestEventIndex: ${highestEventIndex} lastEventIndex: ${lastEventIndex} firstEventOffset: ${firstEventOffset}`)
   if (handled > 0) {
-    console.log(`disposing of ${handled} invalidations`)
-    for (var i=0; i < highestProcessedInvalidationIndex - lastInvalidationIndex; i++) {
-      processedInvalidations[i] = processedInvalidations[i+handled];
-      processedInvalidations[i+handled] = undefined;
+    for (var i=firstEventOffset; i < highestEventIndex - lastEventIndex + firstEventOffset; i++) {
+      processedEvents[i] = processedEvents[i+handled];
+      processedEvents[i+handled] = undefined;
     }
-    lastInvalidationIndex += handled;
+    lastEventIndex += handled;
   }
 }
 
-function processStoredInvalidations(invalidations) {
-  for (var i=0; i< invalidations.length; i++) {
-    var invalidation = invalidations[i];    
-    console.log('processStoredInvalidation:', 'invalidation:', invalidation.index);
-    var index = parseInt(invalidation.index);
-    processedInvalidations[index - lastInvalidationIndex - 1] = 1;
-    highestProcessedInvalidationIndex = Math.max(highestProcessedInvalidationIndex, index);
+function processStoredEvents(events) {
+  for (var i=0; i< events.length; i++) {
+    var event = events[i];    
+    console.log('processStoredEvent:', 'event:', event.index);
+    markEvent(parseInt(event.index));
   }
-  disposeConsecutiveInvalidations();
+  disposeConsecutiveEvents();
 }
 
-function fetchStoredInvalidations() {
-  disposeConsecutiveInvalidations();
-  db.withInvalidationsAfter(lastInvalidationIndex, processStoredInvalidations);
+function markEvent(index) {
+    processedEvents[index - lastEventIndex - 1 + firstEventOffset] = 1;  
+    highestEventIndex = Math.max(highestEventIndex, index);
+}
+
+function fetchStoredEvents() {
+  disposeConsecutiveEvents();
+  db.withEventsAfter(lastEventIndex, processStoredEvents);
 }
 
 function init(callback) {
-  db.withLastInvalidationID(function(err, id) {
+  db.withLastEventID(function(err, id) {
     if (err) {
-      console.log('unable to get last value of invalidation ID')
+      console.log('unable to get last value of event ID')
     } else {
-      lastInvalidationIndex = id - 1;
+      lastEventIndex = id - 1;
       db.registerCache(ipAddress, setPeerCaches);
       setInterval(db.registerCache, ONEMINUTE, ipAddress, setPeerCaches);
       setInterval(db.discardCachesOlderThan, TWOMINUTES, TENMINUTES);
-      setInterval(fetchStoredInvalidations, TWOMINUTES);
-      setInterval(db.discardInvalidationsOlderThan, TENMINUTES, ONEHOUR);
+      setInterval(fetchStoredEvents, TWOMINUTES);
+      setInterval(db.discardEventsOlderThan, TENMINUTES, ONEHOUR);
       callback();
     }
   });  
 }
 
 function requestHandler(req, res) {
-  if (req.url == '/invalidations') {
+  if (req.url == '/events') {
     if (req.method == 'POST') {
       lib.getServerPostBody(req, res, processEvent);
     } else { 
