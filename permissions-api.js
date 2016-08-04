@@ -80,8 +80,8 @@ function createPermissions(req, res, permissions) {
     if (err === null) {
       function primCreate(req, res, permissions) {
         calculateSharedWith(req, permissions);
-        db.createPermissionsThen(req, res, permissions, function(permissions, etag) {
-          lib.sendInvalidationThen(req, permissions._self, req.headers.host, function(err) {
+        db.createPermissionsThen(req, res, permissions, function(permissions, etag, event) {
+          lib.sendEventThen(req, event, req.headers.host, function(err) {
             if (err) {
               console.log('unable to send cache invalidation')
             }
@@ -128,8 +128,8 @@ function getPermissions(req, res, subject) {
 
 function deletePermissions(req, res, subject) {
   ifAllowedDo(req, res, subject, 'delete', true, function() {
-    db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
-      lib.sendInvalidationThen(req, subject, req.headers.host, function(err) {
+    db.deletePermissionsThen(req, res, subject, function(permissions, etag, event) {
+      lib.sendEventThen(req, event, req.headers.host, function(err) {
         if (err) {
           console.log('unable to send cache invalidation')
         }
@@ -146,8 +146,8 @@ function updatePermissions(req, res, patch) {
     if (req.headers['if-match'] == etag) { 
       var patchedPermissions = lib.mergePatch(permissions, patch);
       calculateSharedWith(req, patchedPermissions);
-      db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
-        lib.sendInvalidationThen(req, subject, req.headers.host, function (err) {
+      db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag, event) {
+        lib.sendEventThen(req, event, req.headers.host, function (err) {
           if (err) {
             console.log('unable to send cache invalidation message')
           } 

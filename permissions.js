@@ -83,14 +83,15 @@ function cache(resource, permissions, etag) {
   permissionsCache[resource] = permissions;
 }
 
-function invalidate(req, res, subject) {
-  console.log(peerCaches)
-  console.log('\n\n', peerCaches, selfAuthority, '\n\n');
-  delete permissionsCache[lib.internalizeURL(subject)];
+function processEvent(req, res, event) {
+  console.log('processEvent:' peerCaches:', peerCaches, 'selfAuthority:', selfAuthority, 'event:', event);
+  processedInvalidations[event.index] = 1;
+  highestProcessedInvalidationIndex = Math.max(highestProcessedInvalidationIndex, event.index);
+  delete permissionsCache[lib.internalizeURL(event.data.subject)];
   for (var i; i < peerCaches.length; i++) {
     var cache = peerCaches[i];
     if (cache != selfAuthority) {
-      lib.sendInvalidationThen(req, res, subject, cache, function(err) {
+      lib.sendEventThen(req, res, event, cache, function(err) {
         if (err) {
           console.log(`failed to send invalidation to ${cache}`)
         }
@@ -299,7 +300,7 @@ function init(callback) {
 function requestHandler(req, res) {
   if (req.url == '/invalidations') {
     if (req.method == 'POST') {
-      lib.getServerPostBody(req, res, invalidate);
+      lib.getServerPostBody(req, res, processEvent);
     } else { 
       lib.methodNotAllowed(req, res, ['POST']);
     }

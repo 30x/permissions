@@ -435,8 +435,8 @@ function setStandardCreationProperties(req, resource, user) {
   return null;
 }
 
-function sendInvalidationThen(serverReq, subject, host, callback) {
-  var postData = JSON.stringify(subject);
+function sendEventThen(serverReq, event, host, callback) {
+  var postData = JSON.stringify(event);
   var headers = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
@@ -456,7 +456,6 @@ function sendInvalidationThen(serverReq, subject, host, callback) {
   if (hostParts.length > 1) {
     options.port = hostParts[1];
   }
-  var body = JSON.stringify(subject);
   var client_req = http.request(options, function (client_res) {
     getClientResponseBody(client_res, function(body) {
       if (client_res.statusCode == 200) { 
@@ -496,4 +495,4 @@ exports.createPermissonsFor = createPermissonsFor;
 exports.setStandardCreationProperties = setStandardCreationProperties;
 exports.getUserFromToken = getUserFromToken;
 exports.withTeamsDo=withTeamsDo;
-exports.sendInvalidationThen=sendInvalidationThen;
+exports.sendEventThen=sendEventThen;

@@ -58,14 +58,21 @@ function deletePermissionsThen(req, res, subject, callback) {
                 lib.notFound(req, res);
               } else {
                 var time = Date.now();
-                var query = 'INSERT INTO invalidations (subject, topic, action, etag, invalidationtime) values ($1, $2, $3, $4, $5)';
-                client.query(query, [subject, 'permissions', 'delete', pgResult.rows[0].etag, time], function(err) {
+                var query = `INSERT INTO events (topic, eventtime, data) 
+                             values ('permissions', ${time}, '{"subject": "${subject}", "action": "delete", "etag": ${pgResult.rows[0].etag}}')
+                             RETURNING *`;
+                client.query(query, function(err, pgEventResult) {
                   if(err) {
                     client.query('ROLLBACK', release);
                     lib.internalError(res, err);
                   } else {
-                    client.query('COMMIT', release);
-                    callback(patchedPermissions, pgResult.rows[0].etag);
+                    if (pgEventResult.rowcount == 0) {
+                      client.query('ROLLBACK', release);
+                      lib.internalError(res, 'unable to create event');
+                    } else {
+                      client.query('COMMIT', release);
+                      callback(patchedPermissions, pgResult.rows[0].etag, pgEventResult.rows[0]);
+                    }
                   }
                 });
               }
@@ -105,14 +112,21 @@ function createPermissionsThen(req, res, permissions, callback) {
                 lib.internalError(res, 'failed create');
               } else {
                 var time = Date.now();
-                var query = 'INSERT INTO invalidations (subject, topic, action, etag, invalidationtime) values ($1, $2, $3, $4, $5)'
-                client.query(query, [subject, 'permissions', 'create', pgResult.rows[0].etag, time], function(err) {
+                var query = `INSERT INTO events (topic, eventtime, data) 
+                             values ('permissions', ${time}, '{"subject": "${subject}", "action": "create", "etag": ${pgResult.rows[0].etag}}')
+                             RETURNING *`;
+                client.query(query, function(err, pgEventResult) {
                   if(err) {
                     client.query('ROLLBACK', release);
                     lib.internalError(res, err);
                   } else {
-                    client.query('COMMIT', release);
-                    callback(permissions, pgResult.rows[0].etag);
+                    if (pgEventResult.rowcount == 0) {
+                      client.query('ROLLBACK', release);
+                      lib.internalError(res, 'unable to create event');
+                    } else {
+                      client.query('COMMIT', release);
+                      callback(permissions, pgResult.rows[0].etag, pgEventResult.rows[0]);
+                    }
                   }
                 });
               }
@@ -121,8 +135,7 @@ function createPermissionsThen(req, res, permissions, callback) {
         }
       });
     }
-  });  
-
+  });
 }
 
 function updatePermissionsThen(req, res, subject, patchedPermissions, etag, callback) {
@@ -152,14 +165,21 @@ function updatePermissionsThen(req, res, subject, patchedPermissions, etag, call
                 lib.badRequest(res, resErr);
               } else {
                 var time = Date.now();
-                var query = 'INSERT INTO invalidations (subject, topic, action, etag, invalidationtime) values ($1, $2, $3, $4, $5)';
-                client.query(query, [subject, 'permissions', 'update', etag, time], function(err) {
+                var query = `INSERT INTO events (topic, eventtime, data) 
+                             values ('permissions', ${time}, '{"subject": "${subject}", "action": "update", "etag": ${etag}}')
+                             RETURNING *`;
+                client.query(query, function(err, pgEventResult) {
                   if(err) {
                     client.query('ROLLBACK', release);
                     lib.internalError(res, err);
                   } else {
-                    client.query('COMMIT', release);
-                    callback(patchedPermissions, pgResult.rows[0].etag);
+                    if (pgEventResult.rowcount == 0) {
+                      client.query('ROLLBACK', release);
+                      lib.internalError(res, 'unable to create event');
+                    } else {
+                      client.query('COMMIT', release);
+                      callback(patchedPermissions, pgResult.rows[0].etag, pgEventResult.rows[0]);
+                    }
                   }
                 });
               }
@@ -201,9 +221,9 @@ function discardCachesOlderThan(interval) {
   console.log('discardCachesOlderThan:', 'time:', time);
   pool.query(`DELETE FROM caches WHERE registrationtime < ${time}`, function (err, pgResult) {
     if (err) {
-      console.log('discardCachesOlderThan:', `unable to delete old invalidations ${err}`);
+      console.log('discardCachesOlderThan:', `unable to delete old caches ${err}`);
     } else {
-      console.log('discardCachesOlderThan:', `trimmed invalidations older than ${time}`)
+      console.log('discardCachesOlderThan:', `trimmed caches older than ${time}`)
     }
   });
 }
@@ -227,7 +247,7 @@ function registerCache(ipaddress, callback) {
 }
 
 function withInvalidationsAfter(index, callback) {
-  var query = 'SELECT * FROM invalidations WHERE index > $1';
+  var query = 'SELECT * FROM events WHERE index > $1';
   pool.query(query, [index], function(err, pgResult) {
     if (err) {
       console.log(`unable to retrieve validations subsequent to ${index} ${err}`);      
@@ -240,28 +260,17 @@ function withInvalidationsAfter(index, callback) {
 
 function discardInvalidationsOlderThan(interval) {
   var time = Date.now() - interval;
-  pool.query(`DELETE FROM invalidations WHERE invalidationtime < ${time}`, function (err, pgResult) {
+  pool.query(`DELETE FROM events WHERE eventtime < ${time}`, function (err, pgResult) {
     if (err) {
-      console.log('discardInvalidationsOlderThan:', `unable to delete old invalidations ${err}`);
+      console.log('discardInvalidationsOlderThan:', `unable to delete old events ${err}`);
     } else {
       console.log('discardInvalidationsOlderThan:', time)
     }
   });
 }
 
-
-function logInvalidation(subject, type, etag) {
-  var time = Date.now();
-  var query = 'INSERT INTO invalidations (subject, type, etag, invalidationtime) values ($1, $2, $3, $4)'
-  pool.query(query, [subject, type, etag, time], function (err, pgResult) {
-    if (err) {
-      console.log(`unable to register ipaddress ${ipaddress}`);
-    }
-  });
-}
-
 function withLastInvalidationID(callback) {
-  var query = 'SELECT last_value FROM invalidations_index_seq'
+  var query = 'SELECT last_value FROM events_index_seq'
   pool.query(query, function(err, pgResult) {
     if(err) {
       console.log('error retrieving last invalidation ID', err);
@@ -279,12 +288,12 @@ function createTablesThen(callback) {
     if(err) {
       console.error('error creating permissions table', err);
     } else {
-      query = 'CREATE TABLE IF NOT EXISTS invalidations (index bigserial, subject text, topic text, action text, etag int, invalidationtime bigint);'
+      query = 'CREATE TABLE IF NOT EXISTS events (index bigserial, topic text, eventtime bigint, data jsonb)';
       pool.query(query, function(err, pgResult) {
         if(err) {
-          console.error('error creating invalidations table', err);
+          console.error('error creating events table', err);
         } else {
-          query = 'CREATE TABLE IF NOT EXISTS caches (ipaddress text primary key, registrationtime bigint);'
+          query = 'CREATE TABLE IF NOT EXISTS caches (ipaddress text primary key, registrationtime bigint)';
           pool.query(query, function(err, pgResult) {
             if(err) {
               console.error('error creating caches table', err);
@@ -306,7 +315,6 @@ exports.withResourcesSharedWithActorsDo = withResourcesSharedWithActorsDo;
 exports.withHeirsDo = withHeirsDo;
 exports.createTablesThen = createTablesThen;
 exports.registerCache = registerCache;
-exports.logInvalidation = logInvalidation;
 exports.withInvalidationsAfter = withInvalidationsAfter;
 exports.discardInvalidationsOlderThan = discardInvalidationsOlderThan;
 exports.withLastInvalidationID = withLastInvalidationID;
