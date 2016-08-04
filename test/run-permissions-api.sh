@@ -4,5 +4,6 @@ export PG_HOST="localhost"
 export PG_USER="martinnally"
 export PG_PASSWORD="martinnally"
 export PG_DATABASE="permissions"
+export COMPONENT="permissions-api"
 
 node permissions-api.js

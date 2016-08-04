@@ -10,7 +10,6 @@ var http = require('http');
 var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
-var perm = require('./permissions.js');
 var db = require('./permissions-db.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
@@ -124,37 +123,38 @@ function getPermissions(req, res, subject) {
 
 function invalidate(serverReq, serverRes, subject, callback) {
   var postData = JSON.stringify(subject);
+  console.log(postData)
   var headers = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(postData)
   }
-  if (server_req.headers.authorization) {
-    headers.authorization = server_req.headers.authorization; 
+  if (serverReq.headers.authorization) {
+    headers.authorization = serverReq.headers.authorization; 
   }
-  var hostParts = server_req.headers.host.split(':');
+  var hostParts = serverReq.headers.host.split(':');
   var options = {
     protocol: PROTOCOL,
     hostname: hostParts[0],
-    path: '/permissionsModifications',
+    path: '/invalidations',
     method: 'POST',
     headers: headers
   };
   if (hostParts.length > 1) {
     options.port = hostParts[1];
   }
-  var body = JSON.stringify(permissions);
+  var body = JSON.stringify(subject);
   var client_req = http.request(options, function (client_res) {
-    getClientResponseBody(client_res, function(body) {
+    lib.getClientResponseBody(client_res, function(body) {
       if (client_res.statusCode == 200) { 
         callback();
       } else {
-        internalError(serverRes, 'unable to invalidate caches');
+        lib.internalError(serverRes, `unable to invalidate caches ${client_res.statusCode}`);
       }
     });
   });
   client_req.on('error', function (err) {
-    internalError(serverRes, err);
+    lib.internalError(serverRes, err);
   });
   client_req.write(postData);
   client_req.end();
@@ -162,10 +162,11 @@ function invalidate(serverReq, serverRes, subject, callback) {
 
 function deletePermissions(req, res, subject) {
   ifAllowedDo(req, res, subject, 'delete', true, function() {
-    db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
-      perm.invalidate(subject);
-      addCalculatedProperties(req, permissions); 
-      lib.found(req, res, permissions, etag);
+    invalidate(req, res, subject, function() {
+      db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
+        addCalculatedProperties(req, permissions); 
+        lib.found(req, res, permissions, etag);
+      });
     });
   });
 }
@@ -176,10 +177,11 @@ function updatePermissions(req, res, patch) {
     if (req.headers['if-match'] == etag) { 
       var patchedPermissions = lib.mergePatch(permissions, patch);
       calculateSharedWith(req, patchedPermissions);
-      db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
-        perm.invalidate(subject, patchedPermissions, etag);
-        addCalculatedProperties(req, patchedPermissions); 
-        lib.found(req, res, permissions, etag);
+      invalidate(req, res, subject, function () {
+        db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
+          addCalculatedProperties(req, patchedPermissions); 
+          lib.found(req, res, permissions, etag);
+        });
       });
     } else {
       var err;
@@ -269,12 +271,6 @@ function requestHandler(req, res) {
     } else { 
       lib.methodNotAllowed(req, res, ['POST']);
     }
-  } else if (req.url == '/permissionsModification') {
-    if (req.method == 'POST') {
-      lib.getServerPostBody(req, res, perm.processPermissionsModification);
-    } else { 
-      lib.methodNotAllowed(req, res, ['POST']);
-    }
   } else {
     var req_url = url.parse(req.url);
     if (req_url.pathname == '/permissions' && req_url.search !== null) {
@@ -286,12 +282,6 @@ function requestHandler(req, res) {
         lib.getServerPostBody(req, res, updatePermissions);
       } else {
         lib.methodNotAllowed(req, res, ['GET', 'DELETE', 'PATCH']);
-      }
-    } else if (req_url.pathname == '/allowed-actions' && req_url.search !== null){ 
-      if (req.method == 'GET') {
-        perm.getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
-      } else {
-        lib.methodNotAllowed(req, res, ['GET']);
       }
     } else if (req_url.pathname == '/resources-shared-with' && req_url.search !== null) {
       if (req.method == 'GET') {
@@ -311,12 +301,6 @@ function requestHandler(req, res) {
       } else {
         lib.methodNotAllowed(req, res, ['GET']);
       }
-    } else if (req_url.pathname == '/is-allowed' && req_url.search !== null) {
-      if (req.method == 'GET') {
-        perm.isAllowed(req, res, req_url.search.substring(1));
-      } else {
-        lib.methodNotAllowed(req, res, ['GET']);
-      }
     } else {
       lib.notFound(req, res);
     }
@@ -325,9 +309,7 @@ function requestHandler(req, res) {
 
 db.createTablesThen(function () {
   var port = process.env.PORT;
-  perm.init(function() {
-    http.createServer(requestHandler).listen(port, function() {
-      console.log(`server is listening on ${port}`);
-    });
+  http.createServer(requestHandler).listen(port, function() {
+    console.log(`server is listening on ${port}`);
   });
 });

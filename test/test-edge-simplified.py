@@ -183,6 +183,7 @@ def main():
         print 'correctly refused to patch permissions without If-Match header' 
     else:
         print 'failed to patch permissions %s %s' % (r.status_code, r.text)
+        return
     
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
@@ -190,6 +191,7 @@ def main():
         print 'correctly patched permissions' 
     else:
         print 'failed to patch permissions %s %s' % (r.status_code, r.text)
+        return
     
     # Retrieve Acme org permissions
 

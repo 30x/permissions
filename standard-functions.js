@@ -71,7 +71,7 @@ function getServerPostBody(req, res, callback) {
       res.write('invalid JSON: ' + err.message);
       res.end();          
     }
-    if (jso) {
+    if (jso !== undefined) {
       callback(req, res, jso);
     }
   });
@@ -123,7 +123,7 @@ function methodNotAllowed(req, res, allow) {
 }
 
 function notFound(req, res) {
-  var body = 'Not Found. request-target: ' + req.url + ' method: ' + req.method + '\n';
+  var body = 'Not Found. component: ' + process.env.COMPONENT + ' request-target: ' + req.url + ' method: ' + req.method + '\n';
   body = JSON.stringify(body);
   res.writeHead(404, {'Content-Type': 'application/json',
                       'Content-Length': Buffer.byteLength(body)});

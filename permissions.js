@@ -202,7 +202,8 @@ function isAllowed(req, res, queryString) {
 }
 
 function processPermissionsModification(req, res, modification) {
-  invalidate(modification.subject)
+  invalidate(modification)
+  lib.found(req, res);
 }
 
 // cache handling
@@ -283,17 +284,38 @@ function init(callback) {
   });  
 }
 
-exports.withPermissionFlagDo = withPermissionFlagDo;
-exports.withAllowedActionsDo = withAllowedActionsDo;
-exports.invalidate = invalidate;
-exports.init=init;
-exports.isAllowed=isAllowed;
-exports.getAllowedActions=getAllowedActions;
-exports.processPermissionsModification=processPermissionsModification;
+function requestHandler(req, res) {
+  if (req.url == '/invalidations') {
+    if (req.method == 'POST') {
+      lib.getServerPostBody(req, res, processPermissionsModification);
+    } else { 
+      lib.methodNotAllowed(req, res, ['POST']);
+    }
+  } else {
+    var req_url = url.parse(req.url);
+    if (req_url.pathname == '/allowed-actions' && req_url.search !== null){ 
+      if (req.method == 'GET') {
+        getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host));
+      } else {
+        lib.methodNotAllowed(req, res, ['GET']);
+      }
+    } else if (req_url.pathname == '/is-allowed' && req_url.search !== null) {
+      if (req.method == 'GET') {
+        isAllowed(req, res, req_url.search.substring(1));
+      } else {
+        lib.methodNotAllowed(req, res, ['GET']);
+      }
+    } else {
+      lib.notFound(req, res);
+    }
+  }
+}
 
-// for unit test
-exports.disposeConsecutiveInvalidations=disposeConsecutiveInvalidations;
-exports.processStoredInvalidations=processStoredInvalidations;
-exports.processedInvalidations=processedInvalidations;
-exports.lastInvalidationIndex=lastInvalidationIndex;
-exports.highestProcessedInvalidationIndex=highestProcessedInvalidationIndex;
+db.createTablesThen(function () {
+  var port = process.env.PORT;
+  init(function() {
+    http.createServer(requestHandler).listen(port, function() {
+      console.log(`server is listening on ${port}`);
+    });
+  });
+});
