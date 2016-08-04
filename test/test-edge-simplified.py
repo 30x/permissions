@@ -16,7 +16,7 @@ with conn:
         cur.execute('DROP TABLE IF EXISTS caches')
         cur.execute('CREATE TABLE permissions (subject text primary key, etag serial, data jsonb)')
         cur.execute('CREATE TABLE teams (id text primary key, etag serial, data jsonb)')
-        cur.execute('CREATE TABLE invalidations (index bigserial, subject text, type text, etag int, invalidationtime bigint);')
+        cur.execute('CREATE TABLE invalidations (index bigserial, subject text, topic text, action text, etag int, invalidationtime bigint);')
         cur.execute('CREATE TABLE IF NOT EXISTS caches (ipaddress text primary key, registrationtime bigint);')
 
 def b64_decode(data):

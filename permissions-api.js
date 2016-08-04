@@ -142,15 +142,14 @@ function updatePermissions(req, res, patch) {
     if (req.headers['if-match'] == etag) { 
       var patchedPermissions = lib.mergePatch(permissions, patch);
       calculateSharedWith(req, patchedPermissions);
-      lib.sendInvalidationThen(req, subject, req.headers.host, function (err) {
-        if (err) {
-          lib.internalError(res, 'unable to invalidate cache')
-        } else {
-          db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
-            addCalculatedProperties(req, patchedPermissions); 
-            lib.found(req, res, permissions, etag);
-          });
-        }
+      db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag) {
+        lib.sendInvalidationThen(req, subject, req.headers.host, function (err) {
+          if (err) {
+            console.log('unable to send cache invalidation message')
+          } 
+        });
+        addCalculatedProperties(req, patchedPermissions); 
+        lib.found(req, res, permissions, etag);
       });
     } else {
       var err;

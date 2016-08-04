@@ -35,41 +35,94 @@ function withPermissionsDo(req, res, subject, callback) {
 
 function deletePermissionsThen(req, res, subject, callback) {
   // fetch the permissions resource for `subject`.
-  subject = lib.internalizeURL(subject, req.headers.host)
-  var query = 'DELETE FROM permissions WHERE subject = $1 RETURNING *'
-  pool.query(query,[subject], function (err, pgResult) {
-    if (err) {
+  subject = lib.internalizeURL(subject, req.headers.host);
+  pool.connect(function(err, client, release) {
+    if (err) { 
       lib.badRequest(res, err);
     } else {
-      if (pgResult.rowCount === 0) { 
-        lib.notFound(req, res);
-      }
-      else {
-        var row = pgResult.rows[0];
-        callback(row.data, row.etag);
-      }
+      client.query('BEGIN', function(err) {
+        if(err) {
+          client.query('ROLLBACK', release);
+          lib.internalError(res, err);
+        } else {
+          lib.internalizeURLs(patchedPermissions, req.headers.host);
+          var key = lib.internalizeURL(subject, req.headers.host);
+          var query = 'DELETE FROM permissions WHERE subject = $1 RETURNING *';
+          client.query(query, [subject], function(err, pgResult) {
+            if(err) {
+              client.query('ROLLBACK', release);
+              lib.badrequest(res, err);
+            } else {
+              if (pgResult.rowCount === 0) {
+                client.query('ROLLBACK', release);
+                lib.notFound(req, res);
+              } else {
+                var time = Date.now();
+                var query = 'INSERT INTO invalidations (subject, topic, action, etag, invalidationtime) values ($1, $2, $3, $4, $5)';
+                client.query(query, [subject, 'permissions', 'delete', pgResult.rows[0].etag, time], function(err) {
+                  if(err) {
+                    client.query('ROLLBACK', release);
+                    lib.internalError(res, err);
+                  } else {
+                    client.query('COMMIT', release);
+                    callback(patchedPermissions, pgResult.rows[0].etag)
+                  }
+                });
+              }
+            }
+          });
+        }
+      });
     }
-  });
+  });  
+  
 }
 
 function createPermissionsThen(req, res, permissions, callback) {
-  // fetch the permissions resource for `subject`.
-  lib.internalizeURLs(permissions, req.headers.host);
-  pool.query('INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag', [permissions.governs._self, permissions], function (err, pgResult) {
-    if (err) {
-      if (err.code == 23505){ 
-        lib.duplicate(res, err);
-      } else { 
-        lib.badRequest(res, err);
-      }
+  pool.connect(function(err, client, release) {
+    if (err) { 
+      lib.badRequest(res, err);
     } else {
-      if (pgResult.rowCount === 0) { 
-        lib.internalError(res, 'failed create');
-      } else {
-        callback(permissions, pgResult.rows[0].etag);
-      }
+      client.query('BEGIN', function(err) {
+        if(err) {
+          client.query('ROLLBACK', release);
+          lib.internalError(res, err);
+        } else {
+          lib.internalizeURLs(permissions, req.headers.host);
+          var query = 'INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag';
+          var subject = permissions.governs._self;
+          client.query(query, [permissions.governs._self, permissions], function(err, pgResult) {
+            if(err) {
+              client.query('ROLLBACK', release);
+              if (err.code == 23505){ 
+                lib.duplicate(res, err);
+              } else { 
+                lib.badRequest(res, err);
+              }
+            } else {
+              if (pgResult.rowCount === 0) {
+                client.query('ROLLBACK', release);
+                lib.internalError(res, 'failed create');
+              } else {
+                var time = Date.now();
+                var query = 'INSERT INTO invalidations (subject, topic, action, etag, invalidationtime) values ($1, $2, $3, $4, $5)'
+                client.query(query, [subject, 'permissions', 'create', pgResult.rows[0].etag, time], function(err) {
+                  if(err) {
+                    client.query('ROLLBACK', release);
+                    lib.internalError(res, err);
+                  } else {
+                    client.query('COMMIT', release);
+                    callback(permissions, pgResult.rows[0].etag)
+                  }
+                });
+              }
+            }
+          });
+        }
+      });
     }
-  });
+  });  
+
 }
 
 function updatePermissionsThen(req, res, subject, patchedPermissions, etag, callback) {
@@ -99,8 +152,8 @@ function updatePermissionsThen(req, res, subject, patchedPermissions, etag, call
                 lib.badRequest(res, resErr);
               } else {
                 var time = Date.now();
-                var query = 'INSERT INTO invalidations (subject, type, etag, invalidationtime) values ($1, $2, $3, $4)'
-                client.query(query, [subject, 'permissions', etag, time], function(err) {
+                var query = 'INSERT INTO invalidations (subject, topic, action, etag, invalidationtime) values ($1, $2, $3, $4, $5)';
+                client.query(query, [subject, 'permissions', 'update', etag, time], function(err) {
                   if(err) {
                     client.query('ROLLBACK', release);
                     lib.internalError(res, err);
@@ -226,7 +279,7 @@ function createTablesThen(callback) {
     if(err) {
       console.error('error creating permissions table', err);
     } else {
-      query = 'CREATE TABLE IF NOT EXISTS invalidations (index bigserial, subject text, type text, etag int, invalidationtime bigint);'
+      query = 'CREATE TABLE IF NOT EXISTS invalidations (index bigserial, subject text, topic text, action text, etag int, invalidationtime bigint);'
       pool.query(query, function(err, pgResult) {
         if(err) {
           console.error('error creating invalidations table', err);
