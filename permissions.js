@@ -229,7 +229,7 @@ function processStoredEvents(events) {
   }
 }
 
-var ONEMINUTE = 60*100;
+var ONEMINUTE = 60*100;      // TODO - put these to the correct value (x10)
 var TWOMINUTES = 2*60*100;
 var TENMINUTES = 10*60*100;
 var ONEHOUR = 60*60*100;
