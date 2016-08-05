@@ -248,7 +248,9 @@ function setPeerCaches(peers) {
 
 var ipAddress = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
 
-var processedEvents = new Uint16Array(1000);      // TODO convert to typed array to increase efficiency
+// Begin implementation of time-ordered bit-array. TODO - turn this into a JS 'class' that can be instantiated
+
+var processedEvents = new Uint16Array(1000);      
 var lastEventIndex = 0;                           // database index of last processed event. This is the database index of the (firstEventOffset - 1) entry in processedEvents
 var highestEventIndex = 0;                        // highest database index of event processed.
 var firstEventOffset = 0;                         // offset in processedEvents of lastEventIndex
@@ -275,15 +277,6 @@ function disposeOldEvents() {
   lastEventIndex += handled;
 }
 
-function processStoredEvents(events) {
-  for (var i=0; i< events.length; i++) {
-    var event = events[i];    
-    console.log('processStoredEvent:', 'event:', event.index);
-    setEventMark(parseInt(event.index));
-  }
-  disposeOldEvents();
-}
-
 function bitIndex(index) {
   return (index - lastEventIndex - 1 + firstEventOffset) % 16;
 }
@@ -306,6 +299,17 @@ function setEventMark(index) {
     entry = entry | (1 << bitInx);
     processedEvents[entryInx] = entry;  
     highestEventIndex = Math.max(highestEventIndex, index);
+}
+
+// End implementation of time-ordered bit-array. TODO - turn this into a JS 'class' that can be instantiated
+
+function processStoredEvents(events) {
+  for (var i=0; i< events.length; i++) {
+    var event = events[i];    
+    console.log('processStoredEvent:', 'event:', event.index);
+    setEventMark(parseInt(event.index));
+  }
+  disposeOldEvents();
 }
 
 function fetchStoredEvents() {
