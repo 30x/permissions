@@ -250,9 +250,9 @@ function withEventsAfter(index, callback) {
   var query = 'SELECT * FROM events WHERE index > $1';
   pool.query(query, [index], function(err, pgResult) {
     if (err) {
-      console.log(`unable to retrieve validations subsequent to ${index} ${err}`);      
+      console.log(`unable to retrieve events subsequent to ${index} ${err}`);      
     } else{
-      console.log(`retrieved validations subsequent to ${index}`);      
+      console.log(`retrieved events subsequent to ${index}`);      
       callback(pgResult.rows);
     }
   });

@@ -357,7 +357,11 @@ function withAllowedDo(req, serverRes, resourceURL, action, callback) {
   }
   var clientReq = http.request(options, function (clientRes) {
     getClientResponseBody(clientRes, function(body) {
-      body = JSON.parse(body);
+      try {
+        body = JSON.parse(body);
+      } catch (e) {
+        console.error('withAllowedDo: JSON parse failed. options:', options, 'body:', body, 'error:', e);
+      }
       if (clientRes.statusCode == 200) { 
         callback(body);
       } else {

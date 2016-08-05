@@ -5,9 +5,6 @@ var db = require('./permissions-db.js');
 var querystring = require('querystring');
 var url = require('url');
 
-var permissionsCache = {};
-var teamsCache = {};
-
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
@@ -84,15 +81,15 @@ function cache(resource, permissions, etag) {
 }
 
 function processEvent(req, res, event) {
-  console.log('processEvent: peerCaches:', peerCaches, 'selfAuthority:', selfAuthority, 'event:', event);
-  markEvent(parseInt(event.index));
+  console.log('processEvent: peerCaches:', peerCaches, 'selfAuthority:', selfAuthority, 'event:', JSON.stringify(event));
+  setEventMark(parseInt(event.index));
   delete permissionsCache[lib.internalizeURL(event.data.subject)];
-  for (var i; i < peerCaches.length; i++) {
+  for (var i = 0; i < peerCaches.length; i++) {
     var cache = peerCaches[i];
     if (cache != selfAuthority) {
-      lib.sendEventThen(req, res, event, cache, function(err) {
+      lib.sendEventThen(req, event, cache, function(err) {
         if (err) {
-          console.log(`failed to send event to ${cache}`)
+          console.log(`failed to send event to ${cache}`);
         }
     });
     }
@@ -214,7 +211,10 @@ function isAllowed(req, res, queryString) {
   }
 }
 
-// cache handling
+// begin cache handling
+
+var permissionsCache = {};
+var teamsCache = {};
 
 function processStoredEvents(events) {
   for (var i = 0; i < events.length; i++) {
@@ -247,41 +247,68 @@ function setPeerCaches(peers) {
 
 var ipAddress = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
 
-var processedEvents = new Array(100);        // TODO convert to typed array to increase efficiency
-var lastEventIndex = 0;                      // database index of next expected event. This is the database index of the firstEventOffset entry in processedEvents
-var highestEventIndex = 0;                   // highest database index of event processed.
-var firstEventOffset = 6;                    // offset in processedEvents of lastEventIndex
+var processedEvents = new Uint16Array(1000);      // TODO convert to typed array to increase efficiency
+var lastEventIndex = 0;                           // database index of last processed event. This is the database index of the (firstEventOffset - 1) entry in processedEvents
+var highestEventIndex = 0;                        // highest database index of event processed.
+var firstEventOffset = 0;                         // offset in processedEvents of lastEventIndex
 
-function disposeConsecutiveEvents() {
+function disposeOldEvents() {
+  var index = lastEventIndex + 1;
   var handled = 0;
-  var max = highestEventIndex - lastEventIndex;
-  while (processedEvents[handled + firstEventOffset] !== undefined && handled <= max) {handled++;}
+  while (readEventMark(index+handled)) {handled++;}
   console.log(`disposing of ${handled} events. highestEventIndex: ${highestEventIndex} lastEventIndex: ${lastEventIndex} firstEventOffset: ${firstEventOffset}`)
-  if (handled > 0) {
-    for (var i=firstEventOffset; i < highestEventIndex - lastEventIndex + firstEventOffset; i++) {
-      processedEvents[i] = processedEvents[i+handled];
-      processedEvents[i+handled] = undefined;
+  var newFirstEventOffset = firstEventOffset + handled;
+  if ((newFirstEventOffset + 1) / 16 > 1) { // shift entries left
+    var firstEntry = entryIndex(newFirstEventOffset);
+    var lastEntry = entryIndex(highestEventIndex);
+    var numberOfEntries = lastEntry - firstEntry + 1;
+    console.log(`copying left: firstEntry ${firstEntry} lastEntry: ${lastEntry} numberOfEntries: ${numberOfEntries}`)
+    processedEvents.copyWithin(0, firstEntry, lastEntry+1);
+    for (var i = numberOfEntries; i <= lastEntry; i++) {
+      processedEvents[i] = 0;
     }
-    lastEventIndex += handled;
+    firstEventOffset = newFirstEventOffset % 16;
+  } else {
+    firstEventOffset = newFirstEventOffset;
   }
+  lastEventIndex += handled;
 }
 
 function processStoredEvents(events) {
   for (var i=0; i< events.length; i++) {
     var event = events[i];    
     console.log('processStoredEvent:', 'event:', event.index);
-    markEvent(parseInt(event.index));
+    setEventMark(parseInt(event.index));
   }
-  disposeConsecutiveEvents();
+  disposeOldEvents();
 }
 
-function markEvent(index) {
-    processedEvents[index - lastEventIndex - 1 + firstEventOffset] = 1;  
+function bitIndex(index) {
+  return (index - lastEventIndex - 1 + firstEventOffset) % 16;
+}
+
+function entryIndex(index) {
+  return Math.floor((index - lastEventIndex - 1 + firstEventOffset) / 16);
+}
+
+function readEventMark(index) {
+    var bitInx = bitIndex(index);
+    var entryInx = entryIndex(index);
+    var entry = processedEvents[entryInx];
+    return (entry >> bitInx) & 1 ? true : false
+}
+
+function setEventMark(index) {
+    var bitInx = bitIndex(index);
+    var entryInx = entryIndex(index);
+    var entry = processedEvents[entryInx];
+    entry = entry | (1 << bitInx);
+    processedEvents[entryInx] = entry;  
     highestEventIndex = Math.max(highestEventIndex, index);
 }
 
 function fetchStoredEvents() {
-  disposeConsecutiveEvents();
+  disposeOldEvents();
   db.withEventsAfter(lastEventIndex, processStoredEvents);
 }
 
@@ -300,6 +327,8 @@ function init(callback) {
     }
   });  
 }
+
+// end cache handling
 
 function requestHandler(req, res) {
   if (req.url == '/events') {
