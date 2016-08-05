@@ -5,6 +5,7 @@ export PG_USER="martinnally"
 export PG_PASSWORD="martinnally"
 export PG_DATABASE="permissions"
 export COMPONENT="permissions"
+export SPEEDUP=10
 
 node test/drop.js
 node permissions.js

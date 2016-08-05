@@ -229,10 +229,11 @@ function processStoredEvents(events) {
   }
 }
 
-var ONEMINUTE = 60*100;      // TODO - put these to the correct value (x10)
-var TWOMINUTES = 2*60*100;
-var TENMINUTES = 10*60*100;
-var ONEHOUR = 60*60*100;
+var MOTIONMULTIPIER = process.env.MOTIONMULTIPIER || 1;
+var ONEMINUTE = 60*1000/MOTIONMULTIPIER;
+var TWOMINUTES = 2*60*1000/MOTIONMULTIPIER;
+var TENMINUTES = 10*60*1000/MOTIONMULTIPIER;
+var ONEHOUR = 60*60*1000/MOTIONMULTIPIER;
 
 var peerCaches = [];
 var selfAuthority = process.env.IPADDRESS;
