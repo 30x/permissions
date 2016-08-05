@@ -5,5 +5,6 @@ export PG_USER="martinnally"
 export PG_PASSWORD="martinnally"
 export PG_DATABASE="permissions"
 export COMPONENT="permissions-api"
+export SPEEDUP=10
 
 node permissions-api.js

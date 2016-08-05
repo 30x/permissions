@@ -10,7 +10,7 @@ var http = require('http');
 var url = require('url');
 var querystring = require('querystring');
 var lib = require('./standard-functions.js');
-var db = require('./permissions-db.js');
+var db = require('./permissions-api-db.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
@@ -279,9 +279,7 @@ function requestHandler(req, res) {
   }
 }
 
-db.createTablesThen(function () {
-  var port = process.env.PORT;
-  http.createServer(requestHandler).listen(port, function() {
-    console.log(`server is listening on ${port}`);
-  });
+var port = process.env.PORT;
+http.createServer(requestHandler).listen(port, function() {
+  console.log(`server is listening on ${port}`);
 });

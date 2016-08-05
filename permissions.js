@@ -81,19 +81,9 @@ function cache(resource, permissions, etag) {
 }
 
 function processEvent(req, res, event) {
-  console.log('processEvent: peerCaches:', peerCaches, 'selfAuthority:', selfAuthority, 'event:', JSON.stringify(event));
+  console.log('processEvent:', JSON.stringify(event));
   setEventMark(parseInt(event.index));
   delete permissionsCache[lib.internalizeURL(event.data.subject)];
-  for (var i = 0; i < peerCaches.length; i++) {
-    var cache = peerCaches[i];
-    if (cache != selfAuthority) {
-      lib.sendEventThen(req, event, cache, function(err) {
-        if (err) {
-          console.log(`failed to send event to ${cache}`);
-        }
-    });
-    }
-  }
   lib.found(req, res);
 }
 
@@ -216,19 +206,6 @@ function isAllowed(req, res, queryString) {
 var permissionsCache = {};
 var teamsCache = {};
 
-function processStoredEvents(events) {
-  for (var i = 0; i < events.length; i++) {
-    var event = events[i];
-    var cacheEntry = permissionsCache[event.subject];
-    if (cacheEntry !== undefined) {
-      if (cacheEntry.etag < event.etag) {
-        console.log(`processing missed event: ${event.subject}`)
-        delete permissionsCache[event.subject];
-      }
-    }
-  }
-}
-
 var SPEEDUP = process.env.SPEEDUP || 1;
 var ONEMINUTE = 60*1000/SPEEDUP;
 var TWOMINUTES = 2*60*1000/SPEEDUP;
@@ -241,12 +218,7 @@ if (process.env.PORT) {
   selfAuthority += `:${process.env.PORT}`
 }
 
-function setPeerCaches(peers) {
-  console.log('setPeerCaches:', 'peers:', peers)
-  peerCaches = peers;
-}
-
-var ipAddress = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
+var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
 
 // Begin implementation of time-ordered bit-array. TODO - turn this into a JS 'class' that can be instantiated
 
@@ -323,11 +295,9 @@ function init(callback) {
       console.log('unable to get last value of event ID')
     } else {
       lastEventIndex = id - 1;
-      db.registerCache(ipAddress, setPeerCaches);
-      setInterval(db.registerCache, ONEMINUTE, ipAddress, setPeerCaches);
-      setInterval(db.discardCachesOlderThan, TWOMINUTES, TENMINUTES);
+      db.registerCache(IPADDRESS);
+      setInterval(db.registerCache, ONEMINUTE, IPADDRESS);
       setInterval(fetchStoredEvents, TWOMINUTES);
-      setInterval(db.discardEventsOlderThan, TENMINUTES, ONEHOUR);
       callback();
     }
   });  
