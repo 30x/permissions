@@ -37,55 +37,14 @@ function withPermissionsDo(req, res, subject, callback) {
 }
 
 function deletePermissionsThen(req, res, subject, callback) {
-  // fetch the permissions resource for `subject`.
-  subject = lib.internalizeURL(subject, req.headers.host);
-  pool.connect(function(err, client, release) {
-    if (err) { 
-      lib.badRequest(res, err);
-    } else {
-      client.query('BEGIN', function(err) {
-        if(err) {
-          client.query('ROLLBACK', release);
-          lib.internalError(res, err);
-        } else {
-          var key = lib.internalizeURL(subject, req.headers.host);
-          var query = 'DELETE FROM permissions WHERE subject = $1 RETURNING *';
-          client.query(query, [subject], function(err, pgResult) {
-            if(err) {
-              client.query('ROLLBACK', release);
-              lib.badrequest(res, err);
-            } else {
-              if (pgResult.rowCount === 0) {
-                client.query('ROLLBACK', release);
-                lib.notFound(req, res);
-              } else {
-                var time = Date.now();
-                var query = `INSERT INTO events (topic, eventtime, data) 
-                             values ('permissions', ${time}, '{"subject": "${subject}", "action": "delete", "etag": ${pgResult.rows[0].etag}}')
-                             RETURNING *`;
-                client.query(query, function(err, pgEventResult) {
-                  if(err) {
-                    client.query('ROLLBACK', release);
-                    lib.internalError(res, err);
-                  } else {
-                    if (pgEventResult.rowcount == 0) {
-                      client.query('ROLLBACK', release);
-                      lib.internalError(res, 'unable to create event');
-                    } else {
-                      client.query('COMMIT', release);
-                      callback(pgResult.rows[0], pgEventResult.rows[0]);
-                      eventProducer.tellConsumers(req, pgEventResult.rows[0]);
-                    }
-                  }
-                });
-              }
-            }
-          });
-        }
-      });
-    }
-  });  
-  
+  var query = `DELETE FROM permissions WHERE subject = '${subject}' RETURNING *`;
+  function eventData(pgResult) {
+    return {subject: subject, action: 'delete', etag: pgResult.rows[0].etag}
+  }
+  dblib.queryAndStoreEvent(req, res, pool, query, 'permissions', eventData, eventProducer, function(pgResult, pgEventResult) {
+    callback(pgResult.rows[0].data, pgResult.rows[0].etag);
+  });
+
 }
 
 function createPermissionsThen(req, res, permissions, callback) {
@@ -93,7 +52,7 @@ function createPermissionsThen(req, res, permissions, callback) {
   var subject = permissions.governs._self;
   var query = `INSERT INTO permissions (subject, data) values('${subject}', '${JSON.stringify(permissions)}') RETURNING etag`;
   function eventData(pgResult) {
-    return {subject: permissions.governs._self, action: "create", etag: pgResult.rows[0].etag}
+    return {subject: permissions.governs._self, action: 'create', etag: pgResult.rows[0].etag}
   }
   dblib.queryAndStoreEvent(req, res, pool, query, 'permissions', eventData, eventProducer, function(pgResult, pgEventResult) {
     callback(permissions, pgResult.rows[0].etag);
@@ -105,7 +64,7 @@ function updatePermissionsThen(req, res, subject, patchedPermissions, etag, call
   var key = lib.internalizeURL(subject, req.headers.host);
   var query = `UPDATE permissions SET data = ('${JSON.stringify(patchedPermissions)}') WHERE subject = '${key}' AND etag = ${etag} RETURNING etag`;
   function eventData(pgResult) {
-    return {subject: patchedPermissions.governs._self, action: "create", etag: pgResult.rows[0].etag}
+    return {subject: patchedPermissions.governs._self, action: 'update', etag: pgResult.rows[0].etag}
   }
   dblib.queryAndStoreEvent(req, res, pool, query, 'permissions', eventData, eventProducer, function(pgResult, pgEventResult) {
     callback(patchedPermissions, pgResult.rows[0].etag);
