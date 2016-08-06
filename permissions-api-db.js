@@ -18,7 +18,6 @@ var pool = new Pool(config);
 var eventProducer = new pge.eventProducer(pool);
 
 function withPermissionsDo(req, res, subject, callback) {
-  // fetch the permissions resource for `subject`.
   subject = lib.internalizeURL(subject, req.headers.host);
   var query = 'SELECT etag, data FROM permissions WHERE subject = $1';
   pool.query(query,[subject], function (err, pgResult) {
