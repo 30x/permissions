@@ -200,12 +200,12 @@ function primProcessEvent(event) {
 }
 
 function processEvent(req, res, event) {
-  eventConsumer.processEvent(event);
+  permissionsEventConsumer.processEvent(event);
   lib.found(req, res);
 }
 
 var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS;
-var eventConsumer = new pge.eventConsumer(db.pool, IPADDRESS, primProcessEvent);
+var permissionsEventConsumer = new pge.eventConsumer(db.pool, IPADDRESS, primProcessEvent);
 
 var permissionsCache = {};
 var teamsCache = {};
@@ -240,7 +240,7 @@ function requestHandler(req, res) {
 
 db.init(function () {
   var port = process.env.PORT;
-  eventConsumer.init(function() {
+  permissionsEventConsumer.init(function() {
     http.createServer(requestHandler).listen(port, function() {
       console.log(`server is listening on ${port}`);
     });
