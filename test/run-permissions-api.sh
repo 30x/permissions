@@ -7,4 +7,5 @@ export PG_DATABASE="permissions"
 export COMPONENT="permissions-api"
 export SPEEDUP=10
 
+node test/drop.js
 node permissions-api.js

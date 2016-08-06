@@ -232,13 +232,11 @@ function createTablesThen(callback) {
   });    
 }
 
-createTablesThen(function () {
-  eventProducer.init(function() {
-    setInterval(getCaches, ONEMINUTE, setPeerCaches);
-    setInterval(discardCachesOlderThan, TWOMINUTES, TENMINUTES);
-    setInterval(discardEventsOlderThan, TENMINUTES, ONEHOUR);
+function init(callback) {
+  createTablesThen(function () {
+    eventProducer.init(callback);
   });
-});
+}
 
 exports.withPermissionsDo = withPermissionsDo;
 exports.createPermissionsThen = createPermissionsThen;
@@ -246,3 +244,4 @@ exports.deletePermissionsThen = deletePermissionsThen;
 exports.updatePermissionsThen = updatePermissionsThen;
 exports.withResourcesSharedWithActorsDo = withResourcesSharedWithActorsDo;
 exports.withHeirsDo = withHeirsDo;
+exports.init=init;

@@ -81,11 +81,6 @@ function createPermissions(req, res, permissions) {
       function primCreate(req, res, permissions) {
         calculateSharedWith(req, permissions);
         db.createPermissionsThen(req, res, permissions, function(permissions, etag, event) {
-          lib.sendEventThen(req, event, req.headers.host, function(err) {
-            if (err) {
-              console.log('unable to send cache event')
-            }
-          });
           addCalculatedProperties(req, permissions);
           lib.created(req, res, permissions, permissions._self, etag);
         });        
@@ -129,11 +124,6 @@ function getPermissions(req, res, subject) {
 function deletePermissions(req, res, subject) {
   ifAllowedDo(req, res, subject, 'delete', true, function() {
     db.deletePermissionsThen(req, res, subject, function(permissions, etag, event) {
-      lib.sendEventThen(req, event, req.headers.host, function(err) {
-        if (err) {
-          console.log('unable to send cache event')
-        }
-        });
       addCalculatedProperties(req, permissions); 
       lib.found(req, res, permissions, etag);
     });
@@ -147,11 +137,6 @@ function updatePermissions(req, res, patch) {
       var patchedPermissions = lib.mergePatch(permissions, patch);
       calculateSharedWith(req, patchedPermissions);
       db.updatePermissionsThen(req, res, subject, patchedPermissions, etag, function(patchedPermissions, etag, event) {
-        lib.sendEventThen(req, event, req.headers.host, function (err) {
-          if (err) {
-            console.log('unable to send cache event')
-          } 
-        });
         addCalculatedProperties(req, patchedPermissions); 
         lib.found(req, res, permissions, etag);
       });
@@ -280,6 +265,8 @@ function requestHandler(req, res) {
 }
 
 var port = process.env.PORT;
-http.createServer(requestHandler).listen(port, function() {
-  console.log(`server is listening on ${port}`);
+db.init(function(){
+  http.createServer(requestHandler).listen(port, function() {
+    console.log(`server is listening on ${port}`);
+  });
 });

@@ -12,12 +12,12 @@ with conn:
     with conn.cursor() as cur:
         cur.execute('DROP TABLE IF EXISTS permissions')
         cur.execute('DROP TABLE IF EXISTS teams')
-        cur.execute('DROP TABLE IF EXISTS events')
-        cur.execute('DROP TABLE IF EXISTS caches')
+#        cur.execute('DROP TABLE IF EXISTS events')
+#        cur.execute('DROP TABLE IF EXISTS consumers')
         cur.execute('CREATE TABLE permissions (subject text primary key, etag serial, data jsonb)')
         cur.execute('CREATE TABLE teams (id text primary key, etag serial, data jsonb)')
         cur.execute('CREATE TABLE IF NOT EXISTS events (index bigserial, topic text, eventtime bigint, data jsonb)')
-        cur.execute('CREATE TABLE IF NOT EXISTS caches (ipaddress text primary key, registrationtime bigint);')
+        cur.execute('CREATE TABLE IF NOT EXISTS consumers (ipaddress text primary key, registrationtime bigint);')
 
 def b64_decode(data):
     missing_padding = (4 - len(data) % 4) % 4

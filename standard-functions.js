@@ -24,19 +24,22 @@ function withTeamsDo(req, res, user, callback) {
     if (hostParts.length > 1) {
       options.port = hostParts[1];
     }
-    var clientReq = http.request(options, function (client_response) {
-      getClientResponseBody(client_response, function(body) {
-        if (client_response.statusCode == 200) { 
+    var clientReq = http.request(options, function (clientResponse) {
+      getClientResponseBody(clientResponse, function(body) {
+        if (clientResponse.statusCode == 200) { 
           var actors = JSON.parse(body);
           internalizeURLs(actors, req.headers.host);
           actors.push(user);
           callback(actors);
         } else {
-          internalError(res, client_response.statusCode);
+          var err = `withTeamsDo: unable to retrieve /teams?user for user ${user} statusCode ${clientResponse.statusCode}`
+          console.log(err)
+          internalError(res, err);
         }
       });
     });
     clientReq.on('error', function (err) {
+      console.log(`withTeamsDo: error ${err}`)
       internalError(res, err);
     });
     clientReq.end();
@@ -463,14 +466,14 @@ function sendEventThen(serverReq, event, host, callback) {
   var client_req = http.request(options, function (client_res) {
     getClientResponseBody(client_res, function(body) {
       if (client_res.statusCode == 200) { 
-        callback(null);
+        callback(null, host);
       } else {
-        callback(`unable to send event: ${host} statusCode: ${client_res.statusCode}`);
+        callback(`unable to send event: ${host} statusCode: ${client_res.statusCode}`, host);
       }
     });
   });
   client_req.on('error', function (err) {
-    callback(err);
+    callback(err, host);
   });
   client_req.write(postData);
   client_req.end();

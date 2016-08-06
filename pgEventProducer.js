@@ -1,5 +1,4 @@
 'use strict';
-var Pool = require('pg').Pool;
 var lib = require('./standard-functions.js');
 
 var SPEEDUP = process.env.SPEEDUP || 1;
@@ -13,33 +12,34 @@ function eventProducer(pool) {
   this.consumers = [];
 }
 
-eventProducer.prototype.init = function() {
+eventProducer.prototype.init = function(callback) {
   var self = this;
   this.createTablesThen(function () {
     setInterval(self.getCaches, ONEMINUTE, self);
     setInterval(self.discardCachesOlderThan, TWOMINUTES, TENMINUTES, self);
     setInterval(self.discardEventsOlderThan, TENMINUTES, ONEHOUR, self);
+    callback();
   });  
 }
 
 eventProducer.prototype.discardCachesOlderThan = function(interval, self) {
   var time = Date.now() - interval;
   var pool = self.pool;
-  pool.query(`DELETE FROM caches WHERE registrationtime < ${time}`, function (err, pgResult) {
+  pool.query(`DELETE FROM consumers WHERE registrationtime < ${time}`, function (err, pgResult) {
     if (err) {
-      console.log('discardCachesOlderThan:', `unable to delete old caches ${err}`);
+      console.log('discardCachesOlderThan:', `unable to delete old consumers ${err}`);
     } else {
-      console.log('discardCachesOlderThan:', `trimmed caches older than ${time}`)
+      console.log('discardCachesOlderThan:', `trimmed consumers older than ${time}`)
     }
   });
 }
 
 eventProducer.prototype.getCaches = function(self) {
-  var query = 'SELECT ipaddress FROM caches';
+  var query = 'SELECT ipaddress FROM consumers';
   var pool = self.pool;
   pool.query(query, function (err, pgResult) {
     if (err) {
-      console.log(`unable to retrieve ipaddresses from caches`);
+      console.log(`unable to retrieve ipaddresses from consumers`);
     } else {
       self.setConsumers(pgResult.rows.map(row => row.ipaddress));
     }
@@ -65,10 +65,10 @@ eventProducer.prototype.createTablesThen = function(callback) {
     if(err) {
       console.error('error creating events table', err);
     } else {
-      query = 'CREATE TABLE IF NOT EXISTS caches (ipaddress text primary key, registrationtime bigint)';
+      query = 'CREATE TABLE IF NOT EXISTS consumers (ipaddress text primary key, registrationtime bigint)';
       pool.query(query, function(err, pgResult) {
         if(err) {
-          console.error('error creating caches table', err);
+          console.error('error creating consumers table', err);
         } else {
           callback();
         }
@@ -77,18 +77,20 @@ eventProducer.prototype.createTablesThen = function(callback) {
   });
 }
 
-eventProducer.prototype.setConsumers = function(peers) {
-  console.log('setConsumers:', 'peers:', peers)
-  this.consumers = peers;
+eventProducer.prototype.setConsumers = function(consumers) {
+  console.log('setConsumers:', 'consumers:', consumers)
+  this.consumers = consumers;
 }
 
 eventProducer.prototype.tellConsumers = function(req, event) {
   for (var i = 0; i < this.consumers.length; i++) {
-    var cache = consumers[i];
-    lib.sendEventThen(req, event, cache, function(err) {
-    if (err) {
-      console.log(`failed to send event to ${cache}`);
-    }
+    var cache = this.consumers[i];
+    lib.sendEventThen(req, event, cache, function(err, host) {
+      if (err) {
+        console.log(`failed to send event to ${host}`);
+      } else {
+        console.log(`sent event to ${host} index: ${event.index}`);
+      }
     });
   }
 }
