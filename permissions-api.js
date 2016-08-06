@@ -80,7 +80,7 @@ function createPermissions(req, res, permissions) {
     if (err === null) {
       function primCreate(req, res, permissions) {
         calculateSharedWith(req, permissions);
-        db.createPermissionsThen(req, res, permissions, function(permissions, etag, event) {
+        db.createPermissionsThen(req, res, permissions, function(permissions, etag) {
           addCalculatedProperties(req, permissions);
           lib.created(req, res, permissions, permissions._self, etag);
         });        
@@ -123,9 +123,9 @@ function getPermissions(req, res, subject) {
 
 function deletePermissions(req, res, subject) {
   ifAllowedDo(req, res, subject, 'delete', true, function() {
-    db.deletePermissionsThen(req, res, subject, function(permissions, etag, event) {
+    db.deletePermissionsThen(req, res, subject, function(permissionsRow, eventRow) {
       addCalculatedProperties(req, permissions); 
-      lib.found(req, res, permissions, etag);
+      lib.found(req, res, permissionsRow.data, permissionsRow.etag);
     });
   });
 }

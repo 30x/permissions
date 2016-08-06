@@ -1,6 +1,7 @@
 'use strict';
 var Pool = require('pg').Pool;
 var lib = require('./standard-functions.js');
+var dblib = require('./standard-db-functions.js');
 var pge = require('./pgEventProducer.js');
 
 var ANYONE = 'http://apigee.com/users/anyone';
@@ -47,7 +48,6 @@ function deletePermissionsThen(req, res, subject, callback) {
           client.query('ROLLBACK', release);
           lib.internalError(res, err);
         } else {
-          lib.internalizeURLs(patchedPermissions, req.headers.host);
           var key = lib.internalizeURL(subject, req.headers.host);
           var query = 'DELETE FROM permissions WHERE subject = $1 RETURNING *';
           client.query(query, [subject], function(err, pgResult) {
@@ -73,7 +73,7 @@ function deletePermissionsThen(req, res, subject, callback) {
                       lib.internalError(res, 'unable to create event');
                     } else {
                       client.query('COMMIT', release);
-                      callback(patchedPermissions, pgResult.rows[0].etag, pgEventResult.rows[0]);
+                      callback(pgResult.rows[0], pgEventResult.rows[0]);
                       eventProducer.tellConsumers(req, pgEventResult.rows[0]);
                     }
                   }
@@ -89,56 +89,14 @@ function deletePermissionsThen(req, res, subject, callback) {
 }
 
 function createPermissionsThen(req, res, permissions, callback) {
-  pool.connect(function(err, client, release) {
-    if (err) { 
-      lib.badRequest(res, err);
-    } else {
-      client.query('BEGIN', function(err) {
-        if(err) {
-          client.query('ROLLBACK', release);
-          lib.internalError(res, err);
-        } else {
-          lib.internalizeURLs(permissions, req.headers.host);
-          var query = 'INSERT INTO permissions (subject, data) values($1, $2) RETURNING etag';
-          var subject = permissions.governs._self;
-          client.query(query, [permissions.governs._self, permissions], function(err, pgResult) {
-            if(err) {
-              client.query('ROLLBACK', release);
-              if (err.code == 23505){ 
-                lib.duplicate(res, err);
-              } else { 
-                lib.badRequest(res, err);
-              }
-            } else {
-              if (pgResult.rowCount === 0) {
-                client.query('ROLLBACK', release);
-                lib.internalError(res, 'failed create');
-              } else {
-                var time = Date.now();
-                var query = `INSERT INTO events (topic, eventtime, data) 
-                             values ('permissions', ${time}, '{"subject": "${subject}", "action": "create", "etag": ${pgResult.rows[0].etag}}')
-                             RETURNING *`;
-                client.query(query, function(err, pgEventResult) {
-                  if(err) {
-                    client.query('ROLLBACK', release);
-                    lib.internalError(res, err);
-                  } else {
-                    if (pgEventResult.rowcount == 0) {
-                      client.query('ROLLBACK', release);
-                      lib.internalError(res, 'unable to create event');
-                    } else {
-                      client.query('COMMIT', release);
-                      callback(permissions, pgResult.rows[0].etag, pgEventResult.rows[0]);
-                      eventProducer.tellConsumers(req, pgEventResult.rows[0]);
-                    }
-                  }
-                });
-              }
-            }
-          });
-        }
-      });
-    }
+  lib.internalizeURLs(permissions, req.headers.host);
+  var subject = permissions.governs._self;
+  var query = `INSERT INTO permissions (subject, data) values('${subject}', '${JSON.stringify(permissions)}') RETURNING etag`;
+  function eventData(pgResult) {
+    return {subject: permissions.governs._self, action: "create", etag: pgResult.rows[0].etag}
+  }
+  dblib.queryAndStoreEvent(req, res, pool, query, 'permissions', eventData, eventProducer, function(pgResult, pgEventResult) {
+    callback(permissions, pgResult.rows[0].etag);
   });
 }
 
