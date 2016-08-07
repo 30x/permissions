@@ -239,7 +239,6 @@ function requestHandler(req, res) {
   }
 }
 
-
 db.init(function () {
   var port = process.env.PORT;
   permissionsEventConsumer.init(function() {
