@@ -196,7 +196,9 @@ function isAllowed(req, res, queryString) {
 }
 
 function primProcessEvent(event) {
-    delete permissionsCache[lib.internalizeURL(event.data.subject)];  
+  if (event.topic == 'permissions') {
+    delete permissionsCache[lib.internalizeURL(event.data.subject)];
+  }  
 }
 
 function processEvent(req, res, event) {

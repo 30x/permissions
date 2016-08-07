@@ -16,38 +16,36 @@ var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
 
-function verifyPermissions(req, permissions) {
+function verifyPermissions(req, permissions, user) {
+  var rslt = lib.setStandardCreationProperties(req, permissions, user);
+  if (rslt !== null) {
+    return result;
+  }
   if (permissions.isA == undefined && permissions.governs !== undefined) {
     permissions.isA = 'Permissions';
   }
-  if (permissions.isA == 'Permissions') {
-    if (permissions.inheritsPermissionsOf !== undefined) {
-      return 'inheritsPermissionsOf for a Permissions resource independent of inheritsPermissionsOf for the resource it governs not supported'
-    } else {
-      if (permissions.governs !== undefined) {
-        var governed = permissions.governs;
-        if (governed._self !== undefined) {
-          if (governed.inheritsPermissionsOf !== undefined && !Array.isArray(governed.inheritsPermissionsOf)) {
-            return 'inheritsPermissionsOf must be an Array'
-          } else {
-            var user = lib.getUser(req);
-            if (permissions.updaters === undefined && governed.inheritsPermissionsOf === undefined) {
-              permissions.updaters = [user];
-              permissions.readers = [user];
-              permissions.writers = [user];
-            }
-            return null;
-          }
-        } else {
-          return 'must provide _self for governed resource'
-        }
-      } else { 
-        return 'invalid JSON: "governs" property not set';
-      }
-    }
-  } else { 
+  if (permissions.isA != 'Permissions') {
     return 'invalid JSON: "isA" property not set to "Permissions"';
   }
+  if (permissions.inheritsPermissionsOf !== undefined) {
+    return 'inheritsPermissionsOf for a Permissions resource independent of inheritsPermissionsOf for the resource it governs not supported'
+  }
+  if (permissions.governs === undefined) {
+    return 'invalid JSON: "governs" property not set';
+  }
+  var governed = permissions.governs;
+  if (governed._self === undefined) {
+    return 'must provide _self for governed resource'
+  }
+  if (governed.inheritsPermissionsOf !== undefined && !Array.isArray(governed.inheritsPermissionsOf)) {
+    return 'inheritsPermissionsOf must be an Array'
+  }
+  if (permissions.updaters === undefined && governed.inheritsPermissionsOf === undefined) {
+    permissions.updaters = [user];
+    permissions.readers = [user];
+    permissions.writers = [user];
+  }
+  return null;
 }
 
 var OPERATIONPROPERTIES = ['creators', 'readers', 'updaters', 'deleters'];
@@ -73,14 +71,14 @@ function createPermissions(req, res, permissions) {
   if (user == null) {
     lib.unauthorized(req, res)
   } else {
-    var err = verifyPermissions(req, permissions);
+    var err = verifyPermissions(req, permissions, user);
     if (err === null) {
       err = lib.setStandardCreationProperties(permissions, req, user);
     }
     if (err === null) {
       function primCreate(req, res, permissions) {
         calculateSharedWith(req, permissions);
-        db.createPermissionsThen(req, res, permissions, function(permissions, etag) {
+        db.createPermissionsThen(req, res, permissions, function(etag) {
           addCalculatedProperties(req, permissions);
           lib.created(req, res, permissions, permissions._self, etag);
         });        

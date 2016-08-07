@@ -4,6 +4,7 @@ var Pool = require('pg').Pool;
 var url = require('url');
 var lib = require('./standard-functions.js');
 var uuid = require('node-uuid');
+var db = require('./teams-db.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http';
 var TEAMS = '/teams/';
@@ -17,7 +18,8 @@ var config = {
 
 var pool = new Pool(config);
 
-function verifyTeam(team) {
+function verifyTeam(req, team, user) {
+  var rslt = lib.setStandardCreationProperties(req, team, user);
   if (team.isA == 'Team') {
     if (Array.isArray(team.members)) {
       return null;
@@ -34,7 +36,7 @@ function createTeam(req, res, team) {
   if (user == null) {
     lib.unauthorized(req, res);
   } else { 
-    var err = verifyTeam(team);
+    var err = verifyTeam(req, team, user);
     if (err !== null) {
       lib.badRequest(res, err);
     } else {
@@ -44,45 +46,30 @@ function createTeam(req, res, team) {
         delete team.permissions;
       }
       var id = uuid();
-      lib.createPermissonsFor(req, res, selfURL(id, req), permissions, function(permissionsURL, permissions){
+      var selfURL = makeSelfURL(id, req);
+      lib.createPermissonsFor(req, res, selfURL, permissions, function(permissionsURL, permissions){
         // Create permissions first. If we fail after creating the permissions resource but before creating the main resource, 
         // there will be a useless but harmless permissions document.
         // If we do things the other way around, a team without matching permissions could cause problems.
-        pool.query('INSERT INTO teams (id, data) values($1, $2) RETURNING *', [id, team], function (err, pg_res) {
-          if (err) {
-            lib.internalError(res, err);
-          } else {
-            var etag = pg_res.rows[0].etag;
-            team._self = selfURL(id, req); 
-            lib.created(req, res, team, team._self, etag);
-          }
+        db.createTeamThen(req, res, id, selfURL, team, function(etag) {
+          team._self = selfURL; 
+          lib.created(req, res, team, team._self, etag);
         });
       });
     }
   }
 }
 
-function selfURL(key, req) {
+function makeSelfURL(key, req) {
   return PROTOCOL + '://' + req.headers.host + TEAMS + key;
 }
 
 function getTeam(req, res, id) {
   lib.ifAllowedThen(req, res, 'read', function() {
-    pool.query('SELECT etag, data FROM teams WHERE id = $1', [id], function (err, pg_res) {
-      if (err) {
-        lib.internalError(res, err);
-      }
-      else {
-        if (pg_res.rowCount === 0) { 
-          lib.notFound(req, res);
-        }
-        else {
-          var row = pg_res.rows[0];
-          lib.externalizeURLs(row.data, req.headers.host, PROTOCOL);
-          row.data._self = selfURL(req, id); 
-          lib.found(req, res, row.data, row.etag);
-        }
-      }
+    db.withTeamDo(req, res, id, function(team , etag) {
+      lib.externalizeURLs(team, req.headers.host, PROTOCOL);
+      row.data._self = selfURL(req, id); 
+      lib.found(req, res, team, etag);
     });
   });
 }
@@ -175,13 +162,9 @@ function requestHandler(req, res) {
   }
 }
 
-pool.query('CREATE TABLE IF NOT EXISTS teams (id text primary key, etag serial, data jsonb);', function(err, pg_res) {
-  if(err) {
-    console.error('error creating teams table', err);
-  } else {
-    var port = process.env.PORT;
-    http.createServer(requestHandler).listen(port, function() {
-      console.log(`server is listening on ${port}`);
-    });
-  }
+db.init(function(){
+  var port = process.env.PORT;
+  http.createServer(requestHandler).listen(port, function() {
+    console.log(`server is listening on ${port}`);
+  });
 });
