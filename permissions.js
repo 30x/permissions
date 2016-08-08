@@ -96,19 +96,11 @@ function withPermissionsDo(req, res, resource, callback) {
 function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, callback) {
   subject = lib.internalizeURL(subject);
   var recursionSet = {};
-  var originalPermissons = null;
   function ifActorsAllowedDo(actors, resource, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
-      if (subjectIsPermission && resource == subject) {
-        originalPermissons = permissions;
-      }
       var allowed = isActionAllowed(subjectIsPermission ? permissions : permissions.governs, actors, action);
       if (allowed) {
-        if (subjectIsPermission) {
-          callback(true, JSON.parse(JSON.stringify(originalPermissons)), originalPermissons._Etag)
-        } else {
-          callback(true);
-        }
+        callback(true);
       } else {
         var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
@@ -118,11 +110,7 @@ function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, ca
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
               ifActorsAllowedDo(actors, inheritsPermissionsOf[j], function() {
                 if (++count == inheritsPermissionsOf.length) {
-                  if (subjectIsPermission) {
-                    callback(true, JSON.parse(JSON.stringify(originalPermissons)), originalPermissons._Etag)
-                  } else {
-                    callback(true);
-                  }
+                  callback(true);
                 }
               });
             }
