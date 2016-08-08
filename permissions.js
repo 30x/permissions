@@ -104,7 +104,7 @@ function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, ca
       } else {
         var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
-          inheritsPermissionsOf = inheritsPermissionsOf.filter((x) => {return !(x in recursionSet);}) 
+          inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
           if (inheritsPermissionsOf.length > 0) {
             var count = 0;
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
