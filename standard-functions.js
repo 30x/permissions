@@ -442,43 +442,6 @@ function setStandardCreationProperties(req, resource, user) {
   return null;
 }
 
-function sendEventThen(serverReq, event, host, callback) {
-  var postData = JSON.stringify(event);
-  var headers = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'Content-Length': Buffer.byteLength(postData)
-  }
-  if (serverReq.headers.authorization) {
-    headers.authorization = serverReq.headers.authorization; 
-  }
-  var hostParts = host.split(':');
-  var options = {
-    protocol: PROTOCOL,
-    hostname: hostParts[0],
-    path: '/events',
-    method: 'POST',
-    headers: headers
-  };
-  if (hostParts.length > 1) {
-    options.port = hostParts[1];
-  }
-  var client_req = http.request(options, function (client_res) {
-    getClientResponseBody(client_res, function(body) {
-      if (client_res.statusCode == 200) { 
-        callback(null, host);
-      } else {
-        callback(`unable to send event: ${host} statusCode: ${client_res.statusCode}`, host);
-      }
-    });
-  });
-  client_req.on('error', function (err) {
-    callback(err, host);
-  });
-  client_req.write(postData);
-  client_req.end();
-}
-
 exports.getServerPostBody = getServerPostBody;
 exports.getClientResponseBody = getClientResponseBody;
 exports.methodNotAllowed = methodNotAllowed;
@@ -502,4 +465,3 @@ exports.createPermissonsFor = createPermissonsFor;
 exports.setStandardCreationProperties = setStandardCreationProperties;
 exports.getUserFromToken = getUserFromToken;
 exports.withTeamsDo=withTeamsDo;
-exports.sendEventThen=sendEventThen;

@@ -1,11 +1,14 @@
 'use strict';
 var lib = require('./standard-functions.js');
+var http = require('http');
 
 var SPEEDUP = process.env.SPEEDUP || 1;
 var ONEMINUTE = 60*1000/SPEEDUP;
 var TWOMINUTES = 2*60*1000/SPEEDUP;
 var TENMINUTES = 10*60*1000/SPEEDUP;
 var ONEHOUR = 60*60*1000/SPEEDUP;
+
+var PROTOCOL = process.env.PROTOCOL || 'http:';
 
 function eventProducer(pool) {
   this.pool = pool;
@@ -84,15 +87,52 @@ eventProducer.prototype.setConsumers = function(consumers) {
 
 eventProducer.prototype.tellConsumers = function(req, event) {
   for (var i = 0; i < this.consumers.length; i++) {
-    var cache = this.consumers[i];
-    lib.sendEventThen(req, event, cache, function(err, host) {
+    let cache = this.consumers[i];
+    sendEventThen(req, event, cache, function(err) {
       if (err) {
-        console.log(`failed to send event to ${host}`);
+        console.log(`failed to send event to ${cache}`);
       } else {
-        console.log(`sent event to ${host} index: ${event.index}`);
+        console.log(`sent event to ${cache} index: ${event.index}`);
       }
     });
   }
+}
+
+function sendEventThen(serverReq, event, host, callback) {
+  var postData = JSON.stringify(event);
+  var headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(postData)
+  }
+  if (serverReq.headers.authorization) {
+    headers.authorization = serverReq.headers.authorization; 
+  }
+  var hostParts = host.split(':');
+  var options = {
+    protocol: PROTOCOL,
+    hostname: hostParts[0],
+    path: '/events',
+    method: 'POST',
+    headers: headers
+  };
+  if (hostParts.length > 1) {
+    options.port = hostParts[1];
+  }
+  var client_req = http.request(options, function (client_res) {
+    lib.getClientResponseBody(client_res, function(body) {
+      if (client_res.statusCode == 200) { 
+        callback(null);
+      } else {
+        callback(`unable to send event to: ${host} statusCode: ${client_res.statusCode}`);
+      }
+    });
+  });
+  client_req.on('error', function (err) {
+    callback(err);
+  });
+  client_req.write(postData);
+  client_req.end();
 }
 
 exports.eventProducer=eventProducer;
