@@ -108,6 +108,7 @@ function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, ca
           if (inheritsPermissionsOf.length > 0) {
             var count = 0;
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
+              recursionSet[inheritsPermissionsOf[j]] = true; 
               ifActorsAllowedDo(actors, inheritsPermissionsOf[j], function() {
                 if (++count == inheritsPermissionsOf.length) {
                   callback(true);
