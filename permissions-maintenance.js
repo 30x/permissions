@@ -9,7 +9,7 @@ and is warranted by the difficulty of the problem being solved.
 var http = require('http');
 var url = require('url');
 var querystring = require('querystring');
-var lib = require('./http-helper-functions.js');
+var lib = require('http-helper-functions');
 var db = require('./permissions-maintenance-db.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';

@@ -1,5 +1,5 @@
 'use strict';
-var lib = require('./http-helper-functions.js');
+var lib = require('http-helper-functions');
 
 var SPEEDUP = process.env.SPEEDUP || 1;
 var ONEMINUTE = 60*1000/SPEEDUP;
