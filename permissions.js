@@ -4,7 +4,7 @@ var lib = require('./http-helper-functions.js');
 var db = require('./permissions-db.js');
 var querystring = require('querystring');
 var url = require('url');
-var pge = require('./pgEventConsumer.js');
+var pge = require('./pg-event-consumer.js');
 
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';

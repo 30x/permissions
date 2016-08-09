@@ -1,7 +1,7 @@
 'use strict';
 var Pool = require('pg').Pool;
 var lib = require('./http-helper-functions.js');
-var pge = require('./pgEventProducer.js');
+var pge = require('./pg-event-producer.js');
 
 var config = {
   host: 'localhost',
