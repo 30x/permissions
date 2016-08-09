@@ -1,6 +1,6 @@
 'use strict';
 var http = require('http');
-var lib = require('./standard-functions.js');
+var lib = require('./http-helper-functions.js');
 var db = require('./permissions-db.js');
 var querystring = require('querystring');
 var url = require('url');

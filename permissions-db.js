@@ -1,6 +1,6 @@
 'use strict';
 var Pool = require('pg').Pool;
-var lib = require('./standard-functions.js');
+var lib = require('./http-helper-functions.js');
 
 var config = {
   host: process.env.PG_HOST || 'localhost',

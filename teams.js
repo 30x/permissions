@@ -2,7 +2,7 @@
 var http = require('http');
 var Pool = require('pg').Pool;
 var url = require('url');
-var lib = require('./standard-functions.js');
+var lib = require('./http-helper-functions.js');
 var uuid = require('node-uuid');
 var db = require('./teams-db.js');
 
