@@ -94,7 +94,6 @@ function withPermissionsDo(req, res, resource, callback) {
 }
 
 function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, callback) {
-  subject = lib.internalizeURL(subject);
   var recursionSet = {};
   function ifActorsAllowedDo(actors, resource, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
@@ -184,6 +183,63 @@ function isAllowed(req, res, queryString) {
   }
 }
 
+function withInheritsPermissionsFrom(req, res, resource, sharingSets, callback) {
+  if (sharingSets === undefined || sharingSets.length == 0) {
+    callback(false);
+  } else {
+    var responded = false;
+    var count = 0;
+    for (var i=0; i < sharingSets.length; i++) {
+      withPermissionsDo(req, res, sharingSets[i], function(permissions) {
+        if (!responded) {
+          var sharingSets = permissions.governs.sharingSets;
+          if (sharingSets !== undefined && sharingSets.length > 0) {
+            if (sharingSets.indexOf(resource) > -1) { // reply true
+              responded = true;
+              callback(true);
+            } else {
+              withInheritsPermissionsFrom(req, res, resource, sharingSets, function(inherits) {
+                if (!responded) {
+                  if (inherits) {
+                    responded = true;
+                    callback(true);
+                  } else {
+                    if (++count == sharingSets.length) {
+                      callback(false);
+                    }
+                  }
+                }
+              });
+            }
+          } else { // no sharingSets 
+            if (++count == sharingSets.length) { // if this is the last nested response, reply 
+              callback(false);
+          }
+        }
+      }
+    });
+  }
+  }
+}
+
+function inheritsPermissionsFrom(req, res, queryString) {
+  var queryParts = querystring.parse(queryString);
+  var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
+  var permissionsResource = '/permissions?' + resource;
+  withPermissionFlagDo(req, res, permissionsResource, 'read', true, function(answer) {
+    if (answer) {
+      var sharingSet = queryParts.sharingSet;
+      var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet];
+      sharingSets = sharingSets.map(anURL => lib.internalizeURL(anURL));
+      withInheritsPermissionsFrom(req, res, resource, sharingSets, function(result){
+        lib.found(req, res, result);
+      });
+    } else{
+      lib.forbidden(req, res)
+    }
+  });
+}
+
 function primProcessEvent(event) {
   if (event.topic == 'permissions') {
     delete permissionsCache[lib.internalizeURL(event.data.subject)];
@@ -219,6 +275,12 @@ function requestHandler(req, res) {
     } else if (req_url.pathname == '/is-allowed' && req_url.search !== null) {
       if (req.method == 'GET') {
         isAllowed(req, res, req_url.search.substring(1));
+      } else {
+        lib.methodNotAllowed(req, res, ['GET']);
+      }
+    } else if (req_url.pathname == '/inherits-permissions-from' && req_url.search !== null) {
+      if (req.method == 'GET') {
+        inheritsPermissionsFrom(req, res, req_url.search.substring(1));
       } else {
         lib.methodNotAllowed(req, res, ['GET']);
       }

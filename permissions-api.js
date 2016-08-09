@@ -83,22 +83,28 @@ function createPermissions(req, res, permissions) {
           lib.created(req, res, permissions, permissions._self, etag);
         });        
       }
-      if (permissions.governs.inheritsPermissionsOf !== undefined) {
-        var numberOfSharingsets = permissions.governs.inheritsPermissionsOf.length;
-        var count = 0;
-        for (var i=0; i < numberOfSharingsets; i++) {
-          var sharingSet = permissions.governs.inheritsPermissionsOf[i];
-          var allowedByAll = true;
-          lib.withAllowedDo(req, res, `/permissions?${sharingSet}`, 'create', function(allowed) {
-            allowedByAll = allowedByAll && allowed;
-            if (++count == numberOfSharingsets) {
-              if (allowedByAll) {
-                primCreate(req, res, permissions);
-              } else {
-                lib.forbidden(req, res);
-              }
-            } 
-          });
+      var sharingSets = permissions.governs.inheritsPermissionsOf;
+      if (sharingSets !== undefined && sharingSets.length > 0) {
+        sharingSets = sharingSets.map(x => lib.internalizeURL(x));
+        var subject = lib.internalizeURL(permissions.governs._self);
+        if (sharingSets.indexOf(subject) == -1) {
+          var count = 0;
+          for (var i=0; i < sharingSets.length; i++) {
+            var sharingSet = sharingSets[i];
+            var allowedByAll = true;
+            lib.withAllowedDo(req, res, `/permissions?${sharingSet}`, 'create', function(allowed) {
+              allowedByAll = allowedByAll && allowed;
+              if (++count == sharingSets.length) {
+                if (allowedByAll) {
+                  primCreate(req, res, permissions);
+                } else {
+                  lib.forbidden(req, res);
+                }
+              } 
+            });
+          }
+        } else {
+          lib.badRequest(res, `cannot inherit from self: ${subject} inheritsFrom: ${sharingSets}`);
         }
       } else {
         primCreate(req, res, permissions);
@@ -174,12 +180,12 @@ function addUsersWhoCanSee(req, res, permissions, result, callback) {
       result[sharedWith[i]] = true;
     }
   }
-  var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
-  if (inheritsPermissionsOf !== undefined) {
+  var sharingSets = permissions.governs.inheritsPermissionsOf;
+  if (sharingSets !== undefined) {
     var count = 0;
-    for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-      ifAllowedDo(req, res, inheritsPermissionsOf[j], 'read', true, function(permissions, etag) {
-        addUsersWhoCanSee(req, res, permissions, result, function() {if (++count == inheritsPermissionsOf.length) {callback();}});
+    for (var j = 0; j < sharingSets.length; j++) {
+      ifAllowedDo(req, res, sharingSets[j], 'read', true, function(permissions, etag) {
+        addUsersWhoCanSee(req, res, permissions, result, function() {if (++count == sharingSets.length) {callback();}});
       });
     }
   } else {

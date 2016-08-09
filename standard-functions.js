@@ -205,9 +205,9 @@ function respond(req, res, status, headers, body) {
 function internalizeURL(anURL, authority) {
   var httpString = 'http://' + authority;
   var httpsString = 'https://' + authority;  
-  if (anURL.lastIndexOf(httpString) === 0) {
+  if (anURL.lastIndexOf(httpString, 0) === 0) {
     return INTERNALURLPREFIX + anURL.substring(httpString.length);
-  } else if (anURL.lastIndexOf(httpsString) === 0) {
+  } else if (anURL.lastIndexOf(httpsString, 0) === 0) {
     return INTERNALURLPREFIX + anURL.substring(httpsString.length);
   } else {
     return anURL;
@@ -245,7 +245,7 @@ function externalizeURLs(jsObject, authority) {
       }
     }
   } else if (typeof jsObject == 'string') {
-    if (jsObject.lastIndexOf(INTERNALURLPREFIX) === 0) {
+    if (jsObject.lastIndexOf(INTERNALURLPREFIX, 0) === 0) {
       var prefix = PROTOCOL + '//' + authority;
       return prefix + jsObject.substring(INTERNALURLPREFIX.length);
     }
