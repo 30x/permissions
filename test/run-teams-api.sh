@@ -7,4 +7,4 @@ export PG_DATABASE="permissions"
 export COMPONENT="teams"
 export SPEEDUP=10
 
-node teams.js
+node ~/teams/teams.js
