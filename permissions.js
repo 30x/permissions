@@ -136,7 +136,7 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
       var actions = collateAllowedActions(subjectIsPermission ? permissions : permissions.governs, actors);
       var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
       if (inheritsPermissionsOf !== undefined) {
-        inheritsPermissionsOf = inheritsPermissionsOf.filter((x) => {return !(x in recursionSet);}) 
+        inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
         if (inheritsPermissionsOf.length > 0) {
           var count = 0;
           for (var j = 0; j < inheritsPermissionsOf.length; j++) {
@@ -164,20 +164,35 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
 }
 
 function isAllowed(req, res, queryString) {
+  console.log('\n\npermissions:isAllowed\n\n')
   var queryParts = querystring.parse(queryString);
-  var resource = lib.internalizeURL(queryParts.resource);
   var user = queryParts.user;
   var action = queryParts.action;
-  var resourceParts = url.parse(resource);
-  var subjectIsPermission = false;
-  if (resourceParts.pathname == '/permissions' && resourceParts.search != null) {
-    subjectIsPermission = true;
-    resource = resourceParts.search.substring(1);
-  }
-  if (action !== undefined && resource !== undefined && user == lib.getUser(req)) {
-    withPermissionFlagDo(req, res, resource, action, subjectIsPermission, function(answer) {
-      lib.found(req, res, answer);
-    });
+  if (action !== undefined && queryParts.resource !== undefined && user == lib.getUser(req)) {
+    var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource];
+    resources = resources.map(x => lib.internalizeURL(x));
+    var count = 0;
+    var result = true;
+    var responded = false;
+    for (var i = 0; i< resources.length; i++) {
+      var resource = resources[i];
+      var resourceParts = url.parse(resource);
+      var subjectIsPermission = false;
+      if (resourceParts.pathname == '/permissions' && resourceParts.search != null) {
+        subjectIsPermission = true;
+        resource = resourceParts.search.substring(1);
+      }
+      withPermissionFlagDo(req, res, resource, action, subjectIsPermission, function(answer) {
+        if (!responded) {
+          if (++count == resources.length) {
+            lib.found(req, res, answer && result);
+          } else if (answer == false) {
+            lib.found(req, res, false);
+            responded = true;
+          }
+        }
+      });
+    }
   } else {
     lib.badRequest(res, 'action and resource must be provided and user in query string must match user credentials ' + req.url)
   }
