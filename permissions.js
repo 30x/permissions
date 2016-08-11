@@ -9,7 +9,7 @@ var pge = require('pg-event-consumer');
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
-var OPERATIONPROPERTIES = ['creators', 'readers', 'updaters', 'deleters'];
+var OPERATIONPROPERTIES = ['grantsCreateAccessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAccessTo'];
 var OPERATIONS = ['create', 'read', 'update', 'delete'];
 
 function withTeamsDo(req, res, user, callback) {

@@ -43,15 +43,15 @@ def main():
     'isA': 'Permissions',
     'governs': 
         {'_self': 'http://apigee.com/o/acme',
-        'updaters': [USER1],
-        'readers': [USER1],
-        'deleters': [USER1],
-        'creators': [USER1]
+        'grantsUpdateAccessTo': [USER1],
+        'grantsReadAccessTo': [USER1],
+        'grantsDeleteAccessTo': [USER1],
+        'grantsCreateAccessTo': [USER1]
         },
-    'readers': [USER1],
-    'deleters': [USER1],
-    'updaters': [USER1],     
-    'creators': [USER1]     
+    'grantsReadAccessTo': [USER1],
+    'grantsDeleteAccessTo': [USER1],
+    'grantsUpdateAccessTo': [USER1],     
+    'grantsCreateAccessTo': [USER1]     
     }
     permissions_url = 'http://localhost:8080/permissions' 
     
@@ -168,14 +168,14 @@ def main():
     permissions_patch = {
     'governs': 
         {'_self': 'http://apigee.com/o/acme',
-        'updaters': [ORG_ADMINS],
-        'readers': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
-        'deleters': [ORG_ADMINS],
-        'creators': [ORG_ADMINS]
+        'grantsUpdateAccessTo': [ORG_ADMINS],
+        'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
+        'grantsDeleteAccessTo': [ORG_ADMINS],
+        'grantsCreateAccessTo': [ORG_ADMINS]
         },
-    'readers': [ORG_ADMINS],
-    'deleters': [ORG_ADMINS],
-    'updaters': [ORG_ADMINS]
+    'grantsReadAccessTo': [ORG_ADMINS],
+    'grantsDeleteAccessTo': [ORG_ADMINS],
+    'grantsUpdateAccessTo': [ORG_ADMINS]
     }
 
     # patch http://acme.org/o/acme permissions (fail)
@@ -286,9 +286,9 @@ def main():
             'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'governs': 
                 {'_self': 'http://apigee.com/o/acme%s' % item,
-                'updaters': [BUSINESS_USERS],
-                'creators': [BUSINESS_USERS],
-                'deleters': [BUSINESS_USERS]
+                'grantsUpdateAccessTo': [BUSINESS_USERS],
+                'grantsCreateAccessTo': [BUSINESS_USERS],
+                'grantsDeleteAccessTo': [BUSINESS_USERS]
                 }
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
@@ -302,9 +302,9 @@ def main():
         'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
         'governs': 
             {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
-            'updaters': [BUSINESS_USERS, ORDINARY_USERS],
-            'creators': [BUSINESS_USERS, ORDINARY_USERS],
-            'deleters': [BUSINESS_USERS, ORDINARY_USERS]
+            'grantsUpdateAccessTo': [BUSINESS_USERS, ORDINARY_USERS],
+            'grantsCreateAccessTo': [BUSINESS_USERS, ORDINARY_USERS],
+            'grantsDeleteAccessTo': [BUSINESS_USERS, ORDINARY_USERS]
             }
         }
     r = requests.post(permissions_url, headers=headers, json=permissions)
