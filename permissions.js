@@ -54,7 +54,7 @@ function collateAllowedActions(permissionsObject, actors) {
   return allowedActions;
 }
 
-function isActionAllowed(permissionsObject, actors, action) {
+function isActionAllowed(permissionsObject, actors, action, property) {
   var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
   var allowedActors = permissionsObject[actionProperty];
   if (allowedActors !== undefined) {
@@ -93,11 +93,11 @@ function withPermissionsDo(req, res, resource, callback) {
   }
 }
 
-function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, callback) {
+function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, property, callback) {
   var recursionSet = {};
   function ifActorsAllowedDo(actors, resource, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
-      var allowed = isActionAllowed(subjectIsPermission ? permissions : permissions.governs, actors, action);
+      var allowed = isActionAllowed(subjectIsPermission ? permissions : permissions.governs, actors, action, property);
       if (allowed) {
         callback(true);
       } else {
@@ -168,6 +168,7 @@ function isAllowed(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var user = queryParts.user;
   var action = queryParts.action;
+  var property = queryParts.property;
   if (action !== undefined && queryParts.resource !== undefined && user == lib.getUser(req)) {
     var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource];
     resources = resources.map(x => lib.internalizeURL(x));
@@ -182,7 +183,7 @@ function isAllowed(req, res, queryString) {
         subjectIsPermission = true;
         resource = resourceParts.search.substring(1);
       }
-      withPermissionFlagDo(req, res, resource, action, subjectIsPermission, function(answer) {
+      withPermissionFlagDo(req, res, resource, action, subjectIsPermission, property, function(answer) {
         if (!responded) {
           if (++count == resources.length) {
             lib.found(req, res, answer && result);
@@ -241,7 +242,7 @@ function inheritsPermissionsFrom(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
   var permissionsResource = '/permissions?' + resource;
-  withPermissionFlagDo(req, res, permissionsResource, 'read', true, function(answer) {
+  withPermissionFlagDo(req, res, permissionsResource, 'read', true, null, function(answer) {
     if (answer) {
       var sharingSet = queryParts.sharingSet;
       var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet];

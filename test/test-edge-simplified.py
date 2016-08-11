@@ -130,6 +130,8 @@ def main():
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
 
+    # Create Acme Ordinary Users team
+
     team = {
         'isA': 'Team',
         'name': 'Acme Ordinary Users',
@@ -154,7 +156,7 @@ def main():
         if all(item in server_permission.items() for item in permissions.items()):
             if ('Etag' in r.headers):
                 ACME_ORG_IF_MATCH = r.headers['Etag']
-                print 'correctly retrieved permissions'
+                print 'correctly retrieved permissions with etag %s' % ACME_ORG_IF_MATCH
             else:
                 print 'failed to provide etag in create response'
         else:
@@ -162,8 +164,6 @@ def main():
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
         return
-
-    # Patch Acme org permissions to use team
 
     permissions_patch = {
     'governs': 
@@ -178,13 +178,17 @@ def main():
     'updaters': [ORG_ADMINS]
     }
 
+    # patch http://acme.org/o/acme permissions (fail)
+
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 400:
         print 'correctly refused to patch permissions without If-Match header' 
     else:
-        print 'failed to patch permissions %s %s' % (r.status_code, r.text)
+        print 'failed to refuse to patch permissions without If-Match header %s %s' % (r.status_code, r.text)
         return
     
+    # patch http://acme.org/o/acme permissions (succeed)
+
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 200:
@@ -293,23 +297,23 @@ def main():
         else:
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
-    sharingSets = ['/keyvaluemaps']    
-    for item in sharingSets:
-        permissions = {
-            'isA': 'Permissions',
-            'governs': 
-                {'_self': 'http://apigee.com/o/acme%s' % item,
-                'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-                'updaters': [BUSINESS_USERS, ORDINARY_USERS],
-                'creators': [BUSINESS_USERS, ORDINARY_USERS],
-                'deleters': [BUSINESS_USERS, ORDINARY_USERS]
-                }
+    permissions = {
+        'isA': 'Permissions',
+        'governs': 
+            {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
+            'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
+            'updaters': [BUSINESS_USERS, ORDINARY_USERS],
+            'creators': [BUSINESS_USERS, ORDINARY_USERS],
+            'deleters': [BUSINESS_USERS, ORDINARY_USERS]
             }
-        r = requests.post(permissions_url, headers=headers, json=permissions)
-        if r.status_code == 201:
-            print 'correctly created permission' 
-        else:
-            print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
+        }
+    r = requests.post(permissions_url, headers=headers, json=permissions)
+    if r.status_code == 201:
+        print 'correctly created permission' 
+        etag = r.headers['Etag']
+        keyvaluemaps_url = r.headers['Location']
+    else:
+        print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
     # Retrieve allowed actions
 
@@ -325,6 +329,20 @@ def main():
     else:
         print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
 
+    permissions_patch = {
+    'governs': 
+        {'inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']
+        },
+    }
 
+    patch_headers = {'If-Match': etag}
+    patch_headers.update(headers)
+    r = requests.patch(keyvaluemaps_url, headers=patch_headers, json=permissions_patch)
+    if r.status_code == 200:
+        print 'correctly patched permissions of %s' % keyvaluemaps_url
+    else:
+        print 'failed to patch permissions %s %s' % (r.status_code, r.text)
+        return
+    
 if __name__ == '__main__':
     main()
