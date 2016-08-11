@@ -101,7 +101,7 @@ function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, pr
       if (allowed) {
         callback(true);
       } else {
-        var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
+        var inheritsPermissionsOf = permissions.inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
           inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
           if (inheritsPermissionsOf.length > 0) {
@@ -134,7 +134,7 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
   function withActorsAllowedActionsDo(req, res, actors, resource, subjectIsPermission, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
       var actions = collateAllowedActions(subjectIsPermission ? permissions : permissions.governs, actors);
-      var inheritsPermissionsOf = permissions.governs.inheritsPermissionsOf;
+      var inheritsPermissionsOf = permissions.inheritsPermissionsOf;
       if (inheritsPermissionsOf !== undefined) {
         inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
         if (inheritsPermissionsOf.length > 0) {
@@ -164,7 +164,6 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
 }
 
 function isAllowed(req, res, queryString) {
-  console.log('\n\npermissions:isAllowed\n\n')
   var queryParts = querystring.parse(queryString);
   var user = queryParts.user;
   var action = queryParts.action;
@@ -208,7 +207,7 @@ function withInheritsPermissionsFrom(req, res, resource, sharingSets, callback) 
     for (var i=0; i < sharingSets.length; i++) {
       withPermissionsDo(req, res, sharingSets[i], function(permissions) {
         if (!responded) {
-          var sharingSets = permissions.governs.sharingSets;
+          var sharingSets = permissions.inheritsPermissionsOf;
           if (sharingSets !== undefined && sharingSets.length > 0) {
             if (sharingSets.indexOf(resource) > -1) { // reply true
               responded = true;

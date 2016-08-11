@@ -100,7 +100,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Org admins',
-        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
+        'permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 
@@ -118,7 +118,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Business Users',
-        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
+        'permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},
         'members': [USER2] 
         }
     url = 'http://localhost:8080' + '/teams' 
@@ -135,7 +135,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Ordinary Users',
-        'permissions': {'governs': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
+        'permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},
         'members': [USER3] 
         }
     url = 'http://localhost:8080' + '/teams' 
@@ -268,9 +268,9 @@ def main():
     for item in sharingSets:
         permissions = {
             'isA': 'Permissions',
+            'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'governs': 
-                {'_self': 'http://apigee.com/o/acme%s' % item,
-                'inheritsPermissionsOf': ['http://apigee.com/o/acme']
+                {'_self': 'http://apigee.com/o/acme%s' % item
                 }
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
@@ -283,9 +283,9 @@ def main():
     for item in sharingSets:
         permissions = {
             'isA': 'Permissions',
+            'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'governs': 
                 {'_self': 'http://apigee.com/o/acme%s' % item,
-                'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
                 'updaters': [BUSINESS_USERS],
                 'creators': [BUSINESS_USERS],
                 'deleters': [BUSINESS_USERS]
@@ -293,15 +293,15 @@ def main():
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
         if r.status_code == 201:
-            print 'correctly created permission' 
+            print 'correctly created permission %s' % r.headers['Location']
         else:
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
     permissions = {
         'isA': 'Permissions',
+        'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
         'governs': 
             {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
-            'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'updaters': [BUSINESS_USERS, ORDINARY_USERS],
             'creators': [BUSINESS_USERS, ORDINARY_USERS],
             'deleters': [BUSINESS_USERS, ORDINARY_USERS]
@@ -309,7 +309,7 @@ def main():
         }
     r = requests.post(permissions_url, headers=headers, json=permissions)
     if r.status_code == 201:
-        print 'correctly created permission' 
+        print 'correctly created permission %s' % r.headers['Location'] 
         etag = r.headers['Etag']
         keyvaluemaps_url = r.headers['Location']
     else:
@@ -330,10 +330,8 @@ def main():
         print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
 
     permissions_patch = {
-    'governs': 
-        {'inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']
-        },
-    }
+        'inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']
+        }
 
     patch_headers = {'If-Match': etag}
     patch_headers.update(headers)
