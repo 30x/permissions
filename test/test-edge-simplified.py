@@ -111,8 +111,8 @@ def main():
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
-        print 'correctly created team'
         ORG_ADMINS = r.headers['location']
+        print 'correctly created ORG_ADMINS team %s' % ORG_ADMINS
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
         return
