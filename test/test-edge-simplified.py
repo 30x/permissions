@@ -171,10 +171,12 @@ def main():
         return
 
     permissions_patch = {
-        'grantsReadAccessTo': [ORG_ADMINS],
-        'grantsUpdateAccessTo': [ORG_ADMINS],
-        '_governs': 
-            {'_self': 'http://apigee.com/o/acme',
+        '_permissions': {
+            'grantsReadAccessTo': [ORG_ADMINS],
+            'grantsUpdateAccessTo': [ORG_ADMINS]
+            },
+        '_governs': { 
+            '_self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [ORG_ADMINS],
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'grantsDeleteAccessTo': [ORG_ADMINS],
@@ -210,18 +212,21 @@ def main():
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get(org_permissions, headers=headers, json=permissions)
     if r.status_code == 200:
-        server_permission = r.json()
-        if all(item in server_permission.items() for item in permissions_patch.items()):
-            print 'correctly retrieved permissions'
-        else:
-            print 'retrieved permissions but comparison failed %s' % r.text
+        server_permissions = r.json()
+        for key, value in permissions_patch.iteritems():
+            for n_key, n_value in value.iteritems():
+                if server_permissions[key][n_key] != n_value:
+                    print 'retrieved permissions but comparison failed. keys: %s %s server value: %s\n patch value: %s\n server_permissions: %s\n patch: %s' % \
+                        (key, n_key, server_permissions[key][n_key], n_value, json.dumps(server_permissions, indent=2),  json.dumps(permissions_patch, indent=2))
+                    return
+        print 'correctly retrieved permissions'
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
     
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN2}
     r = requests.get(org_permissions, headers=headers, json=permissions)
     if r.status_code == 403:
-        server_permission = r.json()
+        server_permissions = r.json()
         print 'correctly refused to retrieve permissions for USER2'
     else:
         print 'failed to refuse permissions %s %s' % (r.status_code, r.text)
