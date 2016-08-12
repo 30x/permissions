@@ -49,7 +49,7 @@ def main():
             'grantsReadAccessTo': [USER1],
             'grantsDeleteAccessTo': [USER1]
             },
-        'permissionsHeirs': {
+        '_permissionsHeirs': {
             'grantsAddAccessTo': [USER1],
             'grantsReadAccessTo': [USER1],
             'grantsRemoveAccessTo': [USER1]
@@ -176,7 +176,7 @@ def main():
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'grantsDeleteAccessTo': [ORG_ADMINS],
             },
-        'permissionsHeirs': {
+        '_permissionsHeirs': {
             'grantsAddAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'grantsRemoveAccessTo': [ORG_ADMINS]
