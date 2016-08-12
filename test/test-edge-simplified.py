@@ -43,7 +43,7 @@ def main():
         'isA': 'Permissions',
         'grantsReadAccessTo': [USER1],
         'grantsUpdateAccessTo': [USER1],     
-        'governs': 
+        '_governs': 
             {'_self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [USER1],
             'grantsReadAccessTo': [USER1],
@@ -170,7 +170,7 @@ def main():
     permissions_patch = {
         'grantsReadAccessTo': [ORG_ADMINS],
         'grantsUpdateAccessTo': [ORG_ADMINS],
-        'governs': 
+        '_governs': 
             {'_self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [ORG_ADMINS],
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
@@ -274,7 +274,7 @@ def main():
         permissions = {
             'isA': 'Permissions',
             'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-            'governs': 
+            '_governs': 
                 {'_self': 'http://apigee.com/o/acme%s' % item
                 }
             }
@@ -289,7 +289,7 @@ def main():
         permissions = {
             'isA': 'Permissions',
             'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-            'governs': 
+            '_governs': 
                 {'_self': 'http://apigee.com/o/acme%s' % item,
                 'grantsAddAcessTo': [BUSINESS_USERS],
                 'grantsRemoveAcessTo': [BUSINESS_USERS]
@@ -304,7 +304,7 @@ def main():
     permissions = {
         'isA': 'Permissions',
         'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-        'governs': 
+        '_governs': 
             {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
             'grantsAddAcessTo': [BUSINESS_USERS, ORDINARY_USERS],
             'grantsRemoveAcessTo': [BUSINESS_USERS, ORDINARY_USERS]

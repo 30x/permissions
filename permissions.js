@@ -10,7 +10,7 @@ var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
 
-var OPERATIONPROPERTIES = ['grantsCreateAcessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAcessTo', 'grantsAddAccessTo', 'grantsRemoveAccessTo'];
+var OPERATIONPROPERTIES = ['grantsCreateAcessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAccessTo', 'grantsAddAccessTo', 'grantsRemoveAccessTo'];
 var OPERATIONS = ['create', 'read', 'update', 'delete', 'add', 'remove'];
 
 function withTeamsDo(req, res, user, callback) {
@@ -20,8 +20,8 @@ function withTeamsDo(req, res, user, callback) {
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
-  var user = queryParts.user
-  var property = queryParts.property
+  var user = queryParts.user;
+  var property = queryParts.property || '_governs';
   if (user == lib.getUser(req)) { 
     withAllowedActionsDo(req, res, resource, property, function(allowedActions) {
       lib.found(req, res, allowedActions);
@@ -32,22 +32,24 @@ function getAllowedActions(req, res, queryString) {
 }
 
 function collateAllowedActions(permissionsObject, property, actors) {
-  permissionsObject = property == 'permissions' ? permissionsObject : property == null ? permissionsObject.governs : permissionsObject[property];
-  var allowedActions = {};
-  for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
-    var actionProperty = OPERATIONPROPERTIES[i];
-    var allowedActors = permissionsObject[actionProperty];
-    if (allowedActors !== undefined) {
-      if (allowedActors.indexOf(INCOGNITO) > -1) { 
-        allowedActions[OPERATIONS[i]] = true;
-      } else if (actors !== null) {
-        if (allowedActors.indexOf(ANYONE) > -1) {
-          allowedActions[OPERATIONS[i]] = true;          
-        } else {
-          for (var j=0; j<actors.length; j++) {
-            var user = actors[j];
-            if (allowedActors.indexOf(user) > -1 ) { 
-              allowedActions[OPERATIONS[i]] = true;
+  permissionsObject = property == 'permissions' ? permissionsObject : permissionsObject[property];
+  if (permissionsObject !== undefined) {
+    var allowedActions = {};
+    for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
+      var actionProperty = OPERATIONPROPERTIES[i];
+      var allowedActors = permissionsObject[actionProperty];
+      if (allowedActors !== undefined) {
+        if (allowedActors.indexOf(INCOGNITO) > -1) { 
+          allowedActions[OPERATIONS[i]] = true;
+        } else if (actors !== null) {
+          if (allowedActors.indexOf(ANYONE) > -1) {
+            allowedActions[OPERATIONS[i]] = true;          
+          } else {
+            for (var j=0; j<actors.length; j++) {
+              var user = actors[j];
+              if (allowedActors.indexOf(user) > -1 ) { 
+                allowedActions[OPERATIONS[i]] = true;
+              }
             }
           }
         }
@@ -58,7 +60,7 @@ function collateAllowedActions(permissionsObject, property, actors) {
 }
 
 function isActionAllowed(permissionsObject, property, actors, action) {
-  permissionsObject = property == 'permissions' ? permissionsObject : property == null ? permissionsObject.governs : permissionsObject[property];
+  permissionsObject = property == 'permissions' ? permissionsObject : permissionsObject[property];
   if (permissionsObject !== undefined) {
     var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
     var allowedActors = permissionsObject[actionProperty];
@@ -241,7 +243,7 @@ function withInheritsPermissionsFrom(req, res, resource, sharingSets, callback) 
 function inheritsPermissionsFrom(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
-  withPermissionFlagDo(req, res, resource, 'permissions', 'read', null, function(answer) {
+  withPermissionFlagDo(req, res, resource, 'permissions', 'read', function(answer) {
     if (answer) {
       var sharingSet = queryParts.sharingSet;
       var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet];
