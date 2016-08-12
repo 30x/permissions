@@ -40,9 +40,11 @@ with open('token3.txt') as f:
 def main():
     
     permissions = {
-        'isA': 'Permissions',
-        'grantsReadAccessTo': [USER1],
-        'grantsUpdateAccessTo': [USER1],     
+        '_permissions': 
+            {'isA': 'Permissions',
+            'grantsReadAccessTo': [USER1],
+            'grantsUpdateAccessTo': [USER1]
+            },     
         '_governs': 
             {'_self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [USER1],
@@ -102,7 +104,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Org admins',
-        'permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},
+        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 
@@ -120,7 +122,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Business Users',
-        'permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},
+        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER2] 
         }
     url = 'http://localhost:8080' + '/teams' 
@@ -137,7 +139,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Ordinary Users',
-        'permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},
+        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER3] 
         }
     url = 'http://localhost:8080' + '/teams' 
@@ -152,17 +154,18 @@ def main():
     # Retrieve permissions for Acme org
 
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
-    r = requests.get(org_permissions, headers=headers, json=permissions)
+    r = requests.get(org_permissions, headers=headers)
     if r.status_code == 200:
-        server_permission = r.json()
-        if all(item in server_permission.items() for item in permissions.items()):
-            if ('Etag' in r.headers):
-                ACME_ORG_IF_MATCH = r.headers['Etag']
-                print 'correctly retrieved permissions with etag %s' % ACME_ORG_IF_MATCH
-            else:
-                print 'failed to provide etag in create response'
+        server_permissions = r.json()
+        for key, value in permissions.iteritems():
+            for n_key, n_value in value.iteritems():
+                if server_permissions[key][n_key] != n_value:
+                    return 'retrieved permissions but comparison failed: %s' % json.dumps(server_permissions, indent=2)
+        if ('Etag' in r.headers):
+            ACME_ORG_IF_MATCH = r.headers['Etag']
+            print 'correctly retrieved permissions with etag %s' % ACME_ORG_IF_MATCH
         else:
-            print 'retrieved permissions but comparison failed'
+            print 'failed to provide etag in create response'
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
         return
@@ -272,8 +275,10 @@ def main():
     sharingSets = ['/appkeys', '/applications', '/deployments', 'devConnectUser', '/devPortalButton',]    
     for item in sharingSets:
         permissions = {
-            'isA': 'Permissions',
-            'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
+            '_permissions' : {
+                'isA': 'Permissions',
+                'inheritsPermissionsOf': ['http://apigee.com/o/acme']
+                },
             '_governs': 
                 {'_self': 'http://apigee.com/o/acme%s' % item
                 }
@@ -287,8 +292,10 @@ def main():
     sharingSets = ['/apiproducts', '/apps', '/axCustomReports', '/companies', '/developers', '/reports']    
     for item in sharingSets:
         permissions = {
-            'isA': 'Permissions',
-            'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
+            '_permissions' : {
+                'isA': 'Permissions',
+                'inheritsPermissionsOf': ['http://apigee.com/o/acme']
+                },
             '_governs': 
                 {'_self': 'http://apigee.com/o/acme%s' % item,
                 'grantsAddAcessTo': [BUSINESS_USERS],
@@ -302,8 +309,10 @@ def main():
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
     permissions = {
-        'isA': 'Permissions',
-        'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
+        '_permissions' : {
+            'isA': 'Permissions',
+            'inheritsPermissionsOf': ['http://apigee.com/o/acme']
+            },
         '_governs': 
             {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
             'grantsAddAcessTo': [BUSINESS_USERS, ORDINARY_USERS],
@@ -333,9 +342,7 @@ def main():
     else:
         print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
 
-    permissions_patch = {
-        'inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']
-        }
+    permissions_patch = {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']}}
 
     patch_headers = {'If-Match': etag}
     patch_headers.update(headers)

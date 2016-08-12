@@ -32,7 +32,7 @@ function getAllowedActions(req, res, queryString) {
 }
 
 function collateAllowedActions(permissionsObject, property, actors) {
-  permissionsObject = property == 'permissions' ? permissionsObject : permissionsObject[property];
+  permissionsObject = permissionsObject[property];
   if (permissionsObject !== undefined) {
     var allowedActions = {};
     for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
@@ -60,7 +60,7 @@ function collateAllowedActions(permissionsObject, property, actors) {
 }
 
 function isActionAllowed(permissionsObject, property, actors, action) {
-  permissionsObject = property == 'permissions' ? permissionsObject : permissionsObject[property];
+  permissionsObject = permissionsObject[property];
   if (permissionsObject !== undefined) {
     var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
     var allowedActors = permissionsObject[actionProperty];
@@ -109,7 +109,7 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
       if (allowed) {
         callback(true);
       } else {
-        var inheritsPermissionsOf = permissions.inheritsPermissionsOf;
+        var inheritsPermissionsOf = permissions._permissions.inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
           inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
           if (inheritsPermissionsOf.length > 0) {
@@ -142,7 +142,7 @@ function withAllowedActionsDo(req, res, resource, property, callback) {
   function withActorsAllowedActionsDo(req, res, actors, resource, property, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
       var actions = collateAllowedActions(permissions, property, actors);
-      var inheritsPermissionsOf = permissions.inheritsPermissionsOf;
+      var inheritsPermissionsOf = permissions._permissions.inheritsPermissionsOf;
       if (inheritsPermissionsOf !== undefined) {
         inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
         if (inheritsPermissionsOf.length > 0) {
@@ -210,7 +210,7 @@ function withInheritsPermissionsFrom(req, res, resource, sharingSets, callback) 
     for (var i=0; i < sharingSets.length; i++) {
       withPermissionsDo(req, res, sharingSets[i], function(permissions) {
         if (!responded) {
-          var sharingSets = permissions.inheritsPermissionsOf;
+          var sharingSets = permissions._permissions.inheritsPermissionsOf;
           if (sharingSets !== undefined && sharingSets.length > 0) {
             if (sharingSets.indexOf(resource) > -1) { // reply true
               responded = true;
@@ -243,7 +243,7 @@ function withInheritsPermissionsFrom(req, res, resource, sharingSets, callback) 
 function inheritsPermissionsFrom(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
-  withPermissionFlagDo(req, res, resource, 'permissions', 'read', function(answer) {
+  withPermissionFlagDo(req, res, resource, '_permissions', 'read', function(answer) {
     if (answer) {
       var sharingSet = queryParts.sharingSet;
       var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet];
@@ -258,7 +258,7 @@ function inheritsPermissionsFrom(req, res, queryString) {
 }
 
 function primProcessEvent(event) {
-  if (event.topic == 'permissions') {
+  if (event.topic == '_permissions') {
     delete permissionsCache[lib.internalizeURL(event.data.subject)];
   }  
 }
