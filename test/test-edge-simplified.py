@@ -40,19 +40,21 @@ with open('token3.txt') as f:
 def main():
     
     permissions = {
-    'isA': 'Permissions',
-    'governs': 
-        {'_self': 'http://apigee.com/o/acme',
-        'grantsUpdateAccessTo': [USER1],
+        'isA': 'Permissions',
         'grantsReadAccessTo': [USER1],
-        'grantsDeleteAccessTo': [USER1],
-        'grantsCreateAccessTo': [USER1]
-        },
-    'grantsReadAccessTo': [USER1],
-    'grantsDeleteAccessTo': [USER1],
-    'grantsUpdateAccessTo': [USER1],     
-    'grantsCreateAccessTo': [USER1]     
-    }
+        'grantsUpdateAccessTo': [USER1],     
+        'governs': 
+            {'_self': 'http://apigee.com/o/acme',
+            'grantsUpdateAccessTo': [USER1],
+            'grantsReadAccessTo': [USER1],
+            'grantsDeleteAccessTo': [USER1]
+            },
+        'permissionsHeirs': {
+            'grantsAddAccessTo': [USER1],
+            'grantsReadAccessTo': [USER1],
+            'grantsRemoveAccessTo': [USER1]
+            }
+        }
     permissions_url = 'http://localhost:8080/permissions' 
     
     # Create permissions for Acme org (succeed)
@@ -88,7 +90,7 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         actions = r.json()
-        if all([item in actions for item in ['create', 'read', 'update', 'delete']]):
+        if all([item in actions for item in ['read', 'update', 'delete']]):
             print 'correctly returned allowed actions of http://apigee.com/o/acme for USER1 after update of permissions to use team' 
         else:
             print 'incorrect returned actions of http://apigee.com/o/acme for USER1 %s' % actions
@@ -166,17 +168,20 @@ def main():
         return
 
     permissions_patch = {
-    'governs': 
-        {'_self': 'http://apigee.com/o/acme',
+        'grantsReadAccessTo': [ORG_ADMINS],
         'grantsUpdateAccessTo': [ORG_ADMINS],
-        'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
-        'grantsDeleteAccessTo': [ORG_ADMINS],
-        'grantsCreateAccessTo': [ORG_ADMINS]
-        },
-    'grantsReadAccessTo': [ORG_ADMINS],
-    'grantsDeleteAccessTo': [ORG_ADMINS],
-    'grantsUpdateAccessTo': [ORG_ADMINS]
-    }
+        'governs': 
+            {'_self': 'http://apigee.com/o/acme',
+            'grantsUpdateAccessTo': [ORG_ADMINS],
+            'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
+            'grantsDeleteAccessTo': [ORG_ADMINS],
+            },
+        'permissionsHeirs': {
+            'grantsAddAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
+            'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
+            'grantsRemoveAccessTo': [ORG_ADMINS]
+            }
+        }
 
     # patch http://acme.org/o/acme permissions (fail)
 
@@ -240,7 +245,7 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         actions = r.json()
-        if all([item in actions for item in ['create', 'read', 'update', 'delete']]):
+        if all([item in actions for item in ['read', 'update', 'delete']]):
             print 'correctly returned allowed actions of http://apigee.com/o/acme for USER1 after update of permissions to use team' 
         else:
             print 'incorrect returned actions of http://apigee.com/o/acme for USER1 %s' % actions
@@ -286,10 +291,9 @@ def main():
             'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'governs': 
                 {'_self': 'http://apigee.com/o/acme%s' % item,
-                'grantsUpdateAccessTo': [BUSINESS_USERS],
-                'grantsCreateAccessTo': [BUSINESS_USERS],
-                'grantsDeleteAccessTo': [BUSINESS_USERS]
-                }
+                'grantsAddAcessTo': [BUSINESS_USERS],
+                'grantsRemoveAcessTo': [BUSINESS_USERS]
+                },
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
         if r.status_code == 201:
@@ -302,11 +306,11 @@ def main():
         'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
         'governs': 
             {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
-            'grantsUpdateAccessTo': [BUSINESS_USERS, ORDINARY_USERS],
-            'grantsCreateAccessTo': [BUSINESS_USERS, ORDINARY_USERS],
-            'grantsDeleteAccessTo': [BUSINESS_USERS, ORDINARY_USERS]
+            'grantsAddAcessTo': [BUSINESS_USERS, ORDINARY_USERS],
+            'grantsRemoveAcessTo': [BUSINESS_USERS, ORDINARY_USERS]
             }
         }
+
     r = requests.post(permissions_url, headers=headers, json=permissions)
     if r.status_code == 201:
         print 'correctly created permission %s' % r.headers['Location'] 

@@ -9,8 +9,9 @@ var pge = require('pg-event-consumer');
 var PROTOCOL = process.env.PROTOCOL || 'http:';
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
-var OPERATIONPROPERTIES = ['grantsCreateAccessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAccessTo'];
-var OPERATIONS = ['create', 'read', 'update', 'delete'];
+
+var OPERATIONPROPERTIES = ['grantsCreateAcessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAcessTo', 'grantsAddAccessTo', 'grantsRemoveAccessTo'];
+var OPERATIONS = ['create', 'read', 'update', 'delete', 'add', 'remove'];
 
 function withTeamsDo(req, res, user, callback) {
   return lib.withTeamsDo(req, res, user, callback)
@@ -20,8 +21,9 @@ function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
   var user = queryParts.user
+  var property = queryParts.property
   if (user == lib.getUser(req)) { 
-    withAllowedActionsDo(req, res, resource, false, function(allowedActions) {
+    withAllowedActionsDo(req, res, resource, property, function(allowedActions) {
       lib.found(req, res, allowedActions);
     });
   } else {
@@ -29,7 +31,8 @@ function getAllowedActions(req, res, queryString) {
   }
 }
 
-function collateAllowedActions(permissionsObject, actors) {
+function collateAllowedActions(permissionsObject, property, actors) {
+  permissionsObject = property == 'permissions' ? permissionsObject : property == null ? permissionsObject.governs : permissionsObject[property];
   var allowedActions = {};
   for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
     var actionProperty = OPERATIONPROPERTIES[i];
@@ -54,20 +57,23 @@ function collateAllowedActions(permissionsObject, actors) {
   return allowedActions;
 }
 
-function isActionAllowed(permissionsObject, actors, action, property) {
-  var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
-  var allowedActors = permissionsObject[actionProperty];
-  if (allowedActors !== undefined) {
-    if (allowedActors.indexOf(INCOGNITO) > -1) { 
-      return true;
-    } else if (actors !== null) {
-      if (allowedActors.indexOf(ANYONE) > -1) {
+function isActionAllowed(permissionsObject, property, actors, action) {
+  permissionsObject = property == 'permissions' ? permissionsObject : property == null ? permissionsObject.governs : permissionsObject[property];
+  if (permissionsObject !== undefined) {
+    var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
+    var allowedActors = permissionsObject[actionProperty];
+    if (allowedActors !== undefined) {
+      if (allowedActors.indexOf(INCOGNITO) > -1) { 
         return true;
-      } else {
-        for (var j=0; j<actors.length; j++) {
-          var actor = actors[j];
-          if (allowedActors.indexOf(actor) > -1 ) {
-            return true;
+      } else if (actors !== null) {
+        if (allowedActors.indexOf(ANYONE) > -1) {
+          return true;
+        } else {
+          for (var j=0; j<actors.length; j++) {
+            var actor = actors[j];
+            if (allowedActors.indexOf(actor) > -1 ) {
+              return true;
+            }
           }
         }
       }
@@ -93,11 +99,11 @@ function withPermissionsDo(req, res, resource, callback) {
   }
 }
 
-function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, property, callback) {
+function withPermissionFlagDo(req, res, subject, property, action, callback) {
   var recursionSet = {};
   function ifActorsAllowedDo(actors, resource, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
-      var allowed = isActionAllowed(subjectIsPermission ? permissions : permissions.governs, actors, action, property);
+      var allowed = isActionAllowed(permissions, property, actors, action, property);
       if (allowed) {
         callback(true);
       } else {
@@ -129,18 +135,18 @@ function withPermissionFlagDo(req, res, subject, action, subjectIsPermission, pr
   });
 }
 
-function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback) {
+function withAllowedActionsDo(req, res, resource, property, callback) {
   var recursionSet = {};
-  function withActorsAllowedActionsDo(req, res, actors, resource, subjectIsPermission, callback) {
+  function withActorsAllowedActionsDo(req, res, actors, resource, property, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
-      var actions = collateAllowedActions(subjectIsPermission ? permissions : permissions.governs, actors);
+      var actions = collateAllowedActions(permissions, property, actors);
       var inheritsPermissionsOf = permissions.inheritsPermissionsOf;
       if (inheritsPermissionsOf !== undefined) {
         inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
         if (inheritsPermissionsOf.length > 0) {
           var count = 0;
           for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-            withActorsAllowedActionsDo(req, res, actors, resource, actions, subjectIsPermission, function(nestedActions) {
+            withActorsAllowedActionsDo(req, res, actors, resource, property, function(nestedActions) {
               Object.assign(actions, nestedActions);
               if (++count == inheritsPermissionsOf.length) {
                 callback(actions);
@@ -157,7 +163,7 @@ function withAllowedActionsDo(req, res, resource, subjectIsPermission, callback)
   }
   var user = lib.getUser(req);
   withTeamsDo(req, res, user, function(actors) {  
-    withActorsAllowedActionsDo(req, res, actors, resource, subjectIsPermission, function(actions) {
+    withActorsAllowedActionsDo(req, res, actors, resource, property, function(actions) {
       callback(Object.keys(actions));
     });
   });
@@ -177,12 +183,7 @@ function isAllowed(req, res, queryString) {
     for (var i = 0; i< resources.length; i++) {
       var resource = resources[i];
       var resourceParts = url.parse(resource);
-      var subjectIsPermission = false;
-      if (resourceParts.pathname == '/permissions' && resourceParts.search != null) {
-        subjectIsPermission = true;
-        resource = resourceParts.search.substring(1);
-      }
-      withPermissionFlagDo(req, res, resource, action, subjectIsPermission, property, function(answer) {
+      withPermissionFlagDo(req, res, resource, property, action, function(answer) {
         if (!responded) {
           if (++count == resources.length) {
             lib.found(req, res, answer && result);
@@ -240,8 +241,7 @@ function withInheritsPermissionsFrom(req, res, resource, sharingSets, callback) 
 function inheritsPermissionsFrom(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
-  var permissionsResource = '/permissions?' + resource;
-  withPermissionFlagDo(req, res, permissionsResource, 'read', true, null, function(answer) {
+  withPermissionFlagDo(req, res, resource, 'permissions', 'read', null, function(answer) {
     if (answer) {
       var sharingSet = queryParts.sharingSet;
       var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet];
