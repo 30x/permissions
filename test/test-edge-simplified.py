@@ -45,7 +45,7 @@ def main():
             'grantsReadAccessTo': [USER1],
             'grantsUpdateAccessTo': [USER1]
             },     
-        '_governs': 
+        '_resource': 
             {'_self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [USER1],
             'grantsReadAccessTo': [USER1],
@@ -175,7 +175,7 @@ def main():
             'grantsReadAccessTo': [ORG_ADMINS],
             'grantsUpdateAccessTo': [ORG_ADMINS]
             },
-        '_governs': { 
+        '_resource': { 
             '_self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [ORG_ADMINS],
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
@@ -284,7 +284,7 @@ def main():
                 'isA': 'Permissions',
                 'inheritsPermissionsOf': ['http://apigee.com/o/acme']
                 },
-            '_governs': 
+            '_resource': 
                 {'_self': 'http://apigee.com/o/acme%s' % item
                 }
             }
@@ -301,7 +301,7 @@ def main():
                 'isA': 'Permissions',
                 'inheritsPermissionsOf': ['http://apigee.com/o/acme']
                 },
-            '_governs': 
+            '_resource': 
                 {'_self': 'http://apigee.com/o/acme%s' % item,
                 'grantsAddAcessTo': [BUSINESS_USERS],
                 'grantsRemoveAcessTo': [BUSINESS_USERS]
@@ -318,7 +318,7 @@ def main():
             'isA': 'Permissions',
             'inheritsPermissionsOf': ['http://apigee.com/o/acme']
             },
-        '_governs': 
+        '_resource': 
             {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
             'grantsAddAcessTo': [BUSINESS_USERS, ORDINARY_USERS],
             'grantsRemoveAcessTo': [BUSINESS_USERS, ORDINARY_USERS]

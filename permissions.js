@@ -21,7 +21,7 @@ function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
   var user = queryParts.user;
-  var property = queryParts.property || '_governs';
+  var property = queryParts.property || '_resource';
   if (user == lib.getUser(req)) { 
     withAllowedActionsDo(req, res, resource, property, function(allowedActions) {
       lib.found(req, res, allowedActions);
