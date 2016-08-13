@@ -1,39 +1,39 @@
 'use strict';
 var Pool = require('pg').Pool;
+var pge = require('pg-event-producer');
 
 var config = {
-  host: 'localhost',
-  user: 'martinnally',
-  password: 'martinnally',
-  database: 'permissions',
+  host: process.env.PG_HOST || 'localhost',
+  user: process.env.PG_USER,
+  password: process.env.PG_PASSWORD,
+  database: process.env.PG_DATABASE
 };
 
-process.on('unhandledRejection', function(e) {
-  console.log(e.message, e.stack)
-})
+var pool = new Pool(config);
+var eventProducer = new pge.eventProducer(pool);
 
-var pool = new Pool(config)
+function dropTableThen(eventTopic, table, callback) {
+  var query = `DROP TABLE IF EXISTS ${table}`;
+  function eventData(pgResult) {
+    return {subject: null, action: 'deleteAll'}
+  }
+  pge.queryAndStoreEvent({headers:{}}, null, pool, query, eventTopic, eventData, eventProducer, function(pgResult, pgEventResult) {
+    callback();
+  });
+}
 
-pool.query('DROP TABLE IF EXISTS permissions', function(err, pg_res) {
-  if(err) console.error('error dropping permissions table', err);
-  else console.log('dropped table permissions')
-  pool.end()
+eventProducer.init(function(){
+  dropTableThen('permissions', 'permissions', function(err, pg_res) {
+    if(err) console.error('error dropping permissions table', err);
+    else console.log('dropped table permissions')
+    pool.end()
+  });
+
+  dropTableThen('teams', 'teams', function(err, pg_res) {
+    if(err) console.error('error dropping teams table', err);
+    else console.log('dropped table teams')
+    pool.end()
+  });
+
+  eventProducer.finalize();
 });
-
-pool.query('DROP TABLE IF EXISTS teams', function(err, pg_res) {
-  if(err) console.error('error dropping teams table', err);
-  else console.log('dropped table teams')
-  pool.end()
-})
-
-pool.query('DROP TABLE IF EXISTS events', function(err, pg_res) {
-  if(err) console.error('error dropping events table', err);
-  else console.log('dropped table events')
-  pool.end()
-})
-
-pool.query('DROP TABLE IF EXISTS caches', function(err, pg_res) {
-  if(err) console.error('error dropping caches table', err);
-  else console.log('dropped table caches')
-  pool.end()
-})

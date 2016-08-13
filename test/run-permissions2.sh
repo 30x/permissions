@@ -7,5 +7,4 @@ export PG_DATABASE="permissions"
 export COMPONENT="permissions"
 export SPEEDUP=10
 
-node test/drop.js
 node permissions.js

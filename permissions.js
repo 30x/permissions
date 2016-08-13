@@ -258,9 +258,19 @@ function inheritsPermissionsFrom(req, res, queryString) {
 }
 
 function primProcessEvent(event) {
-  if (event.topic == '_permissions') {
-    delete permissionsCache[lib.internalizeURL(event.data.subject)];
-  }  
+  if (event.topic == 'permissions') {
+    if (event.data.action == 'deleteAll') {
+      console.log(`permissions: primProcessEvent: event.topic: ${event.topic} event.data.action: deleteAll`);
+      permissionsCache = {}
+    } else {
+      console.log(`permissions: primProcessEvent: event.topic: ${event.topic} event.action: ${event.data.action} subject: ${event.data.subject}`);
+      delete permissionsCache[lib.internalizeURL(event.data.subject)];
+    }
+  } else if (event.topic == 'teams') {
+    console.log(`permissions: primProcessEvent: event.topic: ${event.topic} event.action: ${event.data.action}`);
+  } else {
+    console.log(`permissions: primProcessEvent: event.topic: ${event.topic} event.action: ${event.data.action}`);    
+  }
 }
 
 function processEvent(req, res, event) {
