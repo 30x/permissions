@@ -13,10 +13,6 @@ var INCOGNITO = 'http://apigee.com/users/incognito';
 var OPERATIONPROPERTIES = ['grantsCreateAcessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAccessTo', 'grantsAddAccessTo', 'grantsRemoveAccessTo'];
 var OPERATIONS = ['create', 'read', 'update', 'delete', 'add', 'remove'];
 
-function withTeamsDo(req, res, user, callback) {
-  return lib.withTeamsDo(req, res, user, callback)
-}
-
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
@@ -132,7 +128,7 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
     });
   }
   var user = lib.getUser(req);
-  withTeamsDo(req, res, user, function(actors) {  
+  lib.withTeamsDo(req, res, user, function(actors) {  
     ifActorsAllowedDo(actors, subject, callback);
   });
 }
@@ -164,7 +160,7 @@ function withAllowedActionsDo(req, res, resource, property, callback) {
     });
   }
   var user = lib.getUser(req);
-  withTeamsDo(req, res, user, function(actors) {  
+  lib.withTeamsDo(req, res, user, function(actors) {  
     withActorsAllowedActionsDo(req, res, actors, resource, property, function(actions) {
       callback(Object.keys(actions));
     });
