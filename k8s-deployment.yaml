@@ -34,6 +34,8 @@ spec:
             value: permissions
           - name: SPEEDUP
             value: "10" 
+          - name: INTERNAL_ROUTER
+            value: "internal-router" 
           - name: IPADDRESS
             valueFrom:
               fieldRef:

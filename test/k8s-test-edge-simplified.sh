@@ -6,8 +6,10 @@ export PG_PASSWORD="martinnally"
 export PG_DATABASE="permissions"
 export COMPONENT="permissions"
 export SPEEDUP=10
-export SYSTEM_HOST="sso.k8s.local"
+export EXTERNAL_ROUTER="sso.k8s.local"
+export INTERNAL_ROUTER="internal-router"
 
 node drop.js
+echo "dropped tables"
 source renew-tokens.sh
 python test-edge-simplified.py

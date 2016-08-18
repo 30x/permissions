@@ -8,7 +8,7 @@ PG_HOST = env['PG_HOST']
 PG_USER = env['PG_USER']
 PG_PASSWORD = env['PG_PASSWORD']
 PG_DATABASE = env['PG_DATABASE']
-SYSTEM_HOST = env['SYSTEM_HOST']
+EXTERNAL_ROUTER = env['EXTERNAL_ROUTER']
 
 connect_string = "dbname='%s' user='%s' host='%s' password='%s'" % (PG_DATABASE, PG_USER, PG_HOST, PG_PASSWORD)
 try:
@@ -70,7 +70,7 @@ def main():
             'grantsRemoveAccessTo': [USER1]
             }
         }
-    permissions_url = 'http://%s/permissions' % SYSTEM_HOST 
+    permissions_url = 'http://%s/permissions' % EXTERNAL_ROUTER 
     print permissions_url
     
     # Create permissions for Acme org (succeed)
@@ -88,7 +88,7 @@ def main():
     # Retrieve resources shared with USER1
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    url = 'http://%s/resources-shared-with?%s' % (SYSTEM_HOST, USER1) 
+    url = 'http://%s/resources-shared-with?%s' % (EXTERNAL_ROUTER, USER1) 
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         resources = r.json()
@@ -102,7 +102,7 @@ def main():
     
     # Retrieve allowed-actions for Acme org for USER1
 
-    url = 'http://%s/allowed-actions?resource=%s&user=%s' % (SYSTEM_HOST, 'http://apigee.com/o/acme', USER1)
+    url = 'http://%s/allowed-actions?resource=%s&user=%s' % (EXTERNAL_ROUTER, 'http://apigee.com/o/acme', USER1)
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
@@ -122,7 +122,7 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER1] 
         }
-    url = 'http://%s/teams' % SYSTEM_HOST 
+    url = 'http://%s/teams' % EXTERNAL_ROUTER 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
@@ -140,7 +140,7 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER2] 
         }
-    url = 'http://%s/teams' % SYSTEM_HOST 
+    url = 'http://%s/teams' % EXTERNAL_ROUTER 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
@@ -157,7 +157,7 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER3] 
         }
-    url = 'http://%s/teams' % SYSTEM_HOST 
+    url = 'http://%s/teams' % EXTERNAL_ROUTER 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
@@ -248,7 +248,7 @@ def main():
     
     # Retrieve Acme org heirs
 
-    url = 'http://%s/permissions-heirs?%s' % (SYSTEM_HOST, 'http://apigee.com/o/acme')
+    url = 'http://%s/permissions-heirs?%s' % (EXTERNAL_ROUTER, 'http://apigee.com/o/acme')
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
@@ -263,7 +263,7 @@ def main():
 
     # Retrieve allowed actions
 
-    url = 'http://%s/allowed-actions?resource=%s&user=%s' % (SYSTEM_HOST, 'http://apigee.com/o/acme', USER1)
+    url = 'http://%s/allowed-actions?resource=%s&user=%s' % (EXTERNAL_ROUTER, 'http://apigee.com/o/acme', USER1)
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
@@ -278,7 +278,7 @@ def main():
     # Retrieve resources shared with USER1
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    url = 'http://%s/resources-shared-with?%s' % (SYSTEM_HOST, USER1) 
+    url = 'http://%s/resources-shared-with?%s' % (EXTERNAL_ROUTER, USER1) 
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         resources = r.json()
@@ -350,7 +350,7 @@ def main():
 
     # Retrieve allowed actions
 
-    url = 'http://%s/users-who-can-access?%s' % (SYSTEM_HOST, 'http://apigee.com/o/acme/keyvaluemaps')
+    url = 'http://%s/users-who-can-access?%s' % (EXTERNAL_ROUTER, 'http://apigee.com/o/acme/keyvaluemaps')
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
