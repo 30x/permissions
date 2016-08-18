@@ -2,7 +2,15 @@ import requests
 import psycopg2
 import base64
 import json
+from os import environ as env
 
+PG_HOST = env['PG_HOST']
+PG_USER = env['PG_USER']
+PG_PASSWORD = env['PG_PASSWORD']
+PG_DATABASE = env['PG_DATABASE']
+SYSTEM_HOST = env['SYSTEM_HOST']
+
+connect_string = "dbname='%s' user='%s' host='%s' password='%s'" % (PG_DATABASE, PG_USER, PG_HOST, PG_PASSWORD)
 try:
     conn = psycopg2.connect("dbname='permissions' user='martinnally' host='localhost' password='martinnally'")
 except:
@@ -21,17 +29,26 @@ def b64_decode(data):
         data += b'='* missing_padding
     return base64.decodestring(data)
 
-with open('token.txt') as f:
-    TOKEN1 = f.read()
-    USER1 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
+if 'APIGEE_TOKEN1' in env:
+    TOKEN1 = env['APIGEE_TOKEN1']
+else:
+    with open('token.txt') as f:
+        TOKEN1 = f.read()
+USER1 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
 
-with open('token2.txt') as f:
-    TOKEN2 = f.read()
-    USER2 = json.loads(b64_decode(TOKEN2.split('.')[1]))['user_id']
+if 'APIGEE_TOKEN2' in env:
+    TOKEN2 = env['APIGEE_TOKEN2']
+else:
+    with open('token2.txt') as f:
+        TOKEN2 = f.read()
+USER2 = json.loads(b64_decode(TOKEN2.split('.')[1]))['user_id']
 
-with open('token3.txt') as f:
-    TOKEN3 = f.read()
-    USER3 = json.loads(b64_decode(TOKEN3.split('.')[1]))['user_id']
+if 'APIGEE_TOKEN3' in env:
+    TOKEN3 = env['APIGEE_TOKEN3']
+else:
+    with open('token3.txt') as f:
+        TOKEN3 = f.read()
+USER3 = json.loads(b64_decode(TOKEN3.split('.')[1]))['user_id']
 
 def main():
     
@@ -53,14 +70,16 @@ def main():
             'grantsRemoveAccessTo': [USER1]
             }
         }
-    permissions_url = 'http://localhost:8080/permissions' 
+    permissions_url = 'http://%s/permissions' % SYSTEM_HOST 
+    print permissions_url
     
     # Create permissions for Acme org (succeed)
 
-    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
+    print headers
     r = requests.post(permissions_url, headers=headers, json=permissions)
     if r.status_code == 201:
-        print 'correctly created permissions'
+        print 'correctly created permissions at %s' % permissions_url
         org_permissions = r.headers['Location'] 
     else:
         print 'failed to create permissions %s %s' % (r.status_code, r.text)
@@ -68,8 +87,8 @@ def main():
     
     # Retrieve resources shared with USER1
 
-    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
-    url = 'http://localhost:8080/resources-shared-with?%s' % USER1 
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
+    url = 'http://%s/resources-shared-with?%s' % (SYSTEM_HOST, USER1) 
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         resources = r.json()
@@ -78,13 +97,13 @@ def main():
         else:
             print 'retrieved resources-shared-with for %s but result is wrong %s' % (USER1, resources)
     else:
-        print 'failed to retrieve resources-shared-with for %s %s %s' % (USER1, r.status_code, r.text)
+        print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
     
     # Retrieve allowed-actions for Acme org for USER1
 
-    url = 'http://localhost:8080' + '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1)
-    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    url = 'http://%s/allowed-actions?resource=%s&user=%s' % (SYSTEM_HOST, 'http://apigee.com/o/acme', USER1)
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         actions = r.json()
@@ -103,8 +122,8 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER1] 
         }
-    url = 'http://localhost:8080' + '/teams' 
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    url = 'http://%s/teams' % SYSTEM_HOST 
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
         ORG_ADMINS = r.headers['location']
@@ -121,8 +140,8 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER2] 
         }
-    url = 'http://localhost:8080' + '/teams' 
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    url = 'http://%s/teams' % SYSTEM_HOST 
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
         print 'correctly created team'
@@ -138,8 +157,8 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER3] 
         }
-    url = 'http://localhost:8080' + '/teams' 
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    url = 'http://%s/teams' % SYSTEM_HOST 
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
         print 'correctly created team'
@@ -149,7 +168,7 @@ def main():
 
     # Retrieve permissions for Acme org
 
-    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(org_permissions, headers=headers)
     if r.status_code == 200:
         server_permissions = r.json()
@@ -195,7 +214,7 @@ def main():
     
     # patch http://acme.org/o/acme permissions (succeed)
 
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 200:
         print 'correctly patched permissions' 
@@ -205,7 +224,7 @@ def main():
     
     # Retrieve Acme org permissions
 
-    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(org_permissions, headers=headers, json=permissions)
     if r.status_code == 200:
         server_permissions = r.json()
@@ -219,7 +238,7 @@ def main():
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
     
-    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN2}
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
     r = requests.get(org_permissions, headers=headers, json=permissions)
     if r.status_code == 403:
         server_permissions = r.json()
@@ -229,8 +248,8 @@ def main():
     
     # Retrieve Acme org heirs
 
-    url = 'http://localhost:8080' + '/permissions-heirs?%s' % 'http://apigee.com/o/acme'
-    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    url = 'http://%s/permissions-heirs?%s' % (SYSTEM_HOST, 'http://apigee.com/o/acme')
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
@@ -244,8 +263,8 @@ def main():
 
     # Retrieve allowed actions
 
-    url = 'http://localhost:8080' + '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1)
-    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    url = 'http://%s/allowed-actions?resource=%s&user=%s' % (SYSTEM_HOST, 'http://apigee.com/o/acme', USER1)
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         actions = r.json()
@@ -258,8 +277,8 @@ def main():
 
     # Retrieve resources shared with USER1
 
-    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
-    url = 'http://localhost:8080/resources-shared-with?%s' % USER1 
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
+    url = 'http://%s/resources-shared-with?%s' % (SYSTEM_HOST, USER1) 
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         resources = r.json()
@@ -272,7 +291,7 @@ def main():
         print 'failed to retrieve resources-shared-with for %s %s %s' % (USER1, r.status_code, r.text)
         return
     
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     sharingSets = ['/appkeys', '/applications', '/deployments', 'devConnectUser', '/devPortalButton',]    
     for item in sharingSets:
         permissions = {
@@ -331,8 +350,8 @@ def main():
 
     # Retrieve allowed actions
 
-    url = 'http://localhost:8080/users-who-can-access?%s' % 'http://apigee.com/o/acme/keyvaluemaps'
-    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    url = 'http://%s/users-who-can-access?%s' % (SYSTEM_HOST, 'http://apigee.com/o/acme/keyvaluemaps')
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         users = r.json()

@@ -6,7 +6,8 @@ export PG_PASSWORD="martinnally"
 export PG_DATABASE="permissions"
 export COMPONENT="permissions"
 export SPEEDUP=10
-export SYSTEM_HOST="localhost:8080"
+export SYSTEM_HOST="sso.k8s.local"
 
 node drop.js
+source renew-tokens.sh
 python test-edge-simplified.py
