@@ -1,0 +1,42 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: permissions
+  labels:
+    name: permissions
+  namespace: apigee
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: permissions
+  template:
+    metadata:
+      labels:
+        component: permissions
+        routable: "true"
+      annotations:
+        privateHosts: sso.k8s.local
+        privatePaths: 3000:/allowed-actions 3000:/is-allowed 3000:/inherits-permissions-from
+    spec:
+      containers:
+      - name: permissions
+        image: permissions
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: PG_HOST
+            value: 10.0.2.2
+          - name: PG_USER
+            value: martinnally
+          - name: PG_PASSWORD
+            value: martinnally
+          - name: PG_DATABASE
+            value: permissions
+          - name: SPEEDUP
+            value: "10" 
+          - name: IPADDRESS
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP          
+        ports:
+          - containerPort: 3000
