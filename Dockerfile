@@ -2,7 +2,7 @@ FROM mhart/alpine-node:4
 
 WORKDIR /app
 ADD package.json .
-RUN npm install
+RUN npm install --production
 ADD . .
 
 ENV COMPONENT="permissions" 

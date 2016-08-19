@@ -18,8 +18,8 @@ except:
 
 with conn:
     with conn.cursor() as cur:
-        cur.execute('CREATE TABLE permissions (subject text primary key, etag serial, data jsonb)')
-        cur.execute('CREATE TABLE teams (id text primary key, etag serial, data jsonb)')
+        cur.execute('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb)')
+        cur.execute('CREATE TABLE IF NOT EXISTS teams (id text primary key, etag serial, data jsonb)')
         cur.execute('CREATE TABLE IF NOT EXISTS events (index bigserial, topic text, eventtime bigint, data jsonb)')
         cur.execute('CREATE TABLE IF NOT EXISTS consumers (ipaddress text primary key, registrationtime bigint);')
 
