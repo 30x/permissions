@@ -71,12 +71,10 @@ def main():
             }
         }
     permissions_url = 'http://%s/permissions' % EXTERNAL_ROUTER 
-    print permissions_url
     
     # Create permissions for Acme org (succeed)
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    print headers
     r = requests.post(permissions_url, headers=headers, json=permissions)
     if r.status_code == 201:
         print 'correctly created permissions at %s' % permissions_url

@@ -253,29 +253,48 @@ function inheritsPermissionsFrom(req, res, queryString) {
   });
 }
 
-function primProcessEvent(event) {
+function processEvent(event) {
   if (event.topic == 'permissions') {
     if (event.data.action == 'deleteAll') {
-      console.log(`permissions: primProcessEvent: event.topic: ${event.topic} event.data.action: deleteAll`);
+      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`);
       permissionsCache = {}
     } else {
-      console.log(`permissions: primProcessEvent: event.topic: ${event.topic} event.action: ${event.data.action} subject: ${event.data.subject}`);
+      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} subject: ${event.data.subject}`);
       delete permissionsCache[lib.internalizeURL(event.data.subject)];
     }
   } else if (event.topic == 'teams') {
-    console.log(`permissions: primProcessEvent: event.topic: ${event.topic} event.action: ${event.data.action}`);
+    if (event.data.action == 'update') {
+      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} before: ${event.data.before} after ${event.data.after}`);
+      var beforeMembers = event.data.before.members || [];
+      var afterMembers = event.data.after.members || [];
+      var removedMembers = beforeMembers.filter(member => afterMembers.indexOf(member) = -1);
+      var addedMembers = afterMembers.filter(member => beforeMembers.indexOf(member) = -1);
+      var affectedMembers = removedMembers.concat(addedMembers);
+      for (var i = 0; i < affectedMembers.length; i++) {
+        delete teamsCache[affectedMembers[i]]
+      }
+    } else if (event.data.action == 'delete' || event.data.action == 'create') {
+      var members = event.data.team.members;
+      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} members: `, members);
+      if (members !== undefined) {
+        for (var i = 0; i < members.length; i++) {
+          delete teamsCache[members[i]]
+        }
+      }
+    } else
+      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`);
   } else {
-    console.log(`permissions: primProcessEvent: event.topic: ${event.topic} event.action: ${event.data.action}`);    
+    console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`);    
   }
 }
 
-function processEvent(req, res, event) {
+function processEventPost(req, res, event) {
   permissionsEventConsumer.processEvent(event);
   lib.found(req, res);
 }
 
 var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS;
-var permissionsEventConsumer = new pge.eventConsumer(db.pool, IPADDRESS, primProcessEvent);
+var permissionsEventConsumer = new pge.eventConsumer(db.pool, IPADDRESS, processEvent);
 
 var permissionsCache = {};
 var teamsCache = {};
@@ -283,7 +302,7 @@ var teamsCache = {};
 function requestHandler(req, res) {
   if (req.url == '/events') {
     if (req.method == 'POST') {
-      lib.getServerPostBody(req, res, processEvent);
+      lib.getServerPostBody(req, res, processEventPost);
     } else { 
       lib.methodNotAllowed(req, res, ['POST']);
     }
