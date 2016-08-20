@@ -79,6 +79,7 @@ def main():
     if r.status_code == 201:
         print 'correctly created permissions at %s' % permissions_url
         org_permissions = r.headers['Location'] 
+        org_permissions_etag = r.headers['Etag'] 
     else:
         print 'failed to create permissions %s %s' % (r.status_code, r.text)
         return
@@ -370,6 +371,37 @@ def main():
     else:
         print 'failed to patch permissions %s %s' % (r.status_code, r.text)
         return
+
+    permissions_patch = {
+        '_permissions': {
+            'inheritsPermissionsOf': ['http://apigee.com/o/acme']
+            }
+        }
+
+    # patch http://acme.org/o/acme permissions (fail)
+
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
+    r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
+    if r.status_code == 400:
+        print 'correctly refused to patch permissions that inherit from self %s' % r.text 
+    else:
+        print 'failed to refuse to patch permissions that inherit from self %s %s' % (r.status_code, r.text)
+        return
     
+    permissions_patch = {
+        '_permissions': {
+            'inheritsPermissionsOf': ['http://apigee.com/o/acme/keyvaluemaps']
+            }
+        }
+
+    # patch http://acme.org/o/acme permissions (fail)
+
+    r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
+    if r.status_code == 400:
+        print 'correctly refused to patch permissions with inheritance cycle %s' % r.text 
+    else:
+        print 'failed to refuse to patch permissions with inheritance cycle %s %s' % (r.status_code, r.text)
+        return
+        
 if __name__ == '__main__':
     main()
