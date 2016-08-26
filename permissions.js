@@ -97,13 +97,13 @@ function withPermissionsDo(req, res, resource, callback) {
   }
 }
 
-function withPermissionFlagDo(req, res, subject, property, action, callback) {
+function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallback) {
   var recursionSet = {};
-  function ifActorsAllowedDo(actors, resource, callback) {
+  function ancestors(resource) {
     withPermissionsDo(req, res, resource, function(permissions) {
-      var allowed = isActionAllowed(permissions, property, actors, action, property);
-      if (allowed) {
-        callback(true);
+      var stopHere = itemCallback(permissions);
+      if (stopHere) {
+        finalCallback(stopHere);
       } else {
         var inheritsPermissionsOf = permissions._permissions.inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
@@ -112,58 +112,41 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
             var count = 0;
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
               recursionSet[inheritsPermissionsOf[j]] = true; 
-              ifActorsAllowedDo(actors, inheritsPermissionsOf[j], function() {
+              ancestors(inheritsPermissionsOf[j], function() {
                 if (++count == inheritsPermissionsOf.length) {
-                  callback(true);
+                  finalCallback();
                 }
               });
             }
           } else {
-            callback(false);
+            finalCallback();
           }
         } else {
-          callback(false);
+          finalCallback();
         }
       }
     });
   }
+  ancestors(subject);
+}
+
+function withPermissionFlagDo(req, res, subject, property, action, callback) {
   var user = lib.getUser(req);
   lib.withTeamsDo(req, res, user, function(actors) {  
-    ifActorsAllowedDo(actors, subject, callback);
+    withAncestorPermissionsDo(req, res, subject, function(permissions) {
+      return isActionAllowed(permissions, property, actors, action);
+    }, function(allowed) {callback(!!allowed)}); 
   });
 }
 
 function withAllowedActionsDo(req, res, resource, property, callback) {
-  var recursionSet = {};
-  function withActorsAllowedActionsDo(req, res, actors, resource, property, callback) {
-    withPermissionsDo(req, res, resource, function(permissions) {
-      var actions = collateAllowedActions(permissions, property, actors);
-      var inheritsPermissionsOf = permissions._permissions.inheritsPermissionsOf;
-      if (inheritsPermissionsOf !== undefined) {
-        inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
-        if (inheritsPermissionsOf.length > 0) {
-          var count = 0;
-          for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-            withActorsAllowedActionsDo(req, res, actors, resource, property, function(nestedActions) {
-              Object.assign(actions, nestedActions);
-              if (++count == inheritsPermissionsOf.length) {
-                callback(actions);
-              }
-            });
-          }
-        } else {
-          callback(actions);
-        }
-      } else {
-        callback(actions);
-      }
-    });
-  }
   var user = lib.getUser(req);
   lib.withTeamsDo(req, res, user, function(actors) {  
-    withActorsAllowedActionsDo(req, res, actors, resource, property, function(actions) {
-      callback(Object.keys(actions));
-    });
+    var actions = {};
+    withAncestorPermissionsDo(req, res, resource, function(permissions) {
+      Object.assign(actions, collateAllowedActions(permissions, property, actors));
+      return false;
+    }, function() {callback(Object.keys(actions))}); 
   });
 }
 
@@ -236,7 +219,7 @@ function withInheritsPermissionsFrom(req, res, resource, candidateSharingSets, c
   }
 }
 
-function inheritsPermissionsFrom(req, res, queryString) {
+function isAllowedToInheritFrom(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var subject = queryParts.subject;
   if (subject !== undefined) {
@@ -331,7 +314,7 @@ function requestHandler(req, res) {
       }
     } else if (req_url.pathname == '/inherits-permissions-from' && req_url.search !== null) {
       if (req.method == 'GET') {
-        inheritsPermissionsFrom(req, res, req_url.search.substring(1));
+        isAllowedToInheritFrom(req, res, req_url.search.substring(1));
       } else {
         lib.methodNotAllowed(req, res, ['GET']);
       }
