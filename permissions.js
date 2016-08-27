@@ -132,22 +132,40 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
 
 function withPermissionFlagDo(req, res, subject, property, action, callback) {
   var user = lib.getUser(req);
-  lib.withTeamsDo(req, res, user, function(actors) {  
+  var actors = teamsCache[user]; 
+  if (actors !== undefined) {
+    withActorsDo(actors);
+  } else {
+    lib.withTeamsDo(req, res, user, function(actors) {
+      teamsCache[user] = actors;
+      withActorsDo(actors);
+    });
+  }
+  function withActorsDo (actors) {  
     withAncestorPermissionsDo(req, res, subject, function(permissions) {
       return isActionAllowed(permissions, property, actors, action);
     }, function(allowed) {callback(!!allowed)}); 
-  });
+  }
 }
 
 function withAllowedActionsDo(req, res, resource, property, callback) {
   var user = lib.getUser(req);
-  lib.withTeamsDo(req, res, user, function(actors) {  
+  var actors = teamsCache[user]; 
+  if (actors !== undefined) {
+    withActorsDo(actors);
+  } else {
+    lib.withTeamsDo(req, res, user, function(actors) {
+      teamsCache[user] = actors;
+      withActorsDo(actors);
+    });
+  }
+  function withActorsDo (actors) {  
     var actions = {};
     withAncestorPermissionsDo(req, res, resource, function(permissions) {
       Object.assign(actions, collateAllowedActions(permissions, property, actors));
       return false;
     }, function() {callback(Object.keys(actions))}); 
-  });
+  }
 }
 
 function isAllowed(req, res, queryString) {
@@ -177,45 +195,6 @@ function isAllowed(req, res, queryString) {
     }
   } else {
     lib.badRequest(res, 'action and resource must be provided and user in query string must match user credentials ' + req.url)
-  }
-}
-
-function withInheritsPermissionsFrom(req, res, resource, candidateSharingSets, callback) {
-  if (candidateSharingSets === undefined || candidateSharingSets.length == 0) {
-    callback(false);
-  } else {
-    var responded = false;
-    var count = 0;
-    for (var i=0; i < candidateSharingSets.length; i++) {
-      withPermissionsDo(req, res, candidateSharingSets[i], function(permissions) {
-        if (!responded) {
-          var sharingSets = permissions._permissions.inheritsPermissionsOf;
-          if (sharingSets !== undefined && sharingSets.length > 0) {
-            if (sharingSets.indexOf(resource) > -1) { // reply true
-              responded = true;
-              callback(true);
-            } else {
-              withInheritsPermissionsFrom(req, res, resource, sharingSets, function(inherits) {
-                if (!responded) {
-                  if (inherits) {
-                    responded = true;
-                    callback(true);
-                  } else {
-                    if (++count == sharingSets.length) {
-                      callback(false);
-                    }
-                  }
-                }
-              });
-            }
-          } else { // no sharingSets 
-            if (++count == candidateSharingSets.length) { // if this is the last nested response, reply 
-              callback(false);
-          }
-        }
-      }
-    });
-  }
   }
 }
 
