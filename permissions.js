@@ -220,6 +220,23 @@ function withInheritsPermissionsFrom(req, res, resource, candidateSharingSets, c
 }
 
 function isAllowedToInheritFrom(req, res, queryString) {
+  function withExistingAncestorsDo(resource, callback) {
+    var ancestors = [];
+    withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._resource._self);}, function(){
+      callback(ancestors);
+    });
+  }
+  function withPotentialAncestorsDo(ancestors, callback) {
+    var allAncestors = ancestors.slice();
+    var count = 0;
+    for (var i = 0; i < ancestors.length; i++) {
+      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._resource._self);}, function(){
+        if (++count == ancestors.length) {
+          callback(allAncestors);
+        }
+      });      
+    }
+  }
   var queryParts = querystring.parse(queryString);
   var subject = queryParts.subject;
   if (subject !== undefined) {
@@ -227,14 +244,67 @@ function isAllowedToInheritFrom(req, res, queryString) {
     withPermissionFlagDo(req, res, subject, '_permissions', 'read', function(answer) {
       if (answer) {
         var sharingSet = queryParts.sharingSet;
+        var responded = false;
+        var existingOK = false;
+        var potentialOK = sharingSet === undefined;
+        withExistingAncestorsDo(subject, function(existingAncestors) {
+          if (existingAncestors.length > 0) {
+            var count = 0;
+            for (var i=0; i < existingAncestors.length; i++) {
+              withPermissionFlagDo(req, res, existingAncestors[i], '_permissionsHeirs', 'remove', function(answer) {
+                if (!responded) {
+                  if (!answer) {
+                    responded = true;
+                    lib.found(req, res, false) 
+                  } else {
+                    if (++count == existingAncestors.length) {
+                      existingOK = true;
+                      if (potentialOK) {
+                        lib.found(req, res, true);
+                      }
+                    }
+                  }
+                }
+              });
+            }
+          } else {
+            existingOK = true;
+          }
+        });
         if (sharingSet !== undefined) {
           var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet];
           sharingSets = sharingSets.map(anURL => lib.internalizeURL(anURL));
-          withInheritsPermissionsFrom(req, res, subject, sharingSets, function(result){
-            lib.found(req, res, result);
+          withPotentialAncestorsDo(sharingSets, function (potentialAncestors) {
+            if (potentialAncestors.indexOf(subject) == -1) {
+              var count = 0;
+              for (var i=0; i < potentialAncestors.length; i++) {
+                withPermissionFlagDo(req, res, potentialAncestors[i], '_permissionsHeirs', 'add', function(answer) {
+                  if (!responded) {
+                    if (!answer) {
+                      responded = true;
+                      lib.found(req, res, false) 
+                    } else {
+                      if (++count == potentialAncestors.length) {
+                        potentialOK = true;
+                        if (existingOK) {
+                          lib.found(req, res, true);
+                        }
+                      }
+                    }
+                  }
+                });
+              }
+            } else {
+              if (!responded) {
+                responded = true;
+                lib.found(req, res, false);
+              }
+            }
           });
         } else {
-          lib.badRequest(res, 'must provide sharingSet')
+          if (!responded && existingOK) {
+            lib.found(req, res, true);
+          }
         }
       } else{
         lib.forbidden(req, res)
