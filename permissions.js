@@ -223,7 +223,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
   function withExistingAncestorsDo(resource, callback) {
     var ancestors = [];
     withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._resource._self);}, function(){
-      callback(ancestors);
+      callback(Array.from(new Set(ancestors)));
     });
   }
   function withPotentialAncestorsDo(ancestors, callback) {
@@ -232,7 +232,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
     for (var i = 0; i < ancestors.length; i++) {
       withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._resource._self);}, function(){
         if (++count == ancestors.length) {
-          callback(allAncestors);
+          callback(Array.from(new Set(allAncestors)));
         }
       });      
     }
@@ -244,68 +244,75 @@ function isAllowedToInheritFrom(req, res, queryString) {
     withPermissionFlagDo(req, res, subject, '_permissions', 'read', function(answer) {
       if (answer) {
         var sharingSet = queryParts.sharingSet;
-        var responded = false;
-        var existingOK = false;
-        var potentialOK = sharingSet === undefined;
-        withExistingAncestorsDo(subject, function(existingAncestors) {
-          if (existingAncestors.length > 0) {
-            var count = 0;
-            for (var i=0; i < existingAncestors.length; i++) {
-              withPermissionFlagDo(req, res, existingAncestors[i], '_permissionsHeirs', 'remove', function(answer) {
-                if (!responded) {
-                  if (!answer) {
-                    responded = true;
-                    lib.found(req, res, false) 
-                  } else {
-                    if (++count == existingAncestors.length) {
-                      existingOK = true;
-                      if (potentialOK) {
-                        lib.found(req, res, true);
-                      }
-                    }
-                  }
-                }
-              });
-            }
-          } else {
-            existingOK = true;
+        var existingAncestors = null;
+        var potentialAncestors = sharingSet !== undefined ? null : [];
+        withExistingAncestorsDo(subject, function(existing) {
+          existingAncestors = existing;
+          if (potentialAncestors !== null) {
+            processAncestors();
           }
         });
         if (sharingSet !== undefined) {
           var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet];
           sharingSets = sharingSets.map(anURL => lib.internalizeURL(anURL));
-          withPotentialAncestorsDo(sharingSets, function (potentialAncestors) {
-            if (potentialAncestors.indexOf(subject) == -1) {
-              var count = 0;
-              for (var i=0; i < potentialAncestors.length; i++) {
-                withPermissionFlagDo(req, res, potentialAncestors[i], '_permissionsHeirs', 'add', function(answer) {
+          withPotentialAncestorsDo(sharingSets, function (potential) {
+            potentialAncestors = potential;
+            if (existingAncestors !== null) {
+              processAncestors();
+            }
+          });
+        }
+        function processAncestors() {
+          if (potentialAncestors.indexOf(subject) == -1) {
+            var addedAncestors = potentialAncestors.filter(x=>existingAncestors.indexOf(x) == -1);
+            var removedAncestors = existingAncestors.filter(x=>potentialAncestors.indexOf(x) == -1);
+            var responded = false;
+            var addOK = addedAncestors.length == 0;
+            var removeOK = removedAncestors.length == 0;
+            if (removedAncestors.length > 0) {
+              let count = 0;
+              for (let i=0; i < removedAncestors.length; i++) {
+                withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', function(answer) {
                   if (!responded) {
                     if (!answer) {
                       responded = true;
-                      lib.found(req, res, false) 
+                      lib.found(req, res, {result: false, reason: `may not remove permissions inheritance from ${removedAncestors[i]}`}) 
                     } else {
-                      if (++count == potentialAncestors.length) {
-                        potentialOK = true;
-                        if (existingOK) {
-                          lib.found(req, res, true);
+                      if (++count == removedAncestors.length) {
+                        removeOK = true;
+                        if (addOK) {
+                          lib.found(req, res, {result:true});
                         }
                       }
                     }
                   }
                 });
               }
-            } else {
-              if (!responded) {
-                responded = true;
-                lib.found(req, res, false);
+            }
+            if (addedAncestors.length > 0) {
+              let count = 0;
+              for (let i=0; i < addedAncestors.length; i++) {
+                withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', function(answer) {
+                  if (!responded) {
+                    if (!answer) {
+                      responded = true;
+                      lib.found(req, res, {result: false, reason: `may not add permissions inheritance from ${addedAncestors[i]}`}) 
+                    } else {
+                      if (++count == addedAncestors.length) {
+                        addOK = true;
+                        if (removeOK) {
+                          lib.found(req, res, {result:true});
+                        }
+                      }
+                    }
+                  }
+                });
               }
             }
-          });
-        } else {
-          if (!responded && existingOK) {
-            lib.found(req, res, true);
+          } else {
+            lib.found(req, res, {result: false, reason: `may not add cycle to permisions inheritance`}); // cycles not allowed
           }
-        }
+        }        
       } else{
         lib.forbidden(req, res)
       }
