@@ -12,7 +12,7 @@ EXTERNAL_ROUTER = env['EXTERNAL_ROUTER']
 
 connect_string = "dbname='%s' user='%s' host='%s' password='%s'" % (PG_DATABASE, PG_USER, PG_HOST, PG_PASSWORD)
 try:
-    conn = psycopg2.connect("dbname='permissions' user='martinnally' host='localhost' password='martinnally'")
+    conn = psycopg2.connect(connect_string)
 except:
     print 'I am unable to connect to the database'
 

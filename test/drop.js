@@ -3,7 +3,7 @@ var Pool = require('pg').Pool;
 var pge = require('pg-event-producer');
 
 var config = {
-  host: process.env.PG_HOST || 'localhost',
+  host: process.env.PG_HOST,
   user: process.env.PG_USER,
   password: process.env.PG_PASSWORD,
   database: process.env.PG_DATABASE
@@ -25,10 +25,10 @@ function dropTableThen(eventTopic, table, callback) {
 eventProducer.init(function(){
   dropTableThen('permissions', 'permissions', function(err, pg_res) {
     if(err) console.error('error dropping permissions table', err);
-    else console.log('dropped table permissions')
+    else console.log(`dropped table permissions ${process.env.PG_HOST}`)
     dropTableThen('teams', 'teams', function(err, pg_res) {
       if(err) console.error('error dropping teams table', err);
-      else console.log('dropped table teams')
+      else console.log(`dropped table teams ${process.env.PG_HOST}`)
       pool.end()
       eventProducer.finalize();
     });
