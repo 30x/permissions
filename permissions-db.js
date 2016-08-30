@@ -30,19 +30,16 @@ function withPermissionsDo(req, res, subject, callback) {
   });
 }
 
-function createTablesThen(callback) {
+function init(callback) {
   var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);'
   pool.query(query, function(err, pgResult) {
     if(err) {
       console.error('error creating permissions table', err);
     } else {
+      console.log(`connected to PG at ${config.host}`);
       callback();
     }
   });    
-}
-
-function init(callback) {
-  createTablesThen(callback);
 }
 
 exports.withPermissionsDo = withPermissionsDo;

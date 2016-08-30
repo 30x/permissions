@@ -17,7 +17,7 @@ spec:
         routable: "true"
       annotations:
         privateHosts: sso.k8s.local
-        privatePaths: 3000:/allowed-actions 3000:/is-allowed 3000:/inherits-permissions-from
+        privatePaths: 3000:/allowed-actions 3000:/is-allowed 3000:/is-allowed-to-inherit-from
     spec:
       containers:
       - name: permissions
