@@ -3,12 +3,15 @@ import psycopg2
 import base64
 import json
 from os import environ as env
+from urlparse import urljoin
 
 PG_HOST = env['PG_HOST']
 PG_USER = env['PG_USER']
 PG_PASSWORD = env['PG_PASSWORD']
 PG_DATABASE = env['PG_DATABASE']
 EXTERNAL_ROUTER = env['EXTERNAL_ROUTER']
+EXTERNAL_SCHEME = env['EXTERNAL_SCHEME']
+BASE_URL = '%s://%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER)
 
 connect_string = "dbname='%s' user='%s' host='%s' password='%s'" % (PG_DATABASE, PG_USER, PG_HOST, PG_PASSWORD)
 try:
@@ -70,15 +73,15 @@ def main():
             'grantsRemoveAccessTo': [USER1]
             }
         }
-    permissions_url = 'http://%s/permissions' % EXTERNAL_ROUTER 
+    permissions_url = '%s://%s/permissions' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER) 
     
     # Create permissions for Acme org (succeed)
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(permissions_url, headers=headers, json=permissions)
     if r.status_code == 201:
-        print 'correctly created permissions at %s' % permissions_url
-        org_permissions = r.headers['Location'] 
+        print 'correctly created permissions %s' % r.headers['Location']
+        org_permissions = urljoin(BASE_URL, r.headers['Location'])
         org_permissions_etag = r.headers['Etag'] 
     else:
         print 'failed to create permissions %s %s' % (r.status_code, r.text)
@@ -87,12 +90,12 @@ def main():
     # Retrieve resources shared with USER1
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    url = 'http://%s/resources-shared-with?%s' % (EXTERNAL_ROUTER, USER1) 
+    url = '%s://%s/resources-shared-with?%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER, USER1) 
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         resources = r.json()
         if resources == ['http://apigee.com/o/acme']:
-            print 'correctly retrieved resources-shared-with for %s' % USER1
+            print 'correctly retrieved resources-shared-with for %s at %s' % (USER1, r.headers['Content-Location'])
         else:
             print 'retrieved resources-shared-with for %s but result is wrong %s' % (USER1, resources)
     else:
@@ -101,7 +104,7 @@ def main():
     
     # Retrieve allowed-actions for Acme org for USER1
 
-    url = 'http://%s/allowed-actions?resource=%s&user=%s' % (EXTERNAL_ROUTER, 'http://apigee.com/o/acme', USER1)
+    url = '%s://%s/allowed-actions?resource=%s&user=%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER, 'http://apigee.com/o/acme', USER1)
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
@@ -121,7 +124,7 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER1] 
         }
-    url = 'http://%s/teams' % EXTERNAL_ROUTER 
+    url = '%s://%s/teams' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER) 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
@@ -139,11 +142,11 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER2] 
         }
-    url = 'http://%s/teams' % EXTERNAL_ROUTER 
+    url = '%s://%s/teams' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER) 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
-        print 'correctly created team'
+        print 'correctly created team %s' % r.headers['location']
         BUSINESS_USERS = r.headers['location']
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
@@ -156,11 +159,11 @@ def main():
         'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
         'members': [USER3] 
         }
-    url = 'http://%s/teams' % EXTERNAL_ROUTER 
+    url = '%s://%s/teams' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER) 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
-        print 'correctly created team'
+        print 'correctly created team %s' % r.headers['location']
         ORDINARY_USERS = r.headers['location']
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
@@ -247,7 +250,7 @@ def main():
     
     # Retrieve Acme org heirs
 
-    url = 'http://%s/permissions-heirs?%s' % (EXTERNAL_ROUTER, 'http://apigee.com/o/acme')
+    url = '%s://%s/permissions-heirs?%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER, 'http://apigee.com/o/acme')
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
@@ -262,7 +265,7 @@ def main():
 
     # Retrieve allowed actions
 
-    url = 'http://%s/allowed-actions?resource=%s&user=%s' % (EXTERNAL_ROUTER, 'http://apigee.com/o/acme', USER1)
+    url = '%s://%s/allowed-actions?resource=%s&user=%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER, 'http://apigee.com/o/acme', USER1)
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
@@ -277,7 +280,7 @@ def main():
     # Retrieve resources shared with USER1
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    url = 'http://%s/resources-shared-with?%s' % (EXTERNAL_ROUTER, USER1) 
+    url = '%s://%s/resources-shared-with?%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER, USER1) 
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         resources = r.json()
@@ -343,13 +346,13 @@ def main():
     if r.status_code == 201:
         print 'correctly created permission %s' % r.headers['Location'] 
         etag = r.headers['Etag']
-        keyvaluemaps_url = r.headers['Location']
+        keyvaluemaps_url = urljoin(BASE_URL, r.headers['Location'])
     else:
         print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
     # Retrieve allowed actions
 
-    url = 'http://%s/users-who-can-access?%s' % (EXTERNAL_ROUTER, 'http://apigee.com/o/acme/keyvaluemaps')
+    url = '%s://%s/users-who-can-access?%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER, 'http://apigee.com/o/acme/keyvaluemaps')
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:

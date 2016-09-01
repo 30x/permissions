@@ -4,6 +4,7 @@ export COMPONENT="permissions"
 export SPEEDUP=10
 export EXTERNAL_ROUTER="localhost:8080"
 export INTERNAL_ROUTER="localhost:8080"
+export EXTERNAL_SCHEME="http"
 
 source ../../export-pg-variables.sh
 node drop.js
