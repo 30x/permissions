@@ -27,13 +27,25 @@ spec:
           - name: PORT
             value: "3000"
           - name: PG_HOST
-            value: 10.0.2.2
+            valueFrom:
+              secretKeyRef:
+                name: permissions
+                key: pghost
           - name: PG_USER
-            value: martinnally
+            valueFrom:
+              secretKeyRef:
+                name: permissions
+                key: pguser
           - name: PG_PASSWORD
-            value: martinnally
+            valueFrom:
+              secretKeyRef:
+                name: permissions
+                key: pgpassword
           - name: PG_DATABASE
-            value: permissions
+            valueFrom:
+              secretKeyRef:
+                name: permissions
+                key: pgdatabase
           - name: SPEEDUP
             value: "10" 
           - name: INTERNAL_ROUTER
