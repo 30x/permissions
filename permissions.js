@@ -368,7 +368,7 @@ function requestHandler(req, res) {
       } else {
         lib.methodNotAllowed(req, res, ['GET']);
       }
-    } else if (req_url.pathname == '/inherits-permissions-from' && req_url.search !== null) {
+    } else if (req_url.pathname == '/is-allowed-to-inherit-from' && req_url.search !== null) {
       if (req.method == 'GET') {
         isAllowedToInheritFrom(req, res, req_url.search.substring(1));
       } else {
