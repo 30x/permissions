@@ -17,12 +17,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mpnally/permissions.git"
+    "url": "git+https://github.com/30x/permissions.git"
   },
   "author": "Martin Nally",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/mpnally/permissions/issues"
+    "url": "https://github.com/30x/permissions/issues"
   },
-  "homepage": "https://github.com/mpnally/permissions#readme"
+  "homepage": "https://github.com/30x/permissions#readme"
 }
