@@ -84,7 +84,7 @@ def main():
         org_permissions = urljoin(BASE_URL, r.headers['Location'])
         org_permissions_etag = r.headers['Etag'] 
     else:
-        print 'failed to create permissions %s %s' % (r.status_code, r.text)
+        print 'failed to create permissions %s %s %s' % (permissions_url, r.status_code, r.text)
         return
     
     # Retrieve resources shared with USER1

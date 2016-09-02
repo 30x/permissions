@@ -4,6 +4,7 @@ export COMPONENT="permissions"
 export SPEEDUP=10
 export EXTERNAL_ROUTER="sso.k8s.local"
 export INTERNAL_ROUTER="internal-router"
+export EXTERNAL_SCHEME="http"
 
 node drop.js
 echo "dropped tables"
