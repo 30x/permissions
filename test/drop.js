@@ -9,6 +9,7 @@ var config = {
   database: process.env.PG_DATABASE
 };
 
+console.log(`start drop tables: host: ${config.host} user: ${config.user} password: ${config.password} database: ${config.database}`)
 var pool = new Pool(config);
 var eventProducer = new pge.eventProducer(pool);
 

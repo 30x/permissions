@@ -46,6 +46,11 @@ spec:
               secretKeyRef:
                 name: permissions
                 key: pgdatabase
+          - name: SHIPYARD_PRIVATE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: routing
+                key: private-api-key
           - name: SPEEDUP
             value: "10" 
           - name: INTERNAL_ROUTER

@@ -1,9 +1,12 @@
 DIR=$(pwd)
 
-kubectl delete secret permissions
+cd ~/perm/permissions
+
+source k8s-export-pg-connection-variables.sh
+
+kubectl delete secret permissions --namespace=apigee
 kubectl create secret generic permissions --from-literal=pguser=${PG_USER} --from-literal=pgpassword=${PG_PASSWORD} --from-literal=pghost=${PG_HOST} --from-literal=pgdatabase=${PG_DATABASE} --namespace=apigee
 
-cd ~/perm/permissions
 kubectl create -f k8s-deployment.yaml
 
 cd ~/perm/permissions-maintenance

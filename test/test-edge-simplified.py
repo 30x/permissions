@@ -14,6 +14,7 @@ EXTERNAL_SCHEME = env['EXTERNAL_SCHEME']
 BASE_URL = '%s://%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER)
 
 connect_string = "dbname='%s' user='%s' host='%s' password='%s'" % (PG_DATABASE, PG_USER, PG_HOST, PG_PASSWORD)
+print 'creating tables using %s' % connect_string
 try:
     conn = psycopg2.connect(connect_string)
 except:
