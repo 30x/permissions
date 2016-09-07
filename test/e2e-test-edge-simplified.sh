@@ -5,6 +5,7 @@ export SPEEDUP=10
 export EXTERNAL_ROUTER="shipyard.e2e.apigee.net"
 export EXTERNAL_SCHEME="https"
 
+source ../../aws-export-pg-variables.sh
 node drop.js
 echo "dropped tables"
 source renew-tokens.sh
