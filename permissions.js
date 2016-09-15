@@ -129,13 +129,33 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
   ancestors(subject);
 }
 
+function withTeamsDo(req, res, user, callback) {
+  if (user !== null) {
+    user = lib.internalizeURL(user);
+    lib.sendInternalRequest(req, res, '/teams?' + user, 'GET', undefined, function (clientResponse) {
+      lib.getClientResponseBody(clientResponse, function(body) {
+        if (clientResponse.statusCode == 200) { 
+          var actors = JSON.parse(body).contents;
+          lib.internalizeURLs(actors, req.headers.host);
+          actors.push(user);
+          callback(actors);
+        } else {
+          var err = `withTeamsDo: unable to retrieve /teams?${user} statusCode ${clientResponse.statusCode}`
+          console.log(err)
+          lib.internalError(res, err);
+        }
+      });
+    });
+  }
+}
+
 function withPermissionFlagDo(req, res, subject, property, action, callback) {
   var user = lib.getUser(req);
   var actors = teamsCache[user]; 
   if (actors !== undefined) {
     withActorsDo(actors);
   } else {
-    lib.withTeamsDo(req, res, user, function(actors) {
+    withTeamsDo(req, res, user, function(actors) {
       teamsCache[user] = actors;
       withActorsDo(actors);
     });
@@ -153,7 +173,7 @@ function withAllowedActionsDo(req, res, resource, property, callback) {
   if (actors !== undefined) {
     withActorsDo(actors);
   } else {
-    lib.withTeamsDo(req, res, user, function(actors) {
+    withTeamsDo(req, res, user, function(actors) {
       teamsCache[user] = actors;
       withActorsDo(actors);
     });
