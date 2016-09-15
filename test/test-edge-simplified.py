@@ -72,7 +72,8 @@ def main():
             'grantsAddAccessTo': [USER1],
             'grantsReadAccessTo': [USER1],
             'grantsRemoveAccessTo': [USER1]
-            }
+            },
+        'test-data': True
         }
     print 'sending requests to %s' % BASE_URL 
 
@@ -124,8 +125,9 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Org admins',
-        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
-        'members': [USER1] 
+        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'members': [USER1],
+        'test-data': True
         }
     url = urljoin(BASE_URL, '/teams') 
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
@@ -142,8 +144,9 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Business Users',
-        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
-        'members': [USER2] 
+        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'members': [USER2],
+        'test-data': True
         }
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
@@ -158,8 +161,9 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Ordinary Users',
-        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']}},
-        'members': [USER3] 
+        'permissions': {'_permissions': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'members': [USER3],
+        'test-data': True 
         }
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
@@ -176,9 +180,11 @@ def main():
     if r.status_code == 200:
         server_permissions = r.json()
         for key, value in permissions.iteritems():
-            for n_key, n_value in value.iteritems():
-                if server_permissions[key][n_key] != n_value:
-                    return 'retrieved permissions but comparison failed: %s' % json.dumps(server_permissions, indent=2)
+            if key != 'test-data':
+                for n_key, n_value in value.iteritems():
+                    if server_permissions[key][n_key] != n_value:
+                        print 'retrieved permissions but comparison failed: %s' % json.dumps(server_permissions, indent=2)
+                        return
         if ('Etag' in r.headers):
             ACME_ORG_IF_MATCH = r.headers['Etag']
             print 'correctly retrieved permissions with etag %s' % ACME_ORG_IF_MATCH
@@ -203,7 +209,8 @@ def main():
             'grantsAddAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'grantsRemoveAccessTo': [ORG_ADMINS]
-            }
+            },
+        'test-data': True
         }
 
     # patch http://acme.org/o/acme permissions (fail)
@@ -232,11 +239,12 @@ def main():
     if r.status_code == 200:
         server_permissions = r.json()
         for key, value in permissions_patch.iteritems():
-            for n_key, n_value in value.iteritems():
-                if server_permissions[key][n_key] != n_value:
-                    print 'retrieved permissions but comparison failed. keys: %s %s server value: %s\n patch value: %s\n server_permissions: %s\n patch: %s' % \
-                        (key, n_key, server_permissions[key][n_key], n_value, json.dumps(server_permissions, indent=2),  json.dumps(permissions_patch, indent=2))
-                    return
+            if key != 'test-data':
+                for n_key, n_value in value.iteritems():
+                    if server_permissions[key][n_key] != n_value:
+                        print 'retrieved permissions but comparison failed. keys: %s %s server value: %s\n patch value: %s\n server_permissions: %s\n patch: %s' % \
+                            (key, n_key, server_permissions[key][n_key], n_value, json.dumps(server_permissions, indent=2),  json.dumps(permissions_patch, indent=2))
+                        return
         print 'correctly retrieved permissions'
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
@@ -256,10 +264,10 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if [perm['_self'] for perm in heirs] == [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS]:
+        if {perm['_self'] for perm in heirs} == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
             print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team' 
         else:
-            print 'incorrect heirs of http://apigee.com/o/acme %s' % heirs
+            print 'incorrect heirs of http://apigee.com/o/acme %s' % [perm['_self'] for perm in heirs]
     else:
         print 'failed to return heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
         return
@@ -304,7 +312,8 @@ def main():
                 },
             '_resource': 
                 {'_self': 'http://apigee.com/o/acme%s' % item
-                }
+                },
+            'test-data': True
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
         if r.status_code == 201:
@@ -324,6 +333,7 @@ def main():
                 'grantsAddAcessTo': [BUSINESS_USERS],
                 'grantsRemoveAcessTo': [BUSINESS_USERS]
                 },
+            'test-data': True
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
         if r.status_code == 201:
@@ -340,7 +350,8 @@ def main():
             {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
             'grantsAddAcessTo': [BUSINESS_USERS, ORDINARY_USERS],
             'grantsRemoveAcessTo': [BUSINESS_USERS, ORDINARY_USERS]
-            }
+            },
+        'test-data': True
         }
 
     r = requests.post(permissions_url, headers=headers, json=permissions)

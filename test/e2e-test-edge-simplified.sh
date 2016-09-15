@@ -8,5 +8,5 @@ export EXTERNAL_SCHEME="https"
 source ../../aws-export-pg-variables.sh
 node drop.js
 echo "dropped tables"
-source renew-tokens.sh
-python test-edge-simplified.py
+#source renew-tokens.sh
+#python test-edge-simplified.py

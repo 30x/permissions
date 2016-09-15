@@ -14,7 +14,7 @@ var pool = new Pool(config);
 var eventProducer = new pge.eventProducer(pool);
 
 function dropTableThen(eventTopic, table, callback) {
-  var query = `DROP TABLE IF EXISTS ${table}`;
+  var query = `DELETE FROM ${table} WHERE data @> '{"test-data": true}'`;
   function eventData(pgResult) {
     return {subject: null, action: 'deleteAll'}
   }
@@ -25,11 +25,11 @@ function dropTableThen(eventTopic, table, callback) {
 
 eventProducer.init(function(){
   dropTableThen('permissions', 'permissions', function(err, pg_res) {
-    if(err) console.error('error dropping permissions table', err);
-    else console.log(`dropped table permissions ${process.env.PG_HOST}`)
+    if(err) console.error('error removing test data from permissions table', err);
+    else console.log(`removed all test data from permissions table on ${process.env.PG_HOST}`)
     dropTableThen('teams', 'teams', function(err, pg_res) {
-      if(err) console.error('error dropping teams table', err);
-      else console.log(`dropped table teams ${process.env.PG_HOST}`)
+      if(err) console.error('error removing test data from teams table', err);
+      else console.log(`removed all test data from teams table on ${process.env.PG_HOST}`)
       pool.end()
       eventProducer.finalize();
     });
