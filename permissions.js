@@ -402,15 +402,7 @@ function requestHandler(req, res) {
 db.init(function () {
   var port = process.env.PORT;
   permissionsEventConsumer.init(function() {
-    http.createServer(function(req, res){
-      try {
-        requestHandler(req, res);
-      }
-      catch (err) {
-        console.log(err.stack || err);
-        lib.internalError(res, err.stack || err);
-      }
-    }).listen(port, function() {
+    http.createServer(requestHandler).listen(port, function() {
       console.log(`server is listening on ${port}`);
     });
   });
