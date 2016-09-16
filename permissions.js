@@ -146,6 +146,8 @@ function withTeamsDo(req, res, user, callback) {
         }
       });
     });
+  } else {
+    lib.badRequest(res, 'user must be provided' + req.url)
   }
 }
 
@@ -192,7 +194,7 @@ function isAllowed(req, res, queryString) {
   var user = queryParts.user;
   var action = queryParts.action;
   var property = queryParts.property;
-  if (action !== undefined && queryParts.resource !== undefined && user == lib.getUser(req)) {
+  if (action !== undefined && queryParts.resource !== undefined && user && user == lib.getUser(req)) {
     var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource];
     resources = resources.map(x => lib.internalizeURL(x));
     var count = 0;
