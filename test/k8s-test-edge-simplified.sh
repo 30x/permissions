@@ -7,7 +7,7 @@ export INTERNAL_ROUTER="internal-router"
 export EXTERNAL_SCHEME="http"
 
 source local-export-pg-connection-variables.sh
-node drop.js
-echo "dropped tables"
+node delete-test-data.js
+echo "deleted test data"
 source renew-tokens.sh
 python test-edge-simplified.py
