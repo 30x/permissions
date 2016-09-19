@@ -314,7 +314,7 @@ def main():
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
         if r.status_code == 201:
-            print 'correctly created permission' 
+            print 'correctly created permissions %s' % r.headers['Location'] 
         else:
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
@@ -331,7 +331,7 @@ def main():
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
         if r.status_code == 201:
-            print 'correctly created permission %s' % r.headers['Location']
+            print 'correctly created permissions %s' % r.headers['Location']
         else:
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
@@ -347,7 +347,7 @@ def main():
 
     r = requests.post(permissions_url, headers=headers, json=permissions)
     if r.status_code == 201:
-        print 'correctly created permission %s' % r.headers['Location'] 
+        print 'correctly created permissions %s' % r.headers['Location'] 
         etag = r.headers['Etag']
         keyvaluemaps_url = urljoin(BASE_URL, r.headers['Location'])
     else:
