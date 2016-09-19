@@ -104,7 +104,7 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
       if (stopHere) {
         finalCallback(stopHere);
       } else {
-        var inheritsPermissionsOf = permissions._permissions.inheritsPermissionsOf;
+        var inheritsPermissionsOf = permissions._resource.inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
           inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
           if (inheritsPermissionsOf.length > 0) {
