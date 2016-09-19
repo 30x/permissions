@@ -6,7 +6,7 @@ export EXTERNAL_ROUTER="shipyard.e2e.apigee.net"
 export EXTERNAL_SCHEME="https"
 
 source ../../aws-export-pg-variables.sh
-node drop.js
+node delete-test-data.js
 echo "dropped tables"
 source renew-tokens.sh
 python test-edge-simplified.py
