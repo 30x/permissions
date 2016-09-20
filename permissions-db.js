@@ -3,7 +3,7 @@ var Pool = require('pg').Pool;
 var lib = require('http-helper-functions');
 
 var config = {
-  host: process.env.PG_HOST || 'localhost',
+  host: process.env.PG_HOST,
   user: process.env.PG_USER,
   password: process.env.PG_PASSWORD,
   database: process.env.PG_DATABASE
@@ -14,8 +14,9 @@ var pool = new Pool(config);
 function withPermissionsDo(req, res, subject, callback) {
   // fetch the permissions resource for `subject`.
   subject = lib.internalizeURL(subject, req.headers.host);
-  var query = 'SELECT etag, data FROM permissions WHERE subject = $1';
-  pool.query(query,[subject], function (err, pgResult) {
+  var query = `SELECT etag, data FROM permissions WHERE subject = '${subject}'`;
+  //console.log(`permissions-db:withPermissionsDo: query: ${query}`)
+  pool.query(query, function (err, pgResult) {
     if (err) {
       lib.internalError(res, err);
     } else {
@@ -36,7 +37,7 @@ function init(callback) {
     if(err) {
       console.error('error creating permissions table', err);
     } else {
-      console.log(`connected to PG at ${config.host}`);
+      console.log('permissions-db: connected to PG: ', config);
       callback();
     }
   });    

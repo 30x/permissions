@@ -324,8 +324,8 @@ def main():
             '_resource': 
                 {'_self': 'http://apigee.com/o/acme%s' % item,
                 'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-                'grantsAddAcessTo': [BUSINESS_USERS],
-                'grantsRemoveAcessTo': [BUSINESS_USERS]
+                'grantsAddAccessTo': [BUSINESS_USERS],
+                'grantsRemoveAccessTo': [BUSINESS_USERS]
                 },
             'test-data': True
             }
@@ -339,8 +339,8 @@ def main():
         '_resource': 
             {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
             'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-            'grantsAddAcessTo': [BUSINESS_USERS, ORDINARY_USERS],
-            'grantsRemoveAcessTo': [BUSINESS_USERS, ORDINARY_USERS]
+            'grantsAddAccessTo': [BUSINESS_USERS, ORDINARY_USERS],
+            'grantsRemoveAccessTo': [BUSINESS_USERS, ORDINARY_USERS]
             },
         'test-data': True
         }

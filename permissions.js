@@ -9,7 +9,7 @@ var pge = require('pg-event-consumer');
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
 
-var OPERATIONPROPERTIES = ['grantsCreateAcessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAccessTo', 'grantsAddAccessTo', 'grantsRemoveAccessTo'];
+var OPERATIONPROPERTIES = ['grantsCreateAccessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAccessTo', 'grantsAddAccessTo', 'grantsRemoveAccessTo'];
 var OPERATIONS = ['create', 'read', 'update', 'delete', 'add', 'remove'];
 
 function getAllowedActions(req, res, queryString) {
@@ -55,6 +55,7 @@ function collateAllowedActions(permissionsObject, property, actors) {
 }
 
 function isActionAllowed(permissionsObject, property, actors, action) {
+  //console.log(`isActionAllowed: property: ${property} action: ${action} actors: ${actors} permissions: ${JSON.stringify(permissionsObject)}`)
   permissionsObject = permissionsObject[property];
   if (permissionsObject !== undefined) {
     var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
@@ -89,6 +90,7 @@ function withPermissionsDo(req, res, resource, callback) {
   if (permissions !== undefined) {
     callback(permissions, permissions._Etag);
   } else {
+    //console.log(`permissions:withPermissionsDo: resource: ${resource}`)
     db.withPermissionsDo(req, res, resource, function(permissions, etag) {
       cache(resource, permissions, etag);
       callback(permissions, etag);
@@ -131,7 +133,7 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
 
 function withTeamsDo(req, res, user, callback) {
   if (user !== null) {
-    user = lib.internalizeURL(user);
+    user = lib.internalizeURL(user, req.headers.host);
     lib.sendInternalRequest(req, res, '/teams?' + user, 'GET', undefined, function (clientResponse) {
       lib.getClientResponseBody(clientResponse, function(body) {
         if (clientResponse.statusCode == 200) { 
@@ -196,7 +198,7 @@ function isAllowed(req, res, queryString) {
   var property = queryParts.property;
   if (action !== undefined && queryParts.resource !== undefined && user && user == lib.getUser(req)) {
     var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource];
-    resources = resources.map(x => lib.internalizeURL(x));
+    resources = resources.map(x => lib.internalizeURL(x, req.headers.host));
     var count = 0;
     var result = true;
     var responded = false;
@@ -254,7 +256,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         });
         if (sharingSet !== undefined) {
           var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet];
-          sharingSets = sharingSets.map(anURL => lib.internalizeURL(anURL));
+          sharingSets = sharingSets.map(anURL => lib.internalizeURL(anURL, req.headers.host));
           withPotentialAncestorsDo(sharingSets, function (potential) {
             potentialAncestors = potential;
             if (existingAncestors !== null) {
@@ -329,7 +331,7 @@ function processEvent(event) {
       permissionsCache = {}
     } else {
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} subject: ${event.data.subject}`);
-      delete permissionsCache[lib.internalizeURL(event.data.subject)];
+      delete permissionsCache[event.data.subject];
     }
   } else if (event.topic == 'teams') {
     if (event.data.action == 'update') {
