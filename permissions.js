@@ -199,6 +199,7 @@ function isAllowed(req, res, queryString) {
   if (action !== undefined && queryParts.resource !== undefined && user && user == lib.getUser(req)) {
     var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource];
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host));
+    //console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
     var count = 0;
     var result = true;
     var responded = false;
@@ -373,7 +374,7 @@ var teamsCache = {};
 function requestHandler(req, res) {
   if (req.url == '/events') {
     if (req.method == 'POST') {
-      lib.getServerPostBody(req, res, processEventPost);
+      lib.getServerPostObject(req, res, processEventPost);
     } else { 
       lib.methodNotAllowed(req, res, ['POST']);
     }
