@@ -32,7 +32,7 @@ function withPermissionsDo(req, res, subject, callback) {
 }
 
 function init(callback) {
-  var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb);'
+  var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag int, data jsonb);'
   pool.query(query, function(err, pgResult) {
     if(err) {
       console.error('error creating permissions table', err);
