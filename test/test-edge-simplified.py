@@ -1,5 +1,4 @@
 import requests
-import psycopg2
 import base64
 import json
 from os import environ as env
@@ -12,20 +11,6 @@ PG_DATABASE = env['PG_DATABASE']
 EXTERNAL_ROUTER = env['EXTERNAL_ROUTER']
 EXTERNAL_SCHEME = env['EXTERNAL_SCHEME']
 BASE_URL = '%s://%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER)
-
-connect_string = "dbname='%s' user='%s' host='%s' password='%s'" % (PG_DATABASE, PG_USER, PG_HOST, PG_PASSWORD)
-print 'creating tables using %s' % connect_string
-try:
-    conn = psycopg2.connect(connect_string)
-except:
-    print 'I am unable to connect to the database'
-
-with conn:
-    with conn.cursor() as cur:
-        cur.execute('CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag serial, data jsonb)')
-        cur.execute('CREATE TABLE IF NOT EXISTS teams (id text primary key, etag serial, data jsonb)')
-        cur.execute('CREATE TABLE IF NOT EXISTS events (index bigserial, topic text, eventtime bigint, data jsonb)')
-        cur.execute('CREATE TABLE IF NOT EXISTS consumers (ipaddress text primary key, registrationtime bigint);')
 
 def b64_decode(data):
     missing_padding = (4 - len(data) % 4) % 4
@@ -84,11 +69,11 @@ def main():
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(permissions_url, headers=headers, json=permissions)
     if r.status_code == 201:
-        print 'correctly created permissions %s' % r.headers['Location']
         org_permissions = urljoin(BASE_URL, r.headers['Location'])
         org_permissions_etag = r.headers['Etag'] 
+        print 'correctly created permissions url: %s etag: %s' % (org_permissions, org_permissions_etag)
     else:
-        print 'failed to create permissions %s %s %s' % (permissions_url, r.status_code, r.text)
+        print 'failed to create permissions url: %s status_code: %s etag: %s text: %s' % (permissions_url, r.status_code, org_permissions_etag, r.text)
         return
     
     # Retrieve resources shared with USER1
@@ -134,7 +119,7 @@ def main():
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
         ORG_ADMINS = r.headers['location']
-        print 'correctly created ORG_ADMINS team %s' % ORG_ADMINS
+        print 'correctly created ORG_ADMINS team %s etag: %s' % (ORG_ADMINS, r.headers['Etag'])
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
         return
@@ -151,7 +136,7 @@ def main():
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
-        print 'correctly created team %s' % r.headers['location']
+        print 'correctly created team %s etag: %s' % (r.headers['location'], r.headers['Etag'])
         BUSINESS_USERS = r.headers['location']
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
@@ -168,7 +153,7 @@ def main():
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(url, headers=headers, json=team)
     if r.status_code == 201:
-        print 'correctly created team %s' % r.headers['location']
+        print 'correctly created team %s etag: %s' % (r.headers['location'], r.headers['Etag'])
         ORDINARY_USERS = r.headers['location']
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
@@ -187,7 +172,7 @@ def main():
                         return
         if ('Etag' in r.headers):
             ACME_ORG_IF_MATCH = r.headers['Etag']
-            print 'correctly retrieved permissions with etag %s' % ACME_ORG_IF_MATCH
+            print 'correctly retrieved permissions %s with etag %s' % (org_permissions, ACME_ORG_IF_MATCH)
         else:
             print 'failed to provide etag in create response'
     else:
@@ -227,7 +212,8 @@ def main():
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 200:
-        print 'correctly patched permissions' 
+        ACME_ORG_IF_MATCH = r.headers['Etag']
+        print 'correctly patched permissions %s etag: %s' %(org_permissions, ACME_ORG_IF_MATCH)
     else:
         print 'failed to patch permissions %s %s' % (r.status_code, r.text)
         return
