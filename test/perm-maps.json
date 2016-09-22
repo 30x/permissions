@@ -1,6 +1,6 @@
 {"isA": "Permissions",
  "governs": {
-    "_self": "http://google.com/maps",
+    "self": "http://google.com/maps",
     "sharingSets": ["http://google.com/"],
     "readers": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737"]
  }

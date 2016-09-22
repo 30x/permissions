@@ -1,6 +1,6 @@
 {"isA": "Permissions",
  "governs": {
-  "_self": "http://localhost:8080/teams",
+  "self": "http://localhost:8080/teams",
   "creators": ["http://apigee.com/users/anyone"],
   "readers": ["http://apigee.com/users/anyone"],
   "updaters": ["http://apigee.com/users/anyone"],

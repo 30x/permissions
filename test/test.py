@@ -36,7 +36,7 @@ def main():
     permissions = {
     'isA': 'Permissions',
     'governs': 
-        {'_self': 'http://apigee.com/o/acme',
+        {'self': 'http://apigee.com/o/acme',
         'updaters': [USER1],
         'readers': [USER1],
         'deleters': [USER1],
@@ -87,7 +87,7 @@ def main():
     permissions = {
     'isA': 'Permissions',
     '_resource': 
-        {'_self': 'http://apigee.com/o/acme/teams',
+        {'self': 'http://apigee.com/o/acme/teams',
         'inheritsPermissionsOf': ['http://apigee.com/o/acme']
         }
     }
@@ -116,7 +116,7 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/acme/teams']:
+        if [perm['self'] for perm in heirs] == ['http://apigee.com/o/acme/teams']:
             print 'correctly returned permissions heirs of http://apigee.com/o/acme'
         else:
             print 'incorrect resources permissions heirs of http://apigee.com/o/acme %s' % heirs
@@ -154,7 +154,7 @@ def main():
 
     permissions_patch = {
     'governs': 
-        {'_self': 'http://apigee.com/o/acme',
+        {'self': 'http://apigee.com/o/acme',
         'updaters': [TEAM1],
         'readers': [TEAM1],
         'deleters': [TEAM1],
@@ -207,7 +207,7 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if [perm['_self'] for perm in heirs] == ['http://apigee.com/o/acme/teams']:
+        if [perm['self'] for perm in heirs] == ['http://apigee.com/o/acme/teams']:
             print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team'
         else:
             print 'incorrect heirs of http://apigee.com/o/acme %s' % heirs

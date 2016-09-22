@@ -225,7 +225,7 @@ function isAllowed(req, res, queryString) {
 function isAllowedToInheritFrom(req, res, queryString) {
   function withExistingAncestorsDo(resource, callback) {
     var ancestors = [];
-    withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._resource._self);}, function(){
+    withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._resource.self);}, function(){
       callback(Array.from(new Set(ancestors)));
     });
   }
@@ -233,7 +233,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
     var allAncestors = ancestors.slice();
     var count = 0;
     for (var i = 0; i < ancestors.length; i++) {
-      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._resource._self);}, function(){
+      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._resource.self);}, function(){
         if (++count == ancestors.length) {
           callback(Array.from(new Set(allAncestors)));
         }

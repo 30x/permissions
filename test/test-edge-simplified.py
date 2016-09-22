@@ -48,7 +48,7 @@ def main():
             'grantsUpdateAccessTo': [USER1]
             },     
         '_resource': 
-            {'_self': 'http://apigee.com/o/acme',
+            {'self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [USER1],
             'grantsReadAccessTo': [USER1],
             'grantsDeleteAccessTo': [USER1]
@@ -185,7 +185,7 @@ def main():
             'grantsUpdateAccessTo': [ORG_ADMINS]
             },
         '_resource': { 
-            '_self': 'http://apigee.com/o/acme',
+            'self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [ORG_ADMINS],
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'grantsDeleteAccessTo': [ORG_ADMINS],
@@ -250,10 +250,10 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if {perm['_self'] for perm in heirs} == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
+        if {perm['self'] for perm in heirs} == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
             print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team' 
         else:
-            print 'incorrect heirs of http://apigee.com/o/acme %s' % [perm['_self'] for perm in heirs]
+            print 'incorrect heirs of http://apigee.com/o/acme %s' % [perm['self'] for perm in heirs]
     else:
         print 'failed to return heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
         return
@@ -293,7 +293,7 @@ def main():
     for item in sharingSets:
         permissions = {
             '_resource': 
-                {'_self': 'http://apigee.com/o/acme%s' % item,
+                {'self': 'http://apigee.com/o/acme%s' % item,
                 'inheritsPermissionsOf': ['http://apigee.com/o/acme']
                 },
             'test-data': True
@@ -308,7 +308,7 @@ def main():
     for item in sharingSets:
         permissions = {
             '_resource': 
-                {'_self': 'http://apigee.com/o/acme%s' % item,
+                {'self': 'http://apigee.com/o/acme%s' % item,
                 'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
                 'grantsAddAccessTo': [BUSINESS_USERS],
                 'grantsRemoveAccessTo': [BUSINESS_USERS]
@@ -323,7 +323,7 @@ def main():
 
     permissions = {
         '_resource': 
-            {'_self': 'http://apigee.com/o/acme/keyvaluemaps',
+            {'self': 'http://apigee.com/o/acme/keyvaluemaps',
             'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'grantsAddAccessTo': [BUSINESS_USERS, ORDINARY_USERS],
             'grantsRemoveAccessTo': [BUSINESS_USERS, ORDINARY_USERS]

@@ -1,6 +1,6 @@
 {"isA": "Permissions",
  "governs": 
-    {"_self": "http://google.com/",
+    {"self": "http://google.com/",
      "updaters": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737", "http://barak-obama.name"],
      "readers": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737", "http://barak-obama.name"],
      "deleters": ["997a22a5-e3ee-42f7-a664-ae6aa1c4f737"],
