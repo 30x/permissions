@@ -182,13 +182,14 @@ def main():
     permissions_patch = {
         '_permissions': {
             'grantsReadAccessTo': [ORG_ADMINS],
+            'grantsDeleteAccessTo': [ORG_ADMINS],
             'grantsUpdateAccessTo': [ORG_ADMINS]
             },
         '_resource': { 
             'self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [ORG_ADMINS],
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
-            'grantsDeleteAccessTo': [ORG_ADMINS],
+            'grantsDeleteAccessTo': [ORG_ADMINS]
             },
         '_permissionsHeirs': {
             'grantsAddAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
