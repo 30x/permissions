@@ -1,1 +1,1 @@
-docker push thirtyx/permissions:0.0.4
+docker push thirtyx/permissions:0.0.5
