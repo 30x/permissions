@@ -11,21 +11,20 @@ var config = {
 
 var pool = new Pool(config);
 
-function withPermissionsDo(req, res, subject, callback) {
+function withPermissionsDo(req, subject, callback) {
   // fetch the permissions resource for `subject`.
   subject = lib.internalizeURL(subject, req.headers.host);
   var query = `SELECT etag, data FROM permissions WHERE subject = '${subject}'`;
   //console.log(`permissions-db:withPermissionsDo: query: ${query}`)
   pool.query(query, function (err, pgResult) {
     if (err) {
-      lib.internalError(res, err);
+      callback(err)
     } else {
-      if (pgResult.rowCount === 0) { 
-        lib.notFound(req, res);
-      }
+      if (pgResult.rowCount === 0)
+        callback(404)
       else {
         var row = pgResult.rows[0];
-        callback(row.data, row.etag);
+        callback(null, row.data, row.etag);
       }
     }
   });

@@ -73,7 +73,7 @@ def main():
         org_permissions_etag = r.headers['Etag'] 
         print 'correctly created permissions url: %s etag: %s' % (org_permissions, org_permissions_etag)
     else:
-        print 'failed to create permissions url: %s status_code: %s etag: %s text: %s' % (permissions_url, r.status_code, org_permissions_etag, r.text)
+        print 'failed to create permissions url: %s status_code: %s text: %s' % (permissions_url, r.status_code, r.text)
         return
     
     # Retrieve resources shared with USER1

@@ -1,7 +1,7 @@
 'use strict';
 var http = require('http');
 var lib = require('http-helper-functions');
-var db = require('./permissions-db.js');
+var db = require('./permissions-pg.js');
 var querystring = require('querystring');
 var url = require('url');
 var pge = require('pg-event-consumer');
@@ -91,9 +91,15 @@ function withPermissionsDo(req, res, resource, callback) {
     callback(permissions, permissions._Etag);
   } else {
     //console.log(`permissions:withPermissionsDo: resource: ${resource}`)
-    db.withPermissionsDo(req, res, resource, function(permissions, etag) {
-      cache(resource, permissions, etag);
-      callback(permissions, etag);
+    db.withPermissionsDo(req, resource, function(err, permissions, etag) {
+      if (err == 404)
+        lib.notFound(req, res)
+      else if (err)
+        lib.internalError(err)
+      else {
+        cache(resource, permissions, etag);
+        callback(permissions, etag);
+      }
     });
   }
 }

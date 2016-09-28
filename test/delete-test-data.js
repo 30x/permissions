@@ -18,7 +18,7 @@ function dropTableThen(eventTopic, table, callback) {
   function eventData(pgResult) {
     return {subject: null, action: 'deleteAll'}
   }
-  pge.queryAndStoreEvent({headers:{}}, null, pool, query, eventTopic, eventData, eventProducer, function(pgResult, pgEventResult) {
+  pge.queryAndStoreEvent({headers:{}}, pool, query, eventTopic, eventData, eventProducer, function(pgResult, pgEventResult) {
     callback();
   });
 }
