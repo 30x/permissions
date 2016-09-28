@@ -364,7 +364,7 @@ function processEventPost(req, res, event) {
 }
 
 var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS;
-var permissionsEventConsumer = new pge.eventConsumer(db.pool, IPADDRESS, processEvent);
+var permissionsEventConsumer = new pge.eventConsumer(IPADDRESS, processEvent);
 
 var permissionsCache = {};
 var teamsCache = {};
