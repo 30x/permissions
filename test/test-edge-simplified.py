@@ -210,7 +210,7 @@ def main():
     
     # patch http://acme.org/o/acme permissions (succeed)
 
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
+    headers = {'Content-Type': 'application/merge-patch+json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 200:
         ACME_ORG_IF_MATCH = r.headers['Etag']
@@ -358,6 +358,7 @@ def main():
 
     patch_headers = {'If-Match': etag}
     patch_headers.update(headers)
+    patch_headers['Content-Type'] = 'application/merge-patch+json'
     r = requests.patch(keyvaluemaps_url, headers=patch_headers, json=permissions_patch)
     if r.status_code == 200:
         print 'correctly patched permissions of %s' % keyvaluemaps_url
@@ -373,7 +374,7 @@ def main():
 
     # patch http://acme.org/o/acme permissions (fail)
 
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
+    headers = {'Accept': 'application/merge-patch+json', 'Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 400:
         print 'correctly refused to patch permissions that inherit from self %s' % r.text 
