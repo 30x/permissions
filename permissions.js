@@ -274,43 +274,35 @@ function isAllowedToInheritFrom(req, res, queryString) {
             var removeOK = removedAncestors.length == 0;
             if (removedAncestors.length > 0) {
               let count = 0;
-              for (let i=0; i < removedAncestors.length; i++) {
+              for (let i=0; i < removedAncestors.length; i++)
                 withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', function(answer) {
-                  if (!responded) {
+                  if (!responded) 
                     if (!answer) {
                       responded = true;
                       lib.found(req, res, {result: false, reason: `may not remove permissions inheritance from ${removedAncestors[i]}`}) 
-                    } else {
+                    } else
                       if (++count == removedAncestors.length) {
                         removeOK = true;
-                        if (addOK) {
+                        if (addOK)
                           lib.found(req, res, {result:true});
-                        }
                       }
-                    }
-                  }
                 });
-              }
             }
             if (addedAncestors.length > 0) {
               let count = 0;
-              for (let i=0; i < addedAncestors.length; i++) {
+              for (let i=0; i < addedAncestors.length; i++) 
                 withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', function(answer) {
-                  if (!responded) {
+                  if (!responded)
                     if (!answer) {
                       responded = true;
-                      lib.found(req, res, {result: false, reason: `may not add permissions inheritance from ${addedAncestors[i]}`}) 
-                    } else {
+                      lib.found(req, res, {result: false, reason: `may not add permissions inheritance to ${addedAncestors[i]}`}) 
+                    } else
                       if (++count == addedAncestors.length) {
                         addOK = true;
-                        if (removeOK) {
+                        if (removeOK)
                           lib.found(req, res, {result:true});
-                        }
                       }
-                    }
-                  }
                 });
-              }
             }
           } else {
             lib.found(req, res, {result: false, reason: `may not add cycle to permisions inheritance`}); // cycles not allowed
