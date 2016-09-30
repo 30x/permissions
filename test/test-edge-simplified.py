@@ -23,21 +23,27 @@ if 'APIGEE_TOKEN1' in env:
 else:
     with open('token.txt') as f:
         TOKEN1 = f.read()
-USER1 = json.loads(b64_decode(TOKEN1.split('.')[1]))['user_id']
+USER1_CLAIMS = json.loads(b64_decode(TOKEN1.split('.')[1]))      
+USER1 = '%s#%s' % (USER1_CLAIMS['iss'], USER1_CLAIMS['sub'])
+USER1_E = USER1.replace('#', '%23')
 
 if 'APIGEE_TOKEN2' in env:
     TOKEN2 = env['APIGEE_TOKEN2']
 else:
     with open('token2.txt') as f:
         TOKEN2 = f.read()
-USER2 = json.loads(b64_decode(TOKEN2.split('.')[1]))['user_id']
+USER2_CLAIMS = json.loads(b64_decode(TOKEN2.split('.')[1]))      
+USER2 = '%s#%s' % (USER2_CLAIMS['iss'], USER2_CLAIMS['sub'])
+USER2_E = USER2.replace('#', '%23')
 
 if 'APIGEE_TOKEN3' in env:
     TOKEN3 = env['APIGEE_TOKEN3']
 else:
     with open('token3.txt') as f:
         TOKEN3 = f.read()
-USER3 = json.loads(b64_decode(TOKEN3.split('.')[1]))['user_id']
+USER3_CLAIMS = json.loads(b64_decode(TOKEN3.split('.')[1]))      
+USER3 = '%s#%s' % (USER3_CLAIMS['iss'], USER3_CLAIMS['sub'])
+USER3_E = USER3.replace('#', '%23')
 
 def main():
     
@@ -79,7 +85,7 @@ def main():
     # Retrieve resources shared with USER1
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1) 
+    url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1_E) 
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         resources = r.json()
@@ -93,7 +99,7 @@ def main():
     
     # Retrieve allowed-actions for Acme org for USER1
 
-    url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1))
+    url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
@@ -261,7 +267,7 @@ def main():
 
     # Retrieve allowed actions
 
-    url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1))
+    url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
@@ -276,7 +282,7 @@ def main():
     # Retrieve resources shared with USER1
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1) 
+    url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1_E) 
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         resources = r.json()

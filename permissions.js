@@ -140,7 +140,7 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
 function withTeamsDo(req, res, user, callback) {
   if (user !== null) {
     user = lib.internalizeURL(user, req.headers.host);
-    lib.sendInternalRequest(req, res, '/teams?' + user, 'GET', undefined, function (clientResponse) {
+    lib.sendInternalRequest(req, res, `/teams?${user.replace('#', '%23')}`, 'GET', undefined, function (clientResponse) {
       lib.getClientResponseBody(clientResponse, function(body) {
         if (clientResponse.statusCode == 200) { 
           var actors = JSON.parse(body).contents;
