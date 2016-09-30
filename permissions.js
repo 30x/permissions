@@ -16,7 +16,7 @@ function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString);
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
   var user = queryParts.user;
-  var property = queryParts.property || '_resource';
+  var property = queryParts.property || '_self';
   if (user == lib.getUser(req)) { 
     withAllowedActionsDo(req, res, resource, property, function(allowedActions) {
       lib.found(req, res, allowedActions);
@@ -112,7 +112,7 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
       if (stopHere) {
         finalCallback(stopHere);
       } else {
-        var inheritsPermissionsOf = permissions._resource.inheritsPermissionsOf;
+        var inheritsPermissionsOf = permissions._self.inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
           inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
           if (inheritsPermissionsOf.length > 0) {
@@ -231,7 +231,7 @@ function isAllowed(req, res, queryString) {
 function isAllowedToInheritFrom(req, res, queryString) {
   function withExistingAncestorsDo(resource, callback) {
     var ancestors = [];
-    withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._resource.self);}, function(){
+    withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._self.self);}, function(){
       callback(Array.from(new Set(ancestors)));
     });
   }
@@ -239,7 +239,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
     var allAncestors = ancestors.slice();
     var count = 0;
     for (var i = 0; i < ancestors.length; i++) {
-      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._resource.self);}, function(){
+      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._self.self);}, function(){
         if (++count == ancestors.length) {
           callback(Array.from(new Set(allAncestors)));
         }

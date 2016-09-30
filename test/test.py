@@ -86,7 +86,7 @@ def main():
 
     permissions = {
     'isA': 'Permissions',
-    '_resource': 
+    '_self': 
         {'self': 'http://apigee.com/o/acme/teams',
         'inheritsPermissionsOf': ['http://apigee.com/o/acme']
         }
@@ -138,7 +138,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Org admins',
-        'permissions': {'_resource': {'inheritsPermissionsOf': ['http://apigee.com/o/acme/teams']}},
+        'permissions': {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme/teams']}},
         'members': [USER1] 
         }
     url = 'http://localhost:8080' + '/teams' 

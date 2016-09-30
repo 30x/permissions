@@ -47,7 +47,7 @@ def main():
             'grantsReadAccessTo': [USER1],
             'grantsUpdateAccessTo': [USER1]
             },     
-        '_resource': 
+        '_self': 
             {'self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [USER1],
             'grantsReadAccessTo': [USER1],
@@ -110,7 +110,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Org admins',
-        'permissions': {'_resource': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'permissions': {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
         'members': [USER1],
         'test-data': True
         }
@@ -129,7 +129,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Business Users',
-        'permissions': {'_resource': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'permissions': {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
         'members': [USER2],
         'test-data': True
         }
@@ -146,7 +146,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Ordinary Users',
-        'permissions': {'_resource': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'permissions': {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
         'members': [USER3],
         'test-data': True 
         }
@@ -185,7 +185,7 @@ def main():
             'grantsDeleteAccessTo': [ORG_ADMINS],
             'grantsUpdateAccessTo': [ORG_ADMINS]
             },
-        '_resource': { 
+        '_self': { 
             'self': 'http://apigee.com/o/acme',
             'grantsUpdateAccessTo': [ORG_ADMINS],
             'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
@@ -293,7 +293,7 @@ def main():
     sharingSets = ['/appkeys', '/applications', '/deployments', 'devConnectUser', '/devPortalButton',]    
     for item in sharingSets:
         permissions = {
-            '_resource': 
+            '_self': 
                 {'self': 'http://apigee.com/o/acme%s' % item,
                 'inheritsPermissionsOf': ['http://apigee.com/o/acme']
                 },
@@ -308,7 +308,7 @@ def main():
     sharingSets = ['/apiproducts', '/apps', '/axCustomReports', '/companies', '/developers', '/reports']    
     for item in sharingSets:
         permissions = {
-            '_resource': 
+            '_self': 
                 {'self': 'http://apigee.com/o/acme%s' % item,
                 'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
                 'grantsAddAccessTo': [BUSINESS_USERS],
@@ -323,7 +323,7 @@ def main():
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
     permissions = {
-        '_resource': 
+        '_self': 
             {'self': 'http://apigee.com/o/acme/keyvaluemaps',
             'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'grantsAddAccessTo': [BUSINESS_USERS, ORDINARY_USERS],
@@ -354,7 +354,7 @@ def main():
     else:
         print 'failed to return users-who-can-access of http://apigee.com/o/acme/keyvaluemaps for USER1 %s %s' % (r.status_code, r.text)
 
-    permissions_patch = {'_resource': {'inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']}}
+    permissions_patch = {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']}}
 
     patch_headers = {'If-Match': etag}
     patch_headers.update(headers)
@@ -367,7 +367,7 @@ def main():
         return
 
     permissions_patch = {
-        '_resource': {
+        '_self': {
             'inheritsPermissionsOf': ['http://apigee.com/o/acme']
             }
         }
@@ -383,7 +383,7 @@ def main():
         return
     
     permissions_patch = {
-        '_resource': {
+        '_self': {
             'inheritsPermissionsOf': ['http://apigee.com/o/acme/keyvaluemaps']
             }
         }
