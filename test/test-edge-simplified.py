@@ -50,19 +50,19 @@ def main():
     permissions = {
         '_permissions': 
             {'isA': 'Permissions',
-            'grantsReadAccessTo': [USER1],
-            'grantsUpdateAccessTo': [USER1]
+            'read': [USER1],
+            'update': [USER1]
             },     
         '_self': 
             {'self': 'http://apigee.com/o/acme',
-            'grantsUpdateAccessTo': [USER1],
-            'grantsReadAccessTo': [USER1],
-            'grantsDeleteAccessTo': [USER1]
+            'update': [USER1],
+            'read': [USER1],
+            'delete': [USER1]
             },
         '_permissionsHeirs': {
-            'grantsAddAccessTo': [USER1],
-            'grantsReadAccessTo': [USER1],
-            'grantsRemoveAccessTo': [USER1]
+            'add': [USER1],
+            'read': [USER1],
+            'remove': [USER1]
             },
         'test-data': True
         }
@@ -187,20 +187,20 @@ def main():
 
     permissions_patch = {
         '_permissions': {
-            'grantsReadAccessTo': [ORG_ADMINS],
-            'grantsDeleteAccessTo': [ORG_ADMINS],
-            'grantsUpdateAccessTo': [ORG_ADMINS]
+            'read': [ORG_ADMINS],
+            'delete': [ORG_ADMINS],
+            'update': [ORG_ADMINS]
             },
         '_self': { 
             'self': 'http://apigee.com/o/acme',
-            'grantsUpdateAccessTo': [ORG_ADMINS],
-            'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
-            'grantsDeleteAccessTo': [ORG_ADMINS]
+            'update': [ORG_ADMINS],
+            'read': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
+            'delete': [ORG_ADMINS]
             },
         '_permissionsHeirs': {
-            'grantsAddAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
-            'grantsReadAccessTo': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
-            'grantsRemoveAccessTo': [ORG_ADMINS]
+            'add': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
+            'read': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
+            'remove': [ORG_ADMINS]
             },
         'test-data': True
         }
@@ -317,8 +317,8 @@ def main():
             '_self': 
                 {'self': 'http://apigee.com/o/acme%s' % item,
                 'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-                'grantsAddAccessTo': [BUSINESS_USERS],
-                'grantsRemoveAccessTo': [BUSINESS_USERS]
+                'add': [BUSINESS_USERS],
+                'remove': [BUSINESS_USERS]
                 },
             'test-data': True
             }
@@ -332,8 +332,8 @@ def main():
         '_self': 
             {'self': 'http://apigee.com/o/acme/keyvaluemaps',
             'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-            'grantsAddAccessTo': [BUSINESS_USERS, ORDINARY_USERS],
-            'grantsRemoveAccessTo': [BUSINESS_USERS, ORDINARY_USERS]
+            'add': [BUSINESS_USERS, ORDINARY_USERS],
+            'remove': [BUSINESS_USERS, ORDINARY_USERS]
             },
         'test-data': True
         }

@@ -9,7 +9,6 @@ var pge = require('pg-event-consumer');
 var ANYONE = 'http://apigee.com/users/anyone';
 var INCOGNITO = 'http://apigee.com/users/incognito';
 
-var OPERATIONPROPERTIES = ['grantsCreateAccessTo', 'grantsReadAccessTo', 'grantsUpdateAccessTo', 'grantsDeleteAccessTo', 'grantsAddAccessTo', 'grantsRemoveAccessTo'];
 var OPERATIONS = ['create', 'read', 'update', 'delete', 'add', 'remove'];
 
 function getAllowedActions(req, res, queryString) {
@@ -29,9 +28,9 @@ function collateAllowedActions(permissionsObject, property, actors) {
   permissionsObject = permissionsObject[property]
   if (permissionsObject !== undefined) {
     var allowedActions = {};
-    for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
-      var actionProperty = OPERATIONPROPERTIES[i]
-      var allowedActors = permissionsObject[actionProperty]
+    for (var i = 0; i < OPERATIONS.length; i++) {
+      var action = OPERATIONS[i]
+      var allowedActors = permissionsObject[action]
       if (allowedActors !== undefined)
         if (allowedActors.indexOf(INCOGNITO) > -1)  
           allowedActions[OPERATIONS[i]] = true
@@ -53,8 +52,7 @@ function isActionAllowed(permissionsObject, property, actors, action) {
   //console.log(`isActionAllowed: property: ${property} action: ${action} actors: ${actors} permissions: ${JSON.stringify(permissionsObject)}`)
   permissionsObject = permissionsObject[property]
   if (permissionsObject !== undefined) {
-    var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
-    var allowedActors = permissionsObject[actionProperty];
+    var allowedActors = permissionsObject[action];
     if (allowedActors !== undefined) {
       if (allowedActors.indexOf(INCOGNITO) > -1) { 
         return true
