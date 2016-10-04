@@ -268,7 +268,8 @@ function isAllowedToInheritFrom(req, res, queryString) {
             var responded = false
             var addOK = addedAncestors.length == 0
             var removeOK = removedAncestors.length == 0
-            var wideningOK = potentialAncestors.length == 0
+            var wideningForbidden = false
+            var wideningCalculated = potentialAncestors.length == 0
             if (removedAncestors.length > 0) {
               let count = 0
               for (let i=0; i < removedAncestors.length; i++)
@@ -280,8 +281,10 @@ function isAllowedToInheritFrom(req, res, queryString) {
                     } else
                       if (++count == removedAncestors.length) {
                         removeOK = true
-                        if (addOK && wideningOK)
+                        if (addOK && wideningCalculated) {
+                          responded = true
                           lib.found(req, res, {result:true})
+                        }
                       }
                 })
             }
@@ -296,15 +299,26 @@ function isAllowedToInheritFrom(req, res, queryString) {
                     } else
                       if (++count == addedAncestors.length) {
                         addOK = true
-                        if (removeOK && wideningOK)
+                        if (removeOK && wideningCalculated) {
+                          responded = true
                           lib.found(req, res, {result:true})
+                        }
                       }
                 })
             }
             if (potentialAncestors.length > 0) {
-              wideningOK = true              
-              if (removeOK && addOK)
-                lib.found(req, res, {result:true})
+              let count = 0
+              for (let i=0; i < potentialAncestors.length; i++) 
+                withAncestorPermissionsDo(req, res, potentialAncestors[i], 
+                  permissions => wideningForbidden = wideningForbidden || !!permissions._preventWidening,
+                  function() {
+                    if (++count == potentialAncestors.length) {
+                      wideningCalculated = true
+                      if (removeOK && addOK)
+                        lib.found(req, res, {result: true, wideningForbidden: wideningForbidden})
+                    }
+                  }
+                )
             }
           } else
             lib.found(req, res, {result: false, reason: `may not add cycle to permisions inheritance`}) // cycles not allowed
