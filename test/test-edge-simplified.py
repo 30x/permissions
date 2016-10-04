@@ -373,7 +373,7 @@ def main():
 
     # patch http://acme.org/o/acme permissions (fail)
 
-    headers = {'Accept': 'application/merge-patch+json', 'Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
+    headers = {'Accept': 'application/json', 'Content-type': 'application/merge-patch+json', 'Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
     if r.status_code == 400:
         print 'correctly refused to patch permissions that inherit from self %s' % r.text 
