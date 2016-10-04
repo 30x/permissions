@@ -107,7 +107,7 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
           inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet))
           if (inheritsPermissionsOf.length > 0) {
             var count = 0
-            var replied = false;
+            var replied = false
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
               recursionSet[inheritsPermissionsOf[j]] = true 
               ancestors(inheritsPermissionsOf[j], function(stopped) {
