@@ -96,32 +96,36 @@ function withPermissionsDo(req, res, resource, callback) {
 
 function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallback) {
   var recursionSet = {}
-  function ancestors(resource) {
+  function ancestors(resource, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
       var stopHere = itemCallback(permissions)
-      if (stopHere) {
-        finalCallback(stopHere)
-      } else {
+      if (stopHere) 
+        callback(stopHere)
+      else {
         var inheritsPermissionsOf = permissions._inheritsPermissionsOf
         if (inheritsPermissionsOf !== undefined) {
           inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet))
           if (inheritsPermissionsOf.length > 0) {
             var count = 0
+            var replied = false;
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
               recursionSet[inheritsPermissionsOf[j]] = true 
-              ancestors(inheritsPermissionsOf[j], function() {
-                if (++count == inheritsPermissionsOf.length) 
-                  finalCallback()
+              ancestors(inheritsPermissionsOf[j], function(stopped) {
+                if (stopped || ++count == inheritsPermissionsOf.length) 
+                  if (!replied) {
+                    replied = true
+                    callback(stopped)
+                  }
               })
             }
           } else
-            finalCallback()
+            callback()
         } else
-          finalCallback()
+          callback()
       }
     })
   }
-  ancestors(subject)
+  ancestors(subject, finalCallback)
 }
 
 function withTeamsDo(req, res, user, callback) {
