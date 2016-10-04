@@ -287,7 +287,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
                         removeOK = true
                         if (addOK && wideningCalculated) {
                           responded = true
-                          lib.found(req, res, {result:true})
+                          lib.found(req, res, {result:true, wideningForbidden: wideningForbidden})
                         }
                       }
                 })
@@ -305,7 +305,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
                         addOK = true
                         if (removeOK && wideningCalculated) {
                           responded = true
-                          lib.found(req, res, {result:true})
+                          lib.found(req, res, {result:true, wideningForbidden: wideningForbidden})
                         }
                       }
                 })
