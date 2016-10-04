@@ -314,7 +314,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
               let count = 0
               for (let i=0; i < potentialAncestors.length; i++) 
                 withAncestorPermissionsDo(req, res, potentialAncestors[i], 
-                  permissions => wideningForbidden = wideningForbidden || !!permissions._preventWidening,
+                  permissions => wideningForbidden = wideningForbidden || !!permissions._wideningForbidden,
                   function() {
                     if (++count == potentialAncestors.length) {
                       wideningCalculated = true
