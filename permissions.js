@@ -273,6 +273,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
             var addOK = addedAncestors.length == 0
             var removeOK = removedAncestors.length == 0
             var wideningForbidden = false
+            var validIssuers
             var wideningCalculated = potentialAncestors.length == 0
             if (removedAncestors.length > 0) {
               let count = 0
@@ -287,7 +288,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
                         removeOK = true
                         if (addOK && wideningCalculated) {
                           responded = true
-                          lib.found(req, res, {result:true, wideningForbidden: wideningForbidden})
+                          lib.found(req, res, {result:true, wideningForbidden: wideningForbidden, validIssuers: validIssuers})
                         }
                       }
                 })
@@ -305,7 +306,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
                         addOK = true
                         if (removeOK && wideningCalculated) {
                           responded = true
-                          lib.found(req, res, {result:true, wideningForbidden: wideningForbidden})
+                          lib.found(req, res, {result:true, wideningForbidden: wideningForbidden, validIssuers: validIssuers})
                         }
                       }
                 })
@@ -314,13 +315,23 @@ function isAllowedToInheritFrom(req, res, queryString) {
               let count = 0
               for (let i=0; i < potentialAncestors.length; i++) 
                 withAncestorPermissionsDo(req, res, potentialAncestors[i], 
-                  permissions => wideningForbidden = wideningForbidden || !!permissions._wideningForbidden,
+                  function (permissions) {
+                    wideningForbidden = wideningForbidden || !!permissions._wideningForbidden
+                    if (permissions._validIssuers)
+                      if (validIssuers)
+                        validIssuers = permissions._validIssuers.filter(iss => validIssuers.indexOf(iss) >= 0)
+                      else
+                        validIssuers = permissions._validIssuers
+                    return false
+                  },
                   function(stopped) {
                     if (!wideningCalculated)
                       if (stopped || ++count == potentialAncestors.length) {
                         wideningCalculated = true
-                        if (removeOK && addOK)
-                          lib.found(req, res, {result: true, wideningForbidden: wideningForbidden})
+                        if (removeOK && addOK) {
+                          responded = true
+                          lib.found(req, res, {result: true, wideningForbidden: wideningForbidden, validIssuers: validIssuers})
+                        }
                       }
                   }
                 )
