@@ -1,20 +1,18 @@
-'use strict';
-var http = require('http');
-var lib = require('http-helper-functions');
-var db = require('./permissions-pg.js');
-var querystring = require('querystring');
-var url = require('url');
-var pge = require('pg-event-consumer');
+'use strict'
+var http = require('http')
+var lib = require('http-helper-functions')
+var db = require('./permissions-pg.js')
+var querystring = require('querystring')
+var url = require('url')
+var pge = require('pg-event-consumer')
 
-var ANYONE = 'http://apigee.com/users#anyone';
-var INCOGNITO = 'http://apigee.com/users#incognito';
-
-var OPERATIONS = ['create', 'read', 'update', 'delete', 'add', 'remove'];
+var ANYONE = 'http://apigee.com/users#anyone'
+var INCOGNITO = 'http://apigee.com/users#incognito'
 
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host)
-  var user = queryParts.user;
+  var user = queryParts.user
   var property = queryParts.property || '_self'
   if (user == lib.getUser(req)) 
     withAllowedActionsDo(req, res, resource, property, function(allowedActions) {
@@ -27,7 +25,7 @@ function getAllowedActions(req, res, queryString) {
 function collateAllowedActions(permissionsObject, property, actors) {
   permissionsObject = permissionsObject[property]
   if (permissionsObject !== undefined) {
-    var allowedActions = {};
+    var allowedActions = {}
     for (var action in permissionsObject) {
       var allowedActors = permissionsObject[action]
       if (allowedActors !== undefined)
@@ -38,20 +36,20 @@ function collateAllowedActions(permissionsObject, property, actors) {
             allowedActions[action] = true       
           else
             for (var j=0; j<actors.length; j++) {
-              var user = actors[j];
+              var user = actors[j]
               if (allowedActors.indexOf(user) > -1 )
                 allowedActions[action] = true
             }
     }
   }
-  return allowedActions;
+  return allowedActions
 }
 
 function isActionAllowed(permissionsObject, property, actors, action) {
   //console.log(`isActionAllowed: property: ${property} action: ${action} actors: ${actors} permissions: ${JSON.stringify(permissionsObject)}`)
   permissionsObject = permissionsObject[property]
   if (permissionsObject !== undefined) {
-    var allowedActors = permissionsObject[action];
+    var allowedActors = permissionsObject[action]
     if (allowedActors !== undefined) {
       if (allowedActors.indexOf(INCOGNITO) > -1) { 
         return true
@@ -228,13 +226,11 @@ function isAllowedToInheritFrom(req, res, queryString) {
   function withPotentialAncestorsDo(ancestors, callback) {
     var allAncestors = ancestors.slice()
     var count = 0
-    for (var i = 0; i < ancestors.length; i++) {
+    for (var i = 0; i < ancestors.length; i++)
       withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._subject)}, function(){
-        if (++count == ancestors.length) {
+        if (++count == ancestors.length)
           callback(Array.from(new Set(allAncestors)))
-        }
       })      
-    }
   }
   var queryParts = querystring.parse(queryString)
   var subject = queryParts.subject
