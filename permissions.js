@@ -315,12 +315,13 @@ function isAllowedToInheritFrom(req, res, queryString) {
               for (let i=0; i < potentialAncestors.length; i++) 
                 withAncestorPermissionsDo(req, res, potentialAncestors[i], 
                   permissions => wideningForbidden = wideningForbidden || !!permissions._wideningForbidden,
-                  function() {
-                    if (++count == potentialAncestors.length) {
-                      wideningCalculated = true
-                      if (removeOK && addOK)
-                        lib.found(req, res, {result: true, wideningForbidden: wideningForbidden})
-                    }
+                  function(stopped) {
+                    if (!wideningCalculated)
+                      if (stopped || ++count == potentialAncestors.length) {
+                        wideningCalculated = true
+                        if (removeOK && addOK)
+                          lib.found(req, res, {result: true, wideningForbidden: wideningForbidden})
+                      }
                   }
                 )
             }
