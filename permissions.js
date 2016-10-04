@@ -13,42 +13,37 @@ var OPERATIONPROPERTIES = ['grantsCreateAccessTo', 'grantsReadAccessTo', 'grants
 var OPERATIONS = ['create', 'read', 'update', 'delete', 'add', 'remove'];
 
 function getAllowedActions(req, res, queryString) {
-  var queryParts = querystring.parse(queryString);
-  var resource = lib.internalizeURL(queryParts.resource, req.headers.host);
+  var queryParts = querystring.parse(queryString)
+  var resource = lib.internalizeURL(queryParts.resource, req.headers.host)
   var user = queryParts.user;
-  var property = queryParts.property || '_self';
-  if (user == lib.getUser(req)) { 
+  var property = queryParts.property || '_self'
+  if (user == lib.getUser(req)) 
     withAllowedActionsDo(req, res, resource, property, function(allowedActions) {
-      lib.found(req, res, allowedActions);
-    });
-  } else {
+      lib.found(req, res, allowedActions)
+    })
+  else
     lib.badRequest(res, 'user in query string must match user credentials')
-  }
 }
 
 function collateAllowedActions(permissionsObject, property, actors) {
-  permissionsObject = permissionsObject[property];
+  permissionsObject = permissionsObject[property]
   if (permissionsObject !== undefined) {
     var allowedActions = {};
     for (var i = 0; i < OPERATIONPROPERTIES.length; i++) {
-      var actionProperty = OPERATIONPROPERTIES[i];
-      var allowedActors = permissionsObject[actionProperty];
-      if (allowedActors !== undefined) {
-        if (allowedActors.indexOf(INCOGNITO) > -1) { 
-          allowedActions[OPERATIONS[i]] = true;
-        } else if (actors !== null) {
-          if (allowedActors.indexOf(ANYONE) > -1) {
-            allowedActions[OPERATIONS[i]] = true;          
-          } else {
+      var actionProperty = OPERATIONPROPERTIES[i]
+      var allowedActors = permissionsObject[actionProperty]
+      if (allowedActors !== undefined)
+        if (allowedActors.indexOf(INCOGNITO) > -1)  
+          allowedActions[OPERATIONS[i]] = true
+        else if (actors !== null) 
+          if (allowedActors.indexOf(ANYONE) > -1) 
+            allowedActions[OPERATIONS[i]] = true       
+         else
             for (var j=0; j<actors.length; j++) {
               var user = actors[j];
-              if (allowedActors.indexOf(user) > -1 ) { 
-                allowedActions[OPERATIONS[i]] = true;
-              }
+              if (allowedActors.indexOf(user) > -1 )
+                allowedActions[OPERATIONS[i]] = true
             }
-          }
-        }
-      }
     }
   }
   return allowedActions;
@@ -56,33 +51,33 @@ function collateAllowedActions(permissionsObject, property, actors) {
 
 function isActionAllowed(permissionsObject, property, actors, action) {
   //console.log(`isActionAllowed: property: ${property} action: ${action} actors: ${actors} permissions: ${JSON.stringify(permissionsObject)}`)
-  permissionsObject = permissionsObject[property];
+  permissionsObject = permissionsObject[property]
   if (permissionsObject !== undefined) {
     var actionProperty = OPERATIONPROPERTIES[OPERATIONS.indexOf(action)];
     var allowedActors = permissionsObject[actionProperty];
     if (allowedActors !== undefined) {
       if (allowedActors.indexOf(INCOGNITO) > -1) { 
-        return true;
+        return true
       } else if (actors !== null) {
         if (allowedActors.indexOf(ANYONE) > -1) {
-          return true;
+          return true
         } else {
           for (var j=0; j<actors.length; j++) {
-            var actor = actors[j];
+            var actor = actors[j]
             if (allowedActors.indexOf(actor) > -1 ) {
-              return true;
+              return true
             }
           }
         }
       }
     }
   }
-  return false;
+  return false
 }
 
 function cache(resource, permissions, etag) {
-  permissions._Etag = etag;
-  permissionsCache[resource] = permissions;
+  permissions._Etag = etag
+  permissionsCache[resource] = permissions
 }
 
 function withPermissionsDo(req, res, resource, callback) {
@@ -272,12 +267,17 @@ function isAllowedToInheritFrom(req, res, queryString) {
           });
         }
         function processAncestors() {
+          // The algorithm here is a bit different from the usual permissions inheritance lookup. In the usual case
+          // we are considering a single action, and going up the hierarchy to find a permission that allows it. In this case
+          // we consider that we are doing an add or remove at every level, so we are going up the hierarchy multiple times,
+          // once for each add or remove at each level of the hierarchy.
           if (potentialAncestors.indexOf(subject) == -1) {
-            var addedAncestors = potentialAncestors.filter(x=>existingAncestors.indexOf(x) == -1);
-            var removedAncestors = existingAncestors.filter(x=>potentialAncestors.indexOf(x) == -1);
-            var responded = false;
-            var addOK = addedAncestors.length == 0;
-            var removeOK = removedAncestors.length == 0;
+            var addedAncestors = potentialAncestors.filter(x=>existingAncestors.indexOf(x) == -1)
+            var removedAncestors = existingAncestors.filter(x=>potentialAncestors.indexOf(x) == -1)
+            var responded = false
+            var addOK = addedAncestors.length == 0
+            var removeOK = removedAncestors.length == 0
+            var wideningOK = potentialAncestors.length == 0
             if (removedAncestors.length > 0) {
               let count = 0;
               for (let i=0; i < removedAncestors.length; i++)
@@ -289,7 +289,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
                     } else
                       if (++count == removedAncestors.length) {
                         removeOK = true;
-                        if (addOK)
+                        if (addOK && wideningOK)
                           lib.found(req, res, {result:true});
                       }
                 });
@@ -305,10 +305,15 @@ function isAllowedToInheritFrom(req, res, queryString) {
                     } else
                       if (++count == addedAncestors.length) {
                         addOK = true;
-                        if (removeOK)
-                          lib.found(req, res, {result:true});
+                        if (removeOK && wideningOK)
+                          lib.found(req, res, {result:true})
                       }
                 });
+            }
+            if (potentialAncestors.length > 0) {
+              wideningOK = true;              
+              if (removeOK && addOK)
+                lib.found(req, res, {result:true})
             }
           } else {
             lib.found(req, res, {result: false, reason: `may not add cycle to permisions inheritance`}); // cycles not allowed
