@@ -306,13 +306,11 @@ function isAllowedToInheritFrom(req, res, queryString) {
               if (removeOK && addOK)
                 lib.found(req, res, {result:true})
             }
-          } else {
+          } else
             lib.found(req, res, {result: false, reason: `may not add cycle to permisions inheritance`}) // cycles not allowed
-          }
         }        
-      } else{
+      } else
         lib.forbidden(req, res)
-      }
     })
   } else {
     lib.badRequest(res, `must provide subject in querystring: ${queryString} ${JSON.stringify(queryParts)}`)
@@ -320,7 +318,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
 }
 
 function processEvent(event) {
-  if (event.topic == 'permissions') {
+  if (event.topic == 'permissions')
     if (event.data.action == 'deleteAll') {
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`)
       permissionsCache = {}
@@ -328,7 +326,7 @@ function processEvent(event) {
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} subject: ${event.data.subject}`)
       delete permissionsCache[event.data.subject]
     }
-  } else if (event.topic == 'teams') {
+  else if (event.topic == 'teams')
     if (event.data.action == 'update') {
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} before: ${event.data.before} after ${event.data.after}`)
       var beforeMembers = event.data.before.members || []
@@ -348,9 +346,8 @@ function processEvent(event) {
       }
     } else
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`)
-  } else {
+  else
     console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`)    
-  }
 }
 
 function processEventPost(req, res, event) {
