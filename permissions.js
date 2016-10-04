@@ -105,29 +105,26 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
       if (stopHere) {
         finalCallback(stopHere);
       } else {
-        var inheritsPermissionsOf = permissions._self.inheritsPermissionsOf;
+        var inheritsPermissionsOf = permissions._inheritsPermissionsOf;
         if (inheritsPermissionsOf !== undefined) {
-          inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet)); 
+          inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet))
           if (inheritsPermissionsOf.length > 0) {
             var count = 0;
             for (var j = 0; j < inheritsPermissionsOf.length; j++) {
               recursionSet[inheritsPermissionsOf[j]] = true; 
               ancestors(inheritsPermissionsOf[j], function() {
-                if (++count == inheritsPermissionsOf.length) {
+                if (++count == inheritsPermissionsOf.length) 
                   finalCallback();
-                }
-              });
+              })
             }
-          } else {
+          } else
             finalCallback();
-          }
-        } else {
+        } else
           finalCallback();
-        }
       }
-    });
+    })
   }
-  ancestors(subject);
+  ancestors(subject)
 }
 
 function withTeamsDo(req, res, user, callback) {
@@ -224,7 +221,7 @@ function isAllowed(req, res, queryString) {
 function isAllowedToInheritFrom(req, res, queryString) {
   function withExistingAncestorsDo(resource, callback) {
     var ancestors = [];
-    withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._self.self);}, function(){
+    withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._subject);}, function(){
       callback(Array.from(new Set(ancestors)));
     });
   }
@@ -232,7 +229,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
     var allAncestors = ancestors.slice();
     var count = 0;
     for (var i = 0; i < ancestors.length; i++) {
-      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._self.self);}, function(){
+      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._subject);}, function(){
         if (++count == ancestors.length) {
           callback(Array.from(new Set(allAncestors)));
         }

@@ -48,14 +48,13 @@ USER3_E = USER3.replace('#', '%23')
 def main():
     
     permissions = {
+        '_subject': 'http://apigee.com/o/acme',
         '_permissions': 
-            {'isA': 'Permissions',
-            'read': [USER1],
+            {'read': [USER1],
             'update': [USER1]
             },     
         '_self': 
-            {'self': 'http://apigee.com/o/acme',
-            'update': [USER1],
+            {'update': [USER1],
             'read': [USER1],
             'delete': [USER1]
             },
@@ -116,7 +115,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Org admins',
-        'permissions': {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
         'members': [USER1],
         'test-data': True
         }
@@ -135,7 +134,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Business Users',
-        'permissions': {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
         'members': [USER2],
         'test-data': True
         }
@@ -152,7 +151,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Ordinary Users',
-        'permissions': {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme']},'test-data': True},
+        'permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
         'members': [USER3],
         'test-data': True 
         }
@@ -171,7 +170,7 @@ def main():
     if r.status_code == 200:
         server_permissions = r.json()
         for key, value in permissions.iteritems():
-            if key != 'test-data':
+            if key not in ['test-data', '_subject']:
                 for n_key, n_value in value.iteritems():
                     if server_permissions[key][n_key] != n_value:
                         print 'retrieved permissions but comparison failed: %s' % json.dumps(server_permissions, indent=2)
@@ -186,13 +185,13 @@ def main():
         return
 
     permissions_patch = {
-        '_permissions': {
+        '_subject': 'http://apigee.com/o/acme',
+            '_permissions': {
             'read': [ORG_ADMINS],
             'delete': [ORG_ADMINS],
             'update': [ORG_ADMINS]
             },
         '_self': { 
-            'self': 'http://apigee.com/o/acme',
             'update': [ORG_ADMINS],
             'read': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'delete': [ORG_ADMINS]
@@ -232,7 +231,7 @@ def main():
     if r.status_code == 200:
         server_permissions = r.json()
         for key, value in permissions_patch.iteritems():
-            if key != 'test-data':
+            if key not in ['test-data', '_subject']:
                 for n_key, n_value in value.iteritems():
                     if server_permissions[key][n_key] != n_value:
                         print 'retrieved permissions but comparison failed. keys: %s %s server value: %s\n patch value: %s\n server_permissions: %s\n patch: %s' % \
@@ -257,10 +256,10 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if {perm['self'] for perm in heirs} == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
+        if set(heirs) == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
             print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team' 
         else:
-            print 'incorrect heirs of http://apigee.com/o/acme %s' % [perm['self'] for perm in heirs]
+            print 'incorrect heirs of http://apigee.com/o/acme %s expected: %s' % (heirs, {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS})
     else:
         print 'failed to return heirs of http://apigee.com/o/acme %s %s' % (r.status_code, r.text)
         return
@@ -299,10 +298,8 @@ def main():
     sharingSets = ['/appkeys', '/applications', '/deployments', 'devConnectUser', '/devPortalButton',]    
     for item in sharingSets:
         permissions = {
-            '_self': 
-                {'self': 'http://apigee.com/o/acme%s' % item,
-                'inheritsPermissionsOf': ['http://apigee.com/o/acme']
-                },
+            '_subject': 'http://apigee.com/o/acme%s' % item,
+            '_inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'test-data': True
             }
         r = requests.post(permissions_url, headers=headers, json=permissions)
@@ -314,10 +311,10 @@ def main():
     sharingSets = ['/apiproducts', '/apps', '/axCustomReports', '/companies', '/developers', '/reports']    
     for item in sharingSets:
         permissions = {
+            '_subject': 'http://apigee.com/o/acme%s' % item,
+            '_inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             '_self': 
-                {'self': 'http://apigee.com/o/acme%s' % item,
-                'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-                'add': [BUSINESS_USERS],
+                {'add': [BUSINESS_USERS],
                 'remove': [BUSINESS_USERS]
                 },
             'test-data': True
@@ -329,10 +326,10 @@ def main():
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
 
     permissions = {
+        '_subject': 'http://apigee.com/o/acme/keyvaluemaps',
+        '_inheritsPermissionsOf': ['http://apigee.com/o/acme'],    
         '_self': 
-            {'self': 'http://apigee.com/o/acme/keyvaluemaps',
-            'inheritsPermissionsOf': ['http://apigee.com/o/acme'],
-            'add': [BUSINESS_USERS, ORDINARY_USERS],
+            {'add': [BUSINESS_USERS, ORDINARY_USERS],
             'remove': [BUSINESS_USERS, ORDINARY_USERS]
             },
         'test-data': True
@@ -360,7 +357,7 @@ def main():
     else:
         print 'failed to return users-who-can-access of http://apigee.com/o/acme/keyvaluemaps for USER1 %s %s' % (r.status_code, r.text)
 
-    permissions_patch = {'_self': {'inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']}}
+    permissions_patch = {'_inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']}
 
     patch_headers = {'If-Match': etag}
     patch_headers.update(headers)
@@ -372,11 +369,7 @@ def main():
         print 'failed to patch permissions %s %s' % (r.status_code, r.text)
         return
 
-    permissions_patch = {
-        '_self': {
-            'inheritsPermissionsOf': ['http://apigee.com/o/acme']
-            }
-        }
+    permissions_patch = {'_inheritsPermissionsOf': ['http://apigee.com/o/acme']}
 
     # patch http://acme.org/o/acme permissions (fail)
 
@@ -388,11 +381,7 @@ def main():
         print 'failed to refuse to patch permissions that inherit from self %s %s' % (r.status_code, r.text)
         return
     
-    permissions_patch = {
-        '_self': {
-            'inheritsPermissionsOf': ['http://apigee.com/o/acme/keyvaluemaps']
-            }
-        }
+    permissions_patch = {'_inheritsPermissionsOf': ['http://apigee.com/o/acme/keyvaluemaps']}
 
     # patch http://acme.org/o/acme permissions (fail)
 
