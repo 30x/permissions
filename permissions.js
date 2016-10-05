@@ -398,7 +398,7 @@ function requestHandler(req, res) {
     else 
       lib.methodNotAllowed(req, res, ['POST'])
   else {
-    var req_url = url.parse(req.url);
+    var req_url = url.parse(req.url)
     if (req_url.pathname == '/allowed-actions' && req_url.search !== null)
       if (req.method == 'GET')
         getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
