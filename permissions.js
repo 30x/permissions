@@ -80,8 +80,7 @@ function withPermissionsDo(req, res, resource, callback) {
   if (permissions !== undefined) {
     callback(permissions, permissions._Etag)
   } else {
-    //console.log(`permissions:withPermissionsDo: resource: ${resource}`)
-    db.withPermissionsDo(req, resource, function(err, permissions, etag) {
+    function checkResult(err, permissions, etag) {
       if (err == 404)
         lib.notFound(req, res)
       else if (err)
@@ -89,7 +88,20 @@ function withPermissionsDo(req, res, resource, callback) {
       else {
         cache(resource, permissions, etag)
         callback(permissions, etag)
-      }
+      }      
+    }
+    db.withPermissionsDo(req, resource, function(err, permissions, etag) {
+      if (err == 404)
+        lib.sendInternalRequest(req, res, '/permissions-migration/migration-request', 'POST', {resource: resource}, function(clientResponse) {
+          if (clientResponse.statusCode = 200)
+            db.withPermissionsDo(req, resource, function(err, permissions, etag) {
+              checkResult(err, permissions, etag)
+            })
+          else
+            lib.notFound(req, res)
+        })
+      else 
+        checkResult(err, permissions, etag)
     })
   }
 }
