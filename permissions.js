@@ -47,27 +47,31 @@ function collateAllowedActions(permissionsObject, property, actors) {
 
 function isActionAllowed(permissionsObject, property, actors, action) {
   //console.log(`isActionAllowed: property: ${property} action: ${action} actors: ${actors} permissions: ${JSON.stringify(permissionsObject)}`)
+  if (permissionsObject._contraints && permissionsObject._constraints.validIssuers) // only users validated with these issuers allowed
+    if (permissionsObject._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) // user's issuer not in the list
+      return false
   permissionsObject = permissionsObject[property]
   if (permissionsObject !== undefined) {
     var allowedActors = permissionsObject[action]
     if (allowedActors !== undefined) {
-      if (allowedActors.indexOf(INCOGNITO) > -1) { 
+      if (allowedActors.indexOf(INCOGNITO) > -1)
         return true
-      } else if (actors !== null) {
-        if (allowedActors.indexOf(ANYONE) > -1) {
+      else if (actors !== null)
+        if (allowedActors.indexOf(ANYONE) > -1)
           return true
-        } else {
+        else
           for (var j=0; j<actors.length; j++) {
             var actor = actors[j]
-            if (allowedActors.indexOf(actor) > -1 ) {
+            if (allowedActors.indexOf(actor) > -1 )
               return true
-            }
           }
-        }
-      }
     }
   }
-  return false
+  // if we get this far, we have not been able to say definiitively yes
+  if (permissionsObject._constraints && permissionsObject._constraints.wideningForbidden)
+    return false // the answer is no
+  else
+    return null // see if anyone else will say yes
 }
 
 function cache(resource, permissions, etag) {
@@ -148,8 +152,8 @@ function withTeamsDo(req, res, user, callback) {
         if (clientResponse.statusCode == 200) { 
           var actors = JSON.parse(body).contents
           lib.internalizeURLs(actors, req.headers.host)
-          actors.push(user)
-          actors.push([user.split('#')[0], 'anyone'].join('#'))
+          actors.unshift(user) // user guaranteed to be first
+          actors.push([user.split('#')[0], 'anyone'].join('#')) // anyone from the user's issuer
           callback(actors)
         } else {
           var err = `withTeamsDo: unable to retrieve /teams?${user} statusCode ${clientResponse.statusCode}`
@@ -173,10 +177,19 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
       withActorsDo(actors)
     })
   }
+  var allowed = null;
   function withActorsDo (actors) {  
     withAncestorPermissionsDo(req, res, subject, function(permissions) {
-      return isActionAllowed(permissions, property, actors, action)
-    }, function(allowed) {callback(!!allowed)}) 
+      var opinion = isActionAllowed(permissions, property, actors, action)
+      if (opinion == true) { // someone says its OK, but there may be  a veto later
+        allowed = true
+        return false // keep going
+      } else if (opinion == false) {
+        allowed = false
+        return true  // stop looking - operation is forbidden
+      } else
+        return false // keep going
+    }, function() {callback(allowed)}) 
   }
 }
 
@@ -212,14 +225,13 @@ function isAllowed(req, res, queryString) {
     //console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
     var count = 0
     var result = true
-    var responded = false
     for (var i = 0; i< resources.length; i++) {
       var resource = resources[i]
       var resourceParts = url.parse(resource)
       withPermissionFlagDo(req, res, resource, property, action, function(answer) {
         if (!responded) {
           if (++count == resources.length)
-            lib.found(req, res, answer && result)
+            lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
           else if (answer == false) {
             lib.found(req, res, false)
             responded = true
@@ -328,7 +340,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
               for (let i=0; i < potentialAncestors.length; i++) 
                 withAncestorPermissionsDo(req, res, potentialAncestors[i], 
                   function (permissions) {
-                    wideningForbidden = wideningForbidden || !!permissions._wideningForbidden
+                    wideningForbidden = wideningForbidden || !!(permissions._constraints && permissions._constraints.wideningForbidden)
                     if (permissions._validIssuers)
                       if (validIssuers)
                         validIssuers = permissions._validIssuers.filter(iss => validIssuers.indexOf(iss) >= 0)
