@@ -29,7 +29,7 @@ but is not involved in request-by-request runtime processing.
 
 ## permissions-migration microservice
 
-This microservice is designed to load data from the Edge RBAC system on demand so that the permissions service can answer questions for Edge resources without requiring any manual migration from Edge.
+This microservice is designed to load data from the Edge RBAC system on demand into the permissions database so that the permissions service can answer questions for Edge resources without requiring any manual migration from Edge.
 
 This microservice is called by the permissions runtime if a request is made for a resource for which the permissions service has no information. The migration microservice
 will look at the resource URL to see if it might be an Edge resource for an org that has not yet been migrated. If so it will migrate. More typically, it will do nothing.
