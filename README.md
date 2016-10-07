@@ -1,11 +1,11 @@
 
 
-The poermissions application is uses the permissions database to answer basic questions about users' rights to access resources.
+The permissions application is uses the permissions database to answer basic questions about users' rights to access resources.
 The questions it can answer are:
 
 * is the specified user allowed to perform the specified action on the specified resource?
 * what actions is the specified user allowed to perform on the specified resource?
-* does a particular resource inherit permissions from any of a list of other resources
+* does a particular resource inherit permissions from any of a list of other resources?
 
 permissons.js runs as an independent HTTP 'service'.
 
