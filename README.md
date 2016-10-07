@@ -61,7 +61,8 @@ create or modify an entity in the database, they do 3 things:
 Each instance of the permissions microservice keeps track of the events it has received. Periodically it will look in the events table to see if there are any new events, beginning with the first
 one it hasn't yet seen. This ensures that if it missed the broadcast of an event for any reason, it will pick it up soon thereafter.
 
-Old events are periodically garbage-collected. Listeners that have not recently re-registered are periodically removed from the listeners table.
+Old events are periodically garbage-collected from the event table. We keep approximately an hour;s worth of events. Any listener that gets behind by more than an hour will have to drop its whole cache and let it
+reload on demand. Listeners that have not recently re-registered are periodically removed from the listeners table.
 
 # Local Testing
 
