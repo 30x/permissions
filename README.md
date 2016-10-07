@@ -1,11 +1,13 @@
 # Permissions Service
 
-The overall "Permissions Service" is made up of 4 microservices that work together
+The overall "Permissions Capability" is made up of 4 microservices that work together
 
 * The permissions-maintenance microservice
 * The teams micro-service
 * The permissions-migration microservice
 * The permissions microservice 
+
+There is no run-time or development time construct that groups these as a "service", but in informal language we might talk of an overall "permissions service".
 
 ## Permissions-maintenance microservice
 
