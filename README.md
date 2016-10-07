@@ -15,7 +15,7 @@ that the permissions service controls.
 This microservice is designed to work at "maintenance scale", not "runtime scale". It is used when data is maintained, and is used by the runtime to load caches,
 but is not involved in request-by-request runtime processing.
 
-In addition to basic CRUD, the permissions-maintenance microservice implements some useful queries for permissions hierarch navigation, such as 
+In addition to basic CRUD, the permissions-maintenance microservice implements some useful queries for permissions hierarchy navigation and understanding, such as 
 * /resources-shared-with?{user}
 * /permissions-heirs?{resource}
 * /users-who-can-access?{resource}
