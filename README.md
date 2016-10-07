@@ -2,14 +2,14 @@
 
 The overall "Permissions Service" is made up of 4 microservices that work together
 
-* The permissions-maintenance microservices
+* The permissions-maintenance microservice
 * The teams micro-service
-* The permissions-migration microservices
+* The permissions-migration microservice
 * The permissions microservice 
 
 ## Permissions-maintenance microservice
 
-This microservice is a CRUD+ application rthat is used to create and maintain the individual permissions documents. There must be a permissions resource for each and every resource
+This microservice is a CRUD+ application that is used to create and maintain the individual permissions documents. There must be a permissions resource for each and every resource
 that the permissions service controls.
 
 This microservice is designed to work at "maintenance scale", not "runtime scale". It is used when data is maintained, and is used by the runtime to load caches,
@@ -22,7 +22,7 @@ In addition to basic CRUD, the permissions-maintenance microservice implements s
 
 ## Teams microservice
 
-The teams microservice is a CRUD+ application used to maintain teams. teams are simple lists of users. Teams within teams are not supported
+The teams microservice is a CRUD+ application used to maintain teams. A team is a simple list of users. Teams within teams are not supported
 
 The permissions-maintenance microservice is designed to work at "maintenance scale", not "runtime scale". It is used when data is maintained, and is used by the runtime to load caches,
 but is not involved in request-by-request runtime processing.
@@ -31,7 +31,7 @@ but is not involved in request-by-request runtime processing.
 
 This microservice is designed to load data from the Edge RBAC system on demand so that the permissions service can answer questions for Edge resources without requiring any manual migration from Edge.
 
-This microservice is called by the permissions runtime if a request is made for access information for a resource for which the permissions service has no information. The migration microservice
+This microservice is called by the permissions runtime if a request is made for a resource for which the permissions service has no information. The migration microservice
 will look at the resource URL to see if it might be an Edge resource for an org that has not yet been migrated. If so it will migrate. More typically, it will do nothing.
 
 ## Permissions microservice 
@@ -41,8 +41,11 @@ The primary questions it answers is:
 
 * is the specified user allowed to perform the specified action on the specified resource?
 
+This question is asked on every HTTP request received by every application that uses the permissions service for access control. the permissions-maintenance and teams applications themselves use this.
+
 The permissions microservice is designed to work primarily from in-memory data. It will access [the database of] the permissons-maintenance microservice to fetch data when it has a cache miss.
-It also accesses the teams service to get the list of teams for a given user when there is a cache miss.
+It also accesses the teams service to get the list of teams for a given user when there is a cache miss. Currently, information only drops out the cache as a result of invalidation events, although
+we may implement a TTL in the future.
 
 ### Cache invalidation
 
