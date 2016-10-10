@@ -181,6 +181,7 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
   var allowed = null;
   function withActorsDo (actors) {  
     withAncestorPermissionsDo(req, res, subject, function(permissions) {
+      console.log(permissions._subject, actors)
       var opinion = isActionAllowed(permissions, property, actors, action)
       if (opinion == true) { // someone says its OK, but there may be  a veto later
         allowed = true
@@ -190,7 +191,9 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
         return true  // stop looking - operation is forbidden
       } else
         return false // keep going
-    }, function() {callback(allowed)}) 
+    }, function() {
+      callback(allowed)
+    }) 
   }
 }
 

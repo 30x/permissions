@@ -394,7 +394,7 @@ def main():
 
     # Retrieve is-allowed for USER1
 
-    url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'GET'))
+    url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
