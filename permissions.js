@@ -50,9 +50,10 @@ function isActionAllowed(permissionsObject, property, actors, action) {
   if (permissionsObject._contraints && permissionsObject._constraints.validIssuers) // only users validated with these issuers allowed
     if (permissionsObject._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) // user's issuer not in the list
       return false
-  permissionsObject = permissionsObject[property]
-  if (permissionsObject !== undefined) {
-    var allowedActors = permissionsObject[action]
+  var propertyPermissions = permissionsObject[property]
+  if (propertyPermissions !== undefined) {
+    console.log(propertyPermissions, actors, property, action)
+    var allowedActors = propertyPermissions[action]
     if (allowedActors !== undefined) {
       if (allowedActors.indexOf(INCOGNITO) > -1)
         return true
@@ -218,21 +219,22 @@ function isAllowed(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   var user = queryParts.user
   var action = queryParts.action
-  var property = queryParts.property
+  var property = queryParts.property || '_self'
   if (action !== undefined && queryParts.resource !== undefined && user && user == lib.getUser(req)) {
     var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
     //console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
     var count = 0
-    var result = true
+    var responded = false
     for (var i = 0; i< resources.length; i++) {
       var resource = resources[i]
       var resourceParts = url.parse(resource)
       withPermissionFlagDo(req, res, resource, property, action, function(answer) {
         if (!responded) {
-          if (++count == resources.length)
+          if (++count == resources.length) {
             lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
-          else if (answer == false) {
+            responded = true
+          } else if (answer == false) {
             lib.found(req, res, false)
             responded = true
           }

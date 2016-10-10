@@ -69,7 +69,7 @@ def main():
 
     permissions_url = urljoin(BASE_URL, '/permissions') 
     
-    # Create permissions for Acme org (succeed)
+    # Create permissions for Acme org with USER1 (succeed)
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     r = requests.post(permissions_url, headers=headers, json=permissions)
@@ -213,7 +213,7 @@ def main():
         print 'failed to refuse to patch permissions without If-Match header %s %s' % (r.status_code, r.text)
         return
     
-    # patch http://acme.org/o/acme permissions (succeed)
+    # patch http://acme.org/o/acme permissions to use teams instead of USER1 (succeed)
 
     headers = {'Content-Type': 'application/merge-patch+json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
     r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
@@ -391,6 +391,20 @@ def main():
     else:
         print 'failed to refuse to patch permissions with inheritance cycle %s %s' % (r.status_code, r.text)
         return
-        
+
+    # Retrieve is-allowed for USER1
+
+    url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'GET'))
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned is-allowed of http://apigee.com/o/acme for USER1 after update of permissions to use team' 
+        else:
+            print 'incorrect returned is-allowed of http://apigee.com/o/acme for USER1 %s' % answer
+    else:
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
+
 if __name__ == '__main__':
     main()
