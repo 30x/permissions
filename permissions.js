@@ -46,13 +46,12 @@ function collateAllowedActions(permissionsObject, property, actors) {
 }
 
 function isActionAllowed(permissionsObject, property, actors, action) {
-  //console.log(`isActionAllowed: property: ${property} action: ${action} actors: ${actors} permissions: ${JSON.stringify(permissionsObject)}`)
+  console.log(`permissions:isActionAllowed: property: ${property} action: ${action} actors: ${actors} permissions: ${JSON.stringify(permissionsObject)}`)
   if (permissionsObject._contraints && permissionsObject._constraints.validIssuers) // only users validated with these issuers allowed
     if (permissionsObject._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) // user's issuer not in the list
       return false
   var propertyPermissions = permissionsObject[property]
   if (propertyPermissions !== undefined) {
-    console.log(propertyPermissions, actors, property, action)
     var allowedActors = propertyPermissions[action]
     if (allowedActors !== undefined) {
       if (allowedActors.indexOf(INCOGNITO) > -1)
@@ -225,7 +224,7 @@ function isAllowed(req, res, queryString) {
   if (action !== undefined && queryParts.resource !== undefined && user && user == lib.getUser(req)) {
     var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-    //console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
+    console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
     var count = 0
     var responded = false
     for (var i = 0; i< resources.length; i++) {
@@ -259,7 +258,9 @@ function isAllowedToInheritFrom(req, res, queryString) {
     var allAncestors = ancestors.slice()
     var count = 0
     for (var i = 0; i < ancestors.length; i++)
-      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {allAncestors.push(permissions._subject)}, function(){
+      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {
+        allAncestors.push(permissions._subject)
+      }, function(){
         if (++count == ancestors.length)
           callback(Array.from(new Set(allAncestors)))
       })      

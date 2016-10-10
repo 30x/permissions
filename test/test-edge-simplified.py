@@ -392,7 +392,7 @@ def main():
         print 'failed to refuse to patch permissions with inheritance cycle %s %s' % (r.status_code, r.text)
         return
 
-    # Retrieve is-allowed for USER1
+    # Retrieve is-allowed for USER1 on http://apigee.com/o/acme
 
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
@@ -406,6 +406,8 @@ def main():
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
 
+    # Retrieve is-allowed for USER1 on http://apigee.com/o/acme/keyvaluemaps
+
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme/keyvaluemaps', USER1_E, 'read'))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     r = requests.get(url, headers=headers, json=permissions)
@@ -417,6 +419,36 @@ def main():
             print 'incorrect returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER1 %s' % answer
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme/keyvaluemaps for USER1 %s %s' % (r.status_code, r.text)
+
+    # Patch permissions for http://apigee.com/o/acme/keyvaluemaps to add keyvaluemaps property
+
+    patch = {'keyvaluemaps': {'read': [USER2], 'update': [USER1]}}
+    patch_headers = {'If-Match': ACME_ORG_IF_MATCH}
+    patch_headers.update(headers)
+    patch_headers['Content-Type'] = 'application/merge-patch+json'
+    r = requests.patch(org_permissions, headers=patch_headers, json=patch)
+    if r.status_code == 200:
+        org_permissions_etag = r.headers['Etag'] 
+        print 'correctly patched permissions of %s' % keyvaluemaps_url
+    else:
+        print 'failed to patch permissions %s %s' % (r.status_code, r.text)
+        return
+
+    # Retrieve is-allowed for USER1 on http://apigee.com/o/acme for property keyvaluemaps
+
+    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER2_E))
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN2}
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 after update of permissions to use team' 
+        else:
+            print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s' % answer
+    else:
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s %s' % (r.status_code, r.text)
+
+
 
 if __name__ == '__main__':
     main()
