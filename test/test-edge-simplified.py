@@ -442,7 +442,7 @@ def main():
     if r.status_code == 200:
         answer = r.json()
         if answer:
-            print 'correctly returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 after update of permissions to use team' 
+            print 'correctly returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 after update of permissions to use property' 
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s' % answer
     else:
