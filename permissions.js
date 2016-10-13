@@ -96,8 +96,10 @@ function withPermissionsDo(req, res, resource, callback) {
     }
     db.withPermissionsDo(req, resource, function(err, permissions, etag) {
       if (err == 404)
-        lib.sendInternalRequest(req, res, '/permissions-migration/migration-request', 'POST', JSON.stringify({resource: resource}), function(clientResponse) {
-          if (clientResponse.statusCode = 200)
+        lib.sendInternalRequest(req.headers, '/permissions-migration/migration-request', 'POST', JSON.stringify({resource: resource}), function(err, clientResponse) {
+          if (err)
+            lib.internalError(res, err)
+          else if (clientResponse.statusCode = 200)
             db.withPermissionsDo(req, resource, function(err, permissions, etag) {
               checkResult(err, permissions, etag)
             })
@@ -147,9 +149,11 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
 function withTeamsDo(req, res, user, callback) {
   if (user !== null) {
     user = lib.internalizeURL(user, req.headers.host)
-    lib.sendInternalRequest(req, res, `/teams?${user.replace('#', '%23')}`, 'GET', undefined, function (clientResponse) {
+    lib.sendInternalRequest(req.headers, `/teams?${user.replace('#', '%23')}`, 'GET', undefined, function (err, clientResponse) {
       lib.getClientResponseBody(clientResponse, function(body) {
-        if (clientResponse.statusCode == 200) { 
+        if (err)
+          lib.internalError(res, err)
+        else if (clientResponse.statusCode == 200) { 
           var actors = JSON.parse(body).contents
           lib.internalizeURLs(actors, req.headers.host)
           actors.unshift(user) // user guaranteed to be first
