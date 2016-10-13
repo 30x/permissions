@@ -14,7 +14,7 @@ function getAllowedActions(req, res, queryString) {
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host)
   var user = queryParts.user
   var property = queryParts.property || '_self'
-  if (user == lib.getUser(req)) 
+  if (user == lib.getUser(req.headers.authorization)) 
     withAllowedActionsDo(req, res, resource, property, function(allowedActions) {
       lib.found(req, res, allowedActions)
     })
@@ -171,7 +171,7 @@ function withTeamsDo(req, res, user, callback) {
 }
 
 function withPermissionFlagDo(req, res, subject, property, action, callback) {
-  var user = lib.getUser(req)
+  var user = lib.getUser(req.headers.authorization)
   var actors = teamsCache[user] 
   if (actors !== undefined)
     withActorsDo(actors)
@@ -200,7 +200,7 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
 }
 
 function withAllowedActionsDo(req, res, resource, property, callback) {
-  var user = lib.getUser(req)
+  var user = lib.getUser(req.headers.authorization)
   var actors = teamsCache[user]
   if (actors !== undefined)
     withActorsDo(actors)
@@ -225,7 +225,7 @@ function isAllowed(req, res, queryString) {
   var user = queryParts.user
   var action = queryParts.action
   var property = queryParts.property || '_self'
-  if (action !== undefined && queryParts.resource !== undefined && user && user == lib.getUser(req)) {
+  if (action !== undefined && queryParts.resource !== undefined && user && user == lib.getUser(req.headers.authorization)) {
     var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
     console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
