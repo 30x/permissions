@@ -16,7 +16,7 @@ spec:
         component: permissions
         routable: "true"
       annotations:
-        privateHosts: sso.k8s.local
+        privateHosts: sso.k8s.dev
         privatePaths: 3000:/allowed-actions 3000:/is-allowed 3000:/is-allowed-to-inherit-from
     spec:
       containers:
@@ -53,12 +53,8 @@ spec:
                 key: private-api-key
           - name: SPEEDUP
             value: "10" 
-          - name: INTERNAL_ROUTER_HOST
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP          
-          - name: INTERNAL_ROUTER_PORT
-            value: "30556"
+          - name: INTERNAL_SY_ROUTER_HOST
+            value: "internal-router"
           - name: IPADDRESS
             valueFrom:
               fieldRef:
