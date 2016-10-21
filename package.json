@@ -9,7 +9,7 @@
   "dependencies": {
     "http-helper-functions": "^0.0.43",
     "pg": "^6.0.3",
-    "pg-event-consumer": "^0.0.21"
+    "pg-event-consumer": "^0.0.19"
   },
   "devDependencies": {},
   "scripts": {
