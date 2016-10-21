@@ -8,9 +8,8 @@ PG_HOST = env['PG_HOST']
 PG_USER = env['PG_USER']
 PG_PASSWORD = env['PG_PASSWORD']
 PG_DATABASE = env['PG_DATABASE']
-EXTERNAL_ROUTER = env['EXTERNAL_ROUTER']
 EXTERNAL_SCHEME = env['EXTERNAL_SCHEME']
-BASE_URL = '%s://%s' % (EXTERNAL_SCHEME, EXTERNAL_ROUTER)
+BASE_URL = '%s://%s:%s' % (EXTERNAL_SCHEME, env['EXTERNAL_ROUTER_HOST'], env['EXTERNAL_ROUTER_PORT']) if 'EXTERNAL_ROUTER_PORT' in env else '%s://%s' % (EXTERNAL_SCHEME, env['EXTERNAL_ROUTER_HOST'])
 
 def b64_decode(data):
     missing_padding = (4 - len(data) % 4) % 4
