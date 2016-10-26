@@ -450,11 +450,25 @@ function requestHandler(req, res) {
   }
 }
 
-db.init(function () {
-  var port = process.env.PORT
-  permissionsEventConsumer.init(function() {
-    http.createServer(requestHandler).listen(port, function() {
-      console.log(`server is listening on ${port}`)
+function start() {
+  db.init(function () {
+    var port = process.env.PORT
+    permissionsEventConsumer.init(function() {
+      http.createServer(requestHandler).listen(port, function() {
+        console.log(`server is listening on ${port}`)
+      })
     })
   })
-})
+}
+
+if (process.env.INTERNAL_SY_ROUTER_HOST == 'kubernetes_host_ip') 
+  lib.getHostIPThen(function(err, hostIP){
+    if (err) 
+      process.exit(1)
+    else {
+      process.env.INTERNAL_SY_ROUTER_HOST = hostIP
+      start()
+    }
+  })
+else 
+  start()
