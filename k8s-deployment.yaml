@@ -54,7 +54,9 @@ spec:
           - name: SPEEDUP
             value: "10" 
           - name: INTERNAL_SY_ROUTER_HOST
-            value: "internal-router"
+            value: "kubernetes_host_ip"
+          - name: INTERNAL_SY_ROUTER_PORT
+            value: "81"
           - name: IPADDRESS
             valueFrom:
               fieldRef:
