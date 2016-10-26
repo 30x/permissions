@@ -56,7 +56,11 @@ spec:
           - name: INTERNAL_SY_ROUTER_HOST
             value: "kubernetes_host_ip"
           - name: INTERNAL_SY_ROUTER_PORT
-            value: "81"
+            value: "30556"
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name            
           - name: IPADDRESS
             valueFrom:
               fieldRef:
