@@ -425,7 +425,7 @@ var teamsCache = {}
 function requestHandler(req, res) {
   if (req.url == '/events')
     if (req.method == 'POST')
-      lib.getServerPostObject(req, res, processEventPost)
+      lib.getServerPostObject(req, res, (e) => processEventPost(req, res, e))
     else 
       lib.methodNotAllowed(req, res, ['POST'])
   else {
