@@ -1,2 +1,2 @@
 docker build -t permissions .
-docker tag -f permissions thirtyx/permissions:0.0.23
+docker tag -f permissions thirtyx/permissions:0.0.24
