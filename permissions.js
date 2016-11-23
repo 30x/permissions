@@ -47,7 +47,7 @@ function collateAllowedActions(permissionsObject, property, actors) {
 
 function isActionAllowed(permissionsObject, property, actors, action) {
   console.log(`permissions:isActionAllowed: property: ${property} action: ${action} actors: ${actors}`)
-  if (permissionsObject._contraints && permissionsObject._constraints.validIssuers) // only users validated with these issuers allowed
+  if (permissionsObject._constraints && permissionsObject._constraints.validIssuers) // only users validated with these issuers allowed
     if (permissionsObject._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) // user's issuer not in the list
       return false
   var propertyPermissions = permissionsObject[property]
@@ -223,30 +223,38 @@ function isAllowed(req, res, queryString) {
   var user = queryParts.user
   var action = queryParts.action
   var property = queryParts.property || '_self'
-  if (action !== undefined && queryParts.resource !== undefined && user && user == lib.getUser(req.headers.authorization)) {
-    var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
-    resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-    console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
-    var count = 0
-    var responded = false
-    for (var i = 0; i< resources.length; i++) {
-      var resource = resources[i]
-      var resourceParts = url.parse(resource)
-      withPermissionFlagDo(req, res, resource, property, action, function(answer) {
-        if (!responded) {
-          if (++count == resources.length) {
-            lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
-            responded = true
-          } else if (answer == false) {
-            lib.found(req, res, false)
-            responded = true
+  if (user)
+    if (user == lib.getUser(req.headers.authorization))
+      if (action !== undefined)
+        if (queryParts.resource !== undefined) {
+          var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
+          resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
+          console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
+          var count = 0
+          var responded = false
+          for (var i = 0; i< resources.length; i++) {
+            var resource = resources[i]
+            var resourceParts = url.parse(resource)
+            withPermissionFlagDo(req, res, resource, property, action, function(answer) {
+              if (!responded) {
+                if (++count == resources.length) {
+                  lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                  responded = true
+                } else if (answer == false) {
+                  lib.found(req, res, false)
+                  responded = true
+                }
+              }
+            })
           }
-        }
-      })
-    }
-  } else {
-    lib.badRequest(res, 'action and resource must be provided and user in query string must match user credentials ' + req.url)
-  }
+        } else
+          lib.badRequest(res, 'resource  query parameter must be provided: ' + req.url)
+      else
+        lib.badRequest(res, 'action query parameter must be provided: ' + req.url)
+    else  
+        lib.forbidden(req, res)
+  else  
+    lib.badRequest(res, 'must provide user in query param: ' + req.url)
 }
 
 function isAllowedToInheritFrom(req, res, queryString) {
