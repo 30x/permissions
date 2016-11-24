@@ -15,6 +15,6 @@ export APIGEE_USER2=$(python ~/source/permissions/test/get-user-from-token.py ${
 rm *.dat
 ./get_token -u mnally+2@apigee.com:Wee00mar -m 111111
 export APIGEE_TOKEN3=$(./get_token)
-export APIGEE_USER2=$(python ~/source/permissions/test/get-user-from-token.py ${APIGEE_TOKEN2})
+export APIGEE_USER3=$(python ~/source/permissions/test/get-user-from-token.py ${APIGEE_TOKEN3})
 
 cd $DIR
