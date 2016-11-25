@@ -1,13 +1,13 @@
 'use strict'
-var http = require('http')
-var lib = require('http-helper-functions')
-var db = require('./permissions-pg.js')
-var querystring = require('querystring')
-var url = require('url')
-var pge = require('pg-event-consumer')
+const http = require('http')
+const lib = require('http-helper-functions')
+const db = require('./permissions-pg.js')
+const querystring = require('querystring')
+const url = require('url')
+const pge = require('pg-event-consumer')
 
-var ANYONE = 'http://apigee.com/users#anyone'
-var INCOGNITO = 'http://apigee.com/users#incognito'
+const ANYONE = 'http://apigee.com/users#anyone'
+const INCOGNITO = 'http://apigee.com/users#incognito'
 
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
