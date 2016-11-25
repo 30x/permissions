@@ -260,7 +260,10 @@ function isAllowed(req, res, queryString) {
 function isAllowedToInheritFrom(req, res, queryString) {
   function withExistingAncestorsDo(resource, callback) {
     var ancestors = []
-    withAncestorPermissionsDo(req, res, resource, function(permissions) {ancestors.push(permissions._subject)}, function(){
+    withAncestorPermissionsDo(req, res, resource, function(permissions) {
+      if (permissions._subject != resource)
+        ancestors.push(permissions._subject)
+    }, function(){
       callback(Array.from(new Set(ancestors)))
     })
   }
