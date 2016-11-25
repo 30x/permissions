@@ -545,3 +545,163 @@ echo ''
 ##
 read -n 1 -p "continue to Chapter 5 - beyond the logical hierarchy?"
 
+####
+permissions=$(cat << EOF
+{
+    "_subject": "http://apigee.com/folder/acme-prod-assets", 
+    "_inheritsPermissionsOf": ["http://apigee.com/o/acme"],
+    "_self": { 
+        "update": ["$acme_production_team_url"], 
+        "read": ["$acme_production_team_url"], 
+        "delete": ["$acme_production_team_url"] 
+    }, 
+    "_permissions": { 
+        "read": ["$acme_production_team_url"], 
+        "update": ["$acme_production_team_url"] 
+    },     
+    "deployments": {
+        "create": ["$acme_production_team_url"], 
+        "read": ["$acme_production_team_url"] 
+    },
+    "test-data": true
+    }
+EOF)
+echo "permissions=$permissions"
+command='echo $permissions | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2" -D - -o ttx.txt' 
+echo $command
+read -n 1 -p "let APIGEE_USER2 create this folder permissions?"
+while IFS=':' read key value; do
+    value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
+    if [ "$key" == 'Etag' ]; then
+        acme_prod_assets_permissons_etag="$value";
+    fi
+done < <(eval $command)
+echo "acme-prod-assets folder permissions Etag: $acme_prod_assets_permissons_etag"
+cat ttx.txt | python -mjson.tool
+
+####
+read -n 1 -p "continue?"
+permissions=$(cat << EOF
+{
+    "_subject": "http://apigee.com/folder/acme-test-assets", 
+    "_inheritsPermissionsOf": ["http://apigee.com/o/acme"],
+    "_self": { 
+        "update": ["$acme_test_team_url"], 
+        "read": ["$acme_test_team_url"], 
+        "delete": ["$acme_test_team_url"] 
+    }, 
+    "_permissions": {
+        "read": ["$acme_test_team_url"], 
+        "update": ["$acme_test_team_url"] 
+    },     
+    "deployments": {
+        "create": ["$acme_production_team_url"], 
+        "read": ["$acme_production_team_url"] 
+    },     
+    "test-data": true
+    }
+EOF)
+echo "permissions=$permissions"
+command='echo $permissions | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt' 
+echo $command
+read -n 1 -p "let APIGEE_USER3 create this folder permissions?"
+while IFS=':' read key value; do
+    value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
+    if [ "$key" == 'Etag' ]; then
+        acme_test_assets_permissons_etag="$value";
+    fi
+done < <(eval $command)
+echo "acme-test-assets folder permissions Etag: $acme_test_assets_permissons_etag"
+cat ttx.txt | python -mjson.tool
+
+####
+read -n 1 -p "continue?"
+patch=$(cat << EOF
+{
+    "_inheritsPermissionsOf": ["http://apigee.com/folder/acme-prod-assets"], 
+    "_self": null, 
+    "_permissions": null
+}
+EOF)
+echo "patch=$patch"
+command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN2" -H "If-Match: $acme_prod_env_permissions_etag" -D - -o ttx.txt'
+echo $command
+read -n 1 -p "have APIGEE_USER2 patch permissions for http://apigee.com/env/acme-prod to inherit from folder?"
+while IFS=':' read key value; do
+    value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
+    if [ "$key" == 'Etag' ]; then
+        acme_prod_env_permissions_etag="$value";
+    fi
+done < <(eval $command)
+cat ttx.txt | python -mjson.tool
+echo ''
+
+####
+read -n 1 -p "continue?"
+patch=$(cat << EOF
+{
+    "_inheritsPermissionsOf": ["http://apigee.com/folder/acme-test-assets"], 
+    "_self": null, 
+    "_permissions": null
+}
+EOF)
+echo "patch=$patch"
+command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $acme_test_env_permissions_etag" -D - -o ttx.txt'
+echo $command
+read -n 1 -p "have APIGEE_USER3 patch permissions for http://apigee.com/env/acme-test to inherit from folder?"
+while IFS=':' read key value; do
+    value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
+    if [ "$key" == 'Etag' ]; then
+        acme_test_env_permissions_etag="$value";
+    fi
+done < <(eval $command)
+cat ttx.txt | python -mjson.tool
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-prod&user=$APIGEE_USER2" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER2 can perform on http://apigee.com/env/acme-prod"
+eval $command
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER2" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER2 can perform on the permissions of http://apigee.com/env/acme-test"
+eval $command
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-prod&user=$APIGEE_USER3" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER3 can perform on http://apigee.com/env/acme-prod"
+eval $command
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER3" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER3 can perform on the permissions of http://apigee.com/env/acme-test"
+eval $command
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-prod&user=$APIGEE_USER1" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER1 can perform on http://apigee.com/env/acme-prod"
+eval $command
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER1" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER1 can perform on the permissions of http://apigee.com/env/acme-test"
+eval $command
+echo ''
