@@ -22,6 +22,7 @@ permissions=$(cat << EOF
     "test-data": true
     }
 EOF)
+echo "APIGEE_USER1 = ${APIGEE_USER1}"
 read -n 1 -p "create the following permissions?: $permissions"
 command='echo $permissions | curl -D - -o ttx.txt http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"' 
 echo $command
@@ -96,7 +97,7 @@ team=$(cat << EOF
 {
     "isA": "Team",
     "name": "Acme Org admins",
-    "permissions": {"_inheritsPermissionsOf": ["http://apigee.com/o/acme"],"test-data": true},
+    "_permissions": {"_inheritsPermissionsOf": ["http://apigee.com/o/acme"],"test-data": true},
     "members": ["$APIGEE_USER1"],
     "test-data": true
     }
@@ -323,7 +324,7 @@ team=$(cat << EOF
 {
     "isA": "Team",
     "name": "Acme Production Team",
-    "permissions": {"_inheritsPermissionsOf": ["http://apigee.com/o/acme"],"test-data": true},
+    "_permissions": {"_inheritsPermissionsOf": ["http://apigee.com/o/acme"],"test-data": true},
     "members": ["$APIGEE_USER2"],
     "test-data": true
     }
@@ -349,7 +350,7 @@ team=$(cat << EOF
 {
     "isA": "Team",
     "name": "Acme Test Team",
-    "permissions": {"_inheritsPermissionsOf": ["http://apigee.com/o/acme"],"test-data": true},
+    "_permissions": {"_inheritsPermissionsOf": ["http://apigee.com/o/acme"],"test-data": true},
     "members": ["$APIGEE_USER3"],
     "test-data": true
     }
@@ -462,4 +463,7 @@ command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/
 echo $command
 eval $command
 echo ''
+
+##
+read -n 1 -p "continue to Chapter 5 - beyond the logical hierarchy?"
 

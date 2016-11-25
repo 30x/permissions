@@ -91,6 +91,7 @@ def main():
             print 'correctly retrieved resources-shared-with for %s at %s' % (USER1, r.headers['Content-Location'])
         else:
             print 'retrieved resources-shared-with for %s but result is wrong %s' % (USER1, resources)
+            return
     else:
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
@@ -114,7 +115,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Org admins',
-        'permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
+        '_permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
         'members': [USER1],
         'test-data': True
         }
@@ -133,7 +134,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Business Users',
-        'permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
+        '_permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
         'members': [USER2],
         'test-data': True
         }
@@ -150,7 +151,7 @@ def main():
     team = {
         'isA': 'Team',
         'name': 'Acme Ordinary Users',
-        'permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
+        '_permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
         'members': [USER3],
         'test-data': True 
         }
