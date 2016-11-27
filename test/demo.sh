@@ -30,10 +30,10 @@ read -n 1 -p "create these permissions?"
 while IFS=':' read key value; do
     value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
     if [ "$key" == 'Etag' ]; then
-        acme_org_permissons_etag="$value";
+        ACME_ORG_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
-echo "permissions Etag: $acme_org_permissons_etag"
+echo "permissions Etag: $ACME_ORG_PERMISSIONS_ETAG"
 cat ttx.txt | python -mjson.tool
 
 ####
@@ -127,13 +127,13 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $acme_org_permissons_etag" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/o/acme to allow permissions inheritance?"
 while IFS=':' read key value; do
     value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
     if [ "$key" == 'Etag' ]; then
-        acme_org_permissons_etag="$value";
+        ACME_ORG_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
 cat ttx.txt | python -mjson.tool
@@ -176,13 +176,13 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $acme_org_permissons_etag" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/o/acme to reference org admin team rather than user?"
 while IFS=':' read key value; do
     value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
     if [ "$key" == 'Etag' ]; then
-        acme_org_permissons_etag="$value";
+        ACME_ORG_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
 cat ttx.txt | python -mjson.tool
@@ -240,13 +240,13 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $acme_org_permissons_etag" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/o/acme to allow creation of environments?"
 while IFS=':' read key value; do
     value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
     if [ "$key" == 'Etag' ]; then
-        acme_org_permissons_etag="$value";
+        ACME_ORG_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
 cat ttx.txt | python -mjson.tool
@@ -733,5 +733,51 @@ while IFS=':' read key value; do
     fi
 done < <(eval $command)
 cat ttx.txt | python -mjson.tool
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER4" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN4"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER4 can perform on http://apigee.com/env/acme-test"
+eval $command
+echo ''
+
+####
+read -n 1 -p "continue?"
+patch=$(cat << "EOF"
+{
+    "_constraints": {
+        "validIssuers": ["https://login.e2e.apigee.net"]
+    }
+}
+EOF)
+echo "patch=$patch"
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
+echo $command
+read -n 1 -p "patch permissions for http://apigee.com/o/acme to allow permissions inheritance?"
+while IFS=':' read key value; do
+    value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
+    if [ "$key" == 'Etag' ]; then
+        ACME_ORG_PERMISSIONS_ETAG="$value";
+    fi
+done < <(eval $command)
+cat ttx.txt | python -mjson.tool
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER4" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN4"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER4 can perform on http://apigee.com/env/acme-test"
+eval $command
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER3" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+echo $command
+read -n 1 -p "query the actions that APIGEE_USER4 can perform on http://apigee.com/env/acme-test"
+eval $command
 echo ''
 

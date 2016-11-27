@@ -214,6 +214,11 @@ function withAllowedActionsDo(req, res, resource, property, user, callback) {
   function withActorsDo (actors) {  
     var actions = {}
     withAncestorPermissionsDo(req, res, resource, function(permissions) {
+      if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
+        if (permissions._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) { // user's issuer not in the list
+          actions = {}
+          return true
+        }
       Object.assign(actions, collateAllowedActions(permissions, property, actors))
       return false
     }, function() {
