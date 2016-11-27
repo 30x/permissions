@@ -14,8 +14,9 @@ function getAllowedActions(req, res, queryString) {
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host)
   var user = queryParts.user
   var property = queryParts.property || '_self'
+  console.log(`permissions:getAllowedActions: resource: ${resource} user: ${user} property: ${property}`)
   if (user == lib.getUser(req.headers.authorization)) 
-    withAllowedActionsDo(req, res, resource, property, function(allowedActions) {
+    withAllowedActionsDo(req, res, resource, property, user, function(allowedActions) {
       lib.found(req, res, allowedActions)
     })
   else
@@ -201,8 +202,7 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
   }
 }
 
-function withAllowedActionsDo(req, res, resource, property, callback) {
-  var user = lib.getUser(req.headers.authorization)
+function withAllowedActionsDo(req, res, resource, property, user, callback) {
   var actors = teamsCache[user]
   if (actors !== undefined)
     withActorsDo(actors)
@@ -404,8 +404,8 @@ function processEvent(event) {
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} before: ${event.data.before} after ${event.data.after}`)
       var beforeMembers = event.data.before.members || []
       var afterMembers = event.data.after.members || []
-      var removedMembers = beforeMembers.filter(member => afterMembers.indexOf(member) = -1)
-      var addedMembers = afterMembers.filter(member => beforeMembers.indexOf(member) = -1)
+      var removedMembers = beforeMembers.filter(member => afterMembers.indexOf(member) == -1)
+      var addedMembers = afterMembers.filter(member => beforeMembers.indexOf(member) == -1)
       var affectedMembers = removedMembers.concat(addedMembers)
       for (var i = 0; i < affectedMembers.length; i++)
         delete teamsCache[affectedMembers[i]]
