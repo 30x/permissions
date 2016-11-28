@@ -861,3 +861,13 @@ read -n 1 -p "show actions APIGEE_USER3 can perform on http://apigee.com/env/acm
 eval $command
 echo ''
 
+##
+echo -e "\n\n\x1B[7m Last chapter - completing the circle \x1B[27m\n\n" #clear
+read -n 1 -p 'continue to Last Chapter - why was I able to create permissions and teams at the beginning of this tutorial?'
+
+####
+command='curl "http://localhost:8080/permissions?/" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+echo $command
+read -n 1 -p 'show permissions for "localhost:8080/"'
+eval "$command | python -mjson.tool"
+echo ''
