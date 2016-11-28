@@ -416,6 +416,14 @@ echo ''
 
 ####
 read -n 1 -p "continue?"
+command='curl "http://localhost:8080/permissions?$ACME_PROD_TEAM" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2"'
+echo $command
+read -n 1 -p "show the permissions for http://apigee.com/env/acme-prod?"
+eval "$command | python -mjson.tool"
+echo ''
+
+####
+read -n 1 -p "continue?"
 team=$(cat << EOF
 {
     "isA": "Team",
@@ -447,7 +455,7 @@ while IFS=':' read key value; do
         export ACME_TEST_TEAM="$value";
     fi;
     if [ "$key" == 'Etag' ]; then
-        export ACME_TEST_TEAM_PERMISSIONS_ETAG="$value";
+        ACME_TEST_TEAM_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
 echo "test team permissions URL: $ACME_TEST_TEAM"
@@ -457,7 +465,7 @@ echo ''
 
 ####
 read -n 1 -p "continue?"
-patch=$(cat << EOF
+patch=$(cat << "EOF"
 {
     "_self": { 
         "update": ["$ACME_PROD_TEAM"], 
@@ -467,7 +475,7 @@ patch=$(cat << EOF
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN2" -H "If-Match: $ACME_PROD_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN2" -H "If-Match: $ACME_PROD_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
 echo $command
 read -n 1 -p "have APIGEE_USER2 patch permissions for http://apigee.com/env/acme-prod to reference prod team?"
 while IFS=':' read key value; do
@@ -481,7 +489,7 @@ echo ''
 
 ####
 read -n 1 -p "continue?"
-patch=$(cat << EOF
+patch=$(cat << "EOF"
 {
     "_self": 
         {"update": ["$ACME_TEST_TEAM"], 
@@ -491,7 +499,7 @@ patch=$(cat << EOF
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
 echo $command
 read -n 1 -p "have APIGEE_USER3 patch permissions for http://apigee.com/env/acme-test to reference test team?"
 while IFS=':' read key value; do
@@ -555,7 +563,7 @@ echo ''
 echo -e "\n\n\x1B[7m chapter 6 \x1B[27m\n\n" #clear
 read -n 1 -p 'continue to Chapter 6 - breaking free of the "logical hierarchy"?'
 ####
-permissions=$(cat << EOF
+permissions=$(cat << "EOF"
 {
     "_subject": "http://apigee.com/folder/acme-prod-assets", 
     "_inheritsPermissionsOf": ["http://apigee.com/o/acme"],
@@ -576,7 +584,7 @@ permissions=$(cat << EOF
     }
 EOF)
 echo "permissions=$permissions"
-command='echo $permissions | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2" -D - -o ttx.txt' 
+command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2" -D - -o ttx.txt' 
 echo $command
 read -n 1 -p "let APIGEE_USER2 create this folder permissions?"
 while IFS=':' read key value; do
@@ -590,7 +598,7 @@ cat ttx.txt | python -mjson.tool
 
 ####
 read -n 1 -p "continue?"
-permissions=$(cat << EOF
+permissions=$(cat << "EOF"
 {
     "_subject": "http://apigee.com/folder/acme-test-assets", 
     "_inheritsPermissionsOf": ["http://apigee.com/o/acme"],
@@ -611,7 +619,7 @@ permissions=$(cat << EOF
     }
 EOF)
 echo "permissions=$permissions"
-command='echo $permissions | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt' 
+command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt' 
 echo $command
 read -n 1 -p "let APIGEE_USER3 create this folder permissions?"
 while IFS=':' read key value; do
@@ -749,7 +757,7 @@ echo ''
 
 ####
 read -n 1 -p "continue?"
-patch=$(cat << "EOF"
+patch=$(cat << EOF
 {
     "_constraints": {
         "validIssuers": ["https://login.e2e.apigee.net"]
@@ -757,7 +765,7 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/o/acme to allow permissions inheritance?"
 while IFS=':' read key value; do
@@ -787,7 +795,7 @@ echo ''
 
 ##
 echo -e "\n\n\x1B[7m chapter 8 \x1B[27m\n\n" #clear
-read -n 1 -p 'continue to Chapter 8 - restricting the ability to add permissions?'
+read -n 1 -p 'continue to Chapter 8 - restricting the ability to widen permissions?'
 ####
 permissions=$(cat << "EOF"
 {
@@ -847,9 +855,9 @@ echo ''
 
 ####
 read -n 1 -p "continue?"
-command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER3&action=read" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER3" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
 echo $command
-read -n 1 -p "ask whether APIGEE_USER3 can read http://apigee.com/env/acme-test"
+read -n 1 -p "show actions APIGEE_USER3 can perform on http://apigee.com/env/acme-test"
 eval $command
 echo ''
 
