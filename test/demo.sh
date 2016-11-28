@@ -6,8 +6,8 @@ shopt -s extglob # Required to trim whitespace; see below
 #source renew-tokens.sh
 
 ##
+echo -e "\n\n\x1B[7m chapter 1 \x1B[27m\n\n" #clear
 read -n 1 -p "continue to chapter 1 - basic permissions?"
-#clear
 permissions=$(cat << "EOF"
 {
     "_subject": "http://apigee.com/o/acme", 
@@ -94,8 +94,8 @@ eval $command
 echo ''
 
 ##
+echo -e "\n\n\x1B[7m chapter 2 \x1B[27m\n\n" #clear
 read -n 1 -p "continue to chapter 2 - creating and using teams?"
-#clear
 team=$(cat << "EOF"
 {
     "isA": "Team",
@@ -221,8 +221,8 @@ eval $command
 echo ''
 
 ##
+echo -e "\n\n\x1B[7m chapter 3 \x1B[27m\n\n" #clear
 read -n 1 -p "continue to Chapter 3  - relationships?"
-#clear
 command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/o/acme&user=$APIGEE_USER1&action=create&property=environments" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
 echo $command
 read -n 1 -p "Ask if APIGEE_USER1 is allowed to create an environment in http://apigee.com/o/acme?"
@@ -261,8 +261,8 @@ eval $command
 echo ''
 
 ####
+echo -e "\n\n\x1B[7m chapter 4 \x1B[27m\n\n" #clear
 read -n 1 -p "continue to Chapter 4  - inheritance?"
-#clear
 permissions=$(cat << "EOF"
 {
     "_subject": "http://apigee.com/env/acme-prod", 
@@ -330,8 +330,8 @@ echo "permissions Etag: $ACME_TEST_ENV_PERMISSIONS_ETAG"
 cat ttx.txt | python -mjson.tool
 
 ##
+echo -e "\n\n\x1B[7m chapter 5 \x1B[27m\n\n" #clear
 read -n 1 -p "continue to Chapter 5 - beyond RBAC: delegating administrative authority?"
-#clear
 ####
 patch=$(cat << "EOF"
 {
@@ -445,9 +445,13 @@ while IFS=':' read key value; do
     value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
     if [ "$key" == 'Location' ]; then
         export ACME_TEST_TEAM="$value";
+    fi;
+    if [ "$key" == 'Etag' ]; then
+        export ACME_TEST_TEAM_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
-echo "test team URL: $ACME_TEST_TEAM"
+echo "test team permissions URL: $ACME_TEST_TEAM"
+echo "test team permissions Etag: $ACME_TEST_TEAM_PERMISSIONS_ETAG"
 cat ttx.txt | python -mjson.tool
 echo ''
 
@@ -548,8 +552,8 @@ eval $command
 echo ''
 
 ##
+echo -e "\n\n\x1B[7m chapter 6 \x1B[27m\n\n" #clear
 read -n 1 -p 'continue to Chapter 6 - breaking free of the "logical hierarchy"?'
-#clear
 ####
 permissions=$(cat << EOF
 {
@@ -712,8 +716,8 @@ eval $command
 echo ''
 
 ##
+echo -e "\n\n\x1B[7m chapter 7 \x1B[27m\n\n" #clear
 read -n 1 -p 'continue to Chapter 7 - constraining access to subjects of a particular issuer'
-#clear
 ####
 
 patch=$(cat << "EOF"
@@ -722,14 +726,14 @@ patch=$(cat << "EOF"
    ]
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl localhost:8080$ACME_TEST_TEAM -X PATCH -d @-  -H "Content-Type: application/json-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ASSETS_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl localhost:8080$ACME_TEST_TEAM -X PATCH -d @-  -H "Content-Type: application/json-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_TEAM_PERMISSIONS_ETAG" -D - -o ttx.txt'
 echo $command
      
 read -n 1 -p "have APIGEE_USER3 add APIGEE_USER4 to test_assets folder?"
 while IFS=':' read key value; do
     value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
     if [ "$key" == 'Etag' ]; then
-        ACME_TEST_ASSETS_PERMISSIONS_ETAG="$value";
+        ACME_TEST_TEAM_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
 cat ttx.txt | python -mjson.tool
@@ -777,7 +781,75 @@ echo ''
 read -n 1 -p "continue?"
 command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER3" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
 echo $command
-read -n 1 -p "query the actions that APIGEE_USER4 can perform on http://apigee.com/env/acme-test"
+read -n 1 -p "query the actions that APIGEE_USER3 can perform on http://apigee.com/env/acme-test"
+eval $command
+echo ''
+
+##
+echo -e "\n\n\x1B[7m chapter 8 \x1B[27m\n\n" #clear
+read -n 1 -p 'continue to Chapter 8 - restricting the ability to add permissions?'
+####
+permissions=$(cat << "EOF"
+{
+    "_subject": "http://apigee.com/folder/confidential", 
+    "_self": { 
+        "update": ["$APIGEE_USER1"], 
+        "read": ["$APIGEE_USER1"], 
+        "delete": ["$APIGEE_USER1"] 
+    }, 
+    "_permissions": { 
+        "read": ["$APIGEE_USER1"], 
+        "update": ["$APIGEE_USER1"] 
+    },     
+    "_permissionsHeirs": {
+        "add":    ["$APIGEE_USER1", "$APIGEE_USER2", "$APIGEE_USER3"],
+        "read":   ["$APIGEE_USER1", "$APIGEE_USER2", "$APIGEE_USER3"],
+        "remove": ["$APIGEE_USER1"]
+    },
+    "_constraints": {
+        "wideningForbidden": true
+    },
+    "test-data": true
+}
+EOF)
+echo "permissions=$permissions"
+command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt' 
+echo $command
+read -n 1 -p "let APIGEE_USER1 create this folder permissions?"
+while IFS=':' read key value; do
+    value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
+    if [ "$key" == 'Etag' ]; then
+        acme_prod_assets_permissons_etag="$value";
+    fi
+done < <(eval $command)
+echo "acme-prod-assets folder permissions Etag: $acme_prod_assets_permissons_etag"
+cat ttx.txt | python -mjson.tool
+
+####
+read -n 1 -p "continue?"
+patch=$(cat << EOF
+   [
+       {"op": "add", "path": "/_inheritsPermissionsOf/-", "value": "http://apigee.com/folder/confidential" }
+   ]
+EOF)
+echo "patch=$patch"
+command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/folder/acme-test-assets -d @- -X PATCH -H "Content-Type: application/json-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ASSETS_PERMISSIONS_ETAG" -D - -o ttx.txt'
+echo $command
+read -n 1 -p "have APIGEE_USER3 patch permissions for http://apigee.com/folder/acme-test-assets to inherit from http://apigee.com/folder/confidential?"
+while IFS=':' read key value; do
+    value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
+    if [ "$key" == 'Etag' ]; then
+        ACME_TEST_ASSETS_PERMISSIONS_ETAG="$value";
+    fi
+done < <(eval $command)
+cat ttx.txt | python -mjson.tool
+echo ''
+
+####
+read -n 1 -p "continue?"
+command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER3&action=read" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+echo $command
+read -n 1 -p "ask whether APIGEE_USER3 can read http://apigee.com/env/acme-test"
 eval $command
 echo ''
 
