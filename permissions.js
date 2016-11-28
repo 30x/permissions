@@ -202,6 +202,34 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
   }
 }
 
+function withAncestorPermissionsTreeDo(req, res, subject, callback) {
+  var recursionSet = {}
+  var tree = []
+  function withAncestorPermissionsDo(resource, tree, callback) {
+    withPermissionsDo(req, res, resource, function(permissions) {
+      tree[0] = permissions
+      var inheritsPermissionsOf = permissions._inheritsPermissionsOf
+      if (inheritsPermissionsOf !== undefined) {
+        inheritsPermissionsOf = inheritsPermissionsOf.filter(x => !(x in recursionSet))
+        if (inheritsPermissionsOf.length > 0) {
+          var count = 0
+          for (var j = 0; j < inheritsPermissionsOf.length; j++) {
+            recursionSet[inheritsPermissionsOf[j]] = true 
+            tree[j+1] = []
+            withAncestorPermissionsDo(inheritsPermissionsOf[j], tree[j+1], function(subtree) {
+              if (++count == inheritsPermissionsOf.length) 
+                callback(tree)
+            })
+          }
+        } else
+          callback(tree)
+      } else
+        callback(tree)
+    })
+  }
+  withAncestorPermissionsDo(subject, tree, callback)
+}
+
 function withAllowedActionsDo(req, res, resource, property, user, callback) {
   var actors = teamsCache[user]
   if (actors !== undefined)
@@ -211,18 +239,40 @@ function withAllowedActionsDo(req, res, resource, property, user, callback) {
       teamsCache[user] = actors
       withActorsDo(actors)
     })
+  function calculateActions(node, actors) {
+    function actionsIntersection (actions1, actions2) {
+      var newActions = {}
+      for (var key in actions1)
+        if (key in actions2)
+          newActions[key] = actions1[key]
+    }
+    var permissions = node[0]
+    if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
+      if (actors.length == 0 || permissions._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) { // user's issuer not in the list
+        return [[], true]
+      }
+    var actions = {}
+    var wideningForbidden = false
+    for (var i = 1; i < node.length; i++) {
+      var [ancestorActions, ancestorWideningForbidden] = calculateActions(node[i], actors)
+      if (ancestorWideningForbidden)
+        if (wideningForbidden) 
+          actionsIntersection (actions, ancestorActions)
+        else 
+          actions = ancestorActions
+      else
+        if (!wideningForbidden)
+          Object.assign(actions, ancestorActions)
+      wideningForbidden = wideningForbidden || ancestorWideningForbidden
+    }
+    if (!wideningForbidden)
+      Object.assign(actions, collateAllowedActions(permissions, property, actors))
+    return [actions, wideningForbidden || (permissions._constraints !== undefined && permissions._constraints.wideningForbidden)]
+  }
   function withActorsDo (actors) {  
     var actions = {}
-    withAncestorPermissionsDo(req, res, resource, function(permissions) {
-      if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
-        if (permissions._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) { // user's issuer not in the list
-          actions = {}
-          return true
-        }
-      Object.assign(actions, collateAllowedActions(permissions, property, actors))
-      return false
-    }, function() {
-      callback(Object.keys(actions))
+    withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
+      callback(Object.keys(calculateActions(tree, actors)[0]))
     }) 
   }
 }
