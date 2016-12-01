@@ -278,6 +278,7 @@ function withAllowedActionsDo(req, res, resource, property, user, callback) {
 }
 
 function isAllowed(req, res, queryString) {
+  var hrstart = process.hrtime()
   var queryParts = querystring.parse(queryString)
   var user = queryParts.user
   var action = queryParts.action
@@ -298,9 +299,13 @@ function isAllowed(req, res, queryString) {
               if (++count == resources.length) {
                 lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
                 responded = true
+                var hrend = process.hrtime(hrstart)
+                console.log(`permissions:isAllowed:success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
               } else if (answer == false) {
                 lib.found(req, res, false)
                 responded = true
+                var hrend = process.hrtime(hrstart)
+                console.log(`permissions:isAllowed:success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
               }
             }
           })
