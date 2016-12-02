@@ -1,6 +1,6 @@
 DIR=$(pwd)
 
-cd ~/perm/permissions
+cd ~/source/permissions
 
 source test/k8s-export-pg-connection-variables.sh
 
@@ -9,13 +9,13 @@ kubectl create secret generic permissions --from-literal=pguser=${PG_USER} --fro
 
 kubectl create -f k8s-deployment.yaml
 
-cd ~/perm/permissions-maintenance
+cd ~/source/permissions-maintenance
 kubectl create -f k8s-deployment.yaml
 
-cd ~/perm/permissions-migration
+cd ~/source/permissions-migration
 kubectl create -f k8s-deployment.yaml
 
-cd ~/perm/teams
+cd ~/source/teams
 kubectl create -f k8s-deployment.yaml
 
 cd $DIR
