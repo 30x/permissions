@@ -291,19 +291,21 @@ function isAllowed(req, res, queryString) {
         var count = 0
         var responded = false
         for (var i = 0; i< resources.length; i++) {
-          var resource = resources[i]
-          var resourceParts = url.parse(resource)
-          withPermissionFlagDo(req, res, resource, property, action, function(answer) {
-            if (!responded) {
-              if (++count == resources.length) {
-                lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
-                responded = true
-              } else if (answer == false) {
-                lib.found(req, res, false)
-                responded = true
+          if (!responded) {
+            var resource = resources[i]
+            var resourceParts = url.parse(resource)
+            withPermissionFlagDo(req, res, resource, property, action, function(answer) {
+              if (!responded) {
+                if (++count == resources.length) {
+                  lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                  responded = true
+                } else if (answer == false) {
+                  lib.found(req, res, false)
+                  responded = true
+                }
               }
-            }
-          })
+            })
+          }
         }
       } else
         lib.badRequest(res, 'resource  query parameter must be provided: ' + req.url)

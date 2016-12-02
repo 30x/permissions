@@ -3,6 +3,7 @@ import base64
 import json
 from os import environ as env
 from urlparse import urljoin
+from timeit import default_timer as timer
 
 PG_HOST = env['PG_HOST']
 PG_USER = env['PG_USER']
@@ -396,11 +397,13 @@ def main():
 
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
+    start = timer()
     r = requests.get(url, headers=headers, json=permissions)
+    end = timer()
     if r.status_code == 200:
         answer = r.json()
         if answer:
-            print 'correctly returned is-allowed of http://apigee.com/o/acme for USER1 after update of permissions to use team' 
+            print 'correctly returned is-allowed of http://apigee.com/o/acme for USER1 after update of permissions to use team. Elapsed time = %sms' % ((end-start) * 1000) 
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme for USER1 %s' % answer
     else:
@@ -410,11 +413,13 @@ def main():
 
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme/keyvaluemaps', USER1_E, 'read'))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
+    start = timer()
     r = requests.get(url, headers=headers, json=permissions)
+    end = timer()
     if r.status_code == 200:
         answer = r.json()
         if answer:
-            print 'correctly returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER1 after update of permissions to use team' 
+            print 'correctly returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER1 after update of permissions to use team. Elapsed time = %sms' % ((end-start) * 1000) 
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER1 %s' % answer
     else:
@@ -438,16 +443,33 @@ def main():
 
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER2_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN2}
+    start = timer()
     r = requests.get(url, headers=headers, json=permissions)
+    end = timer()
     if r.status_code == 200:
         answer = r.json()
         if answer:
-            print 'correctly returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 after update of permissions to use property' 
+            print 'correctly returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 after update of permissions to use property. Elapsed time = %sms' % ((end-start) * 1000)
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s' % answer
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s %s' % (r.status_code, r.text)
 
+    # Retrieve is-allowed for USER1 on http://apigee.com/o/acme for property keyvaluemaps
+
+    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER2_E))
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN2}
+    start = timer()
+    r = requests.get(url, headers=headers, json=permissions)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 after update of permissions to use property. Elapsed time = %sms' % ((end-start) * 1000)
+        else:
+            print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s' % answer
+    else:
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s %s' % (r.status_code, r.text)
 
 
 if __name__ == '__main__':
