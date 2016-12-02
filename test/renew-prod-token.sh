@@ -1,5 +1,5 @@
 DIR=$(pwd)
-cd ~/shipyard-deployment/scripts
+cd ~/source/permissions/test
 echo $(pwd)
 unset SSO_LOGIN_URL
 

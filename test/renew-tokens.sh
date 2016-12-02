@@ -1,5 +1,5 @@
 DIR=$(pwd)
-cd ~/shipyard-deployment/scripts
+cd ~/source/permissions/test
 echo $(pwd)
 export SSO_LOGIN_URL="https://login.e2e.apigee.net"
 

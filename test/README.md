@@ -19,10 +19,15 @@ Here are the steps I went through to get this going on my new Google machine:
 * git clone git@github.com:30x/permissions-migration.git
 * git clone git@github.com:30x/teams.git
 * execute `npm install` in each of these directories
-* optionally clone 30x/http-helper-functions, execute `npm link` in that directory, and execute `npm link http-helper-functions` where it is used. Same for 30x/permissions-helper-functions. 
+* optionally clone 30x/http-helper-functions, execute `npm link` in that directory, and execute `npm link http-helper-functions` where it is used. Same for 30x/permissions-helper-functions, 30x/pg-event-producer and 30x/pg-event-consumer 
 * execute ./test/run-... in each of these directories, each in a different shell window
 * brew install nginx
 * nginx (starts in the background)
 * cp nginx.conf /Users/mnally/homebrew/etc/nginx/nginx.conf (executed from this test directory. nginx -V will show the location from which nginx is loading nginx.conf)
 * sudo easy_install requests (this python egg is used by the test script)
 * ./test-edge-simplified.sh
+* brew install gettext
+* brew link --force gettext
+* source renew-tokens.sh
+* source renew-prod-token.sh
+* ./demo.sh
