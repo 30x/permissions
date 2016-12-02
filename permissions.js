@@ -240,12 +240,6 @@ function withAllowedActionsDo(req, res, resource, property, user, callback) {
       withActorsDo(actors)
     })
   function calculateActions(node, actors) {
-    function actionsIntersection (actions1, actions2) {
-      var newActions = {}
-      for (var key in actions1)
-        if (key in actions2)
-          newActions[key] = actions1[key]
-    }
     var permissions = node[0]
     if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
       if (actors.length == 0 || permissions._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) { // user's issuer not in the list
@@ -257,7 +251,10 @@ function withAllowedActionsDo(req, res, resource, property, user, callback) {
       var [ancestorActions, ancestorWideningForbidden] = calculateActions(node[i], actors)
       if (ancestorWideningForbidden)
         if (wideningForbidden) 
-          actionsIntersection (actions, ancestorActions)
+          for (var key in actions1) {
+            if (!key in actions2)
+              delete actions[key]
+          }
         else 
           actions = ancestorActions
       else
@@ -375,9 +372,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
             var responded = false
             var addOK = addedAncestors.length == 0
             var removeOK = removedAncestors.length == 0
-            var wideningForbidden = false
-            var validIssuers
-            var wideningCalculated = potentialAncestors.length == 0
+            var allPotentialAncestorsVoted = potentialAncestors.length == 0
             if (removedAncestors.length > 0) {
               let count = 0
               for (let i=0; i < removedAncestors.length; i++)
@@ -389,9 +384,9 @@ function isAllowedToInheritFrom(req, res, queryString) {
                     } else
                       if (++count == removedAncestors.length) {
                         removeOK = true
-                        if (addOK && wideningCalculated) {
+                        if (addOK && allPotentialAncestorsVoted) {
                           responded = true
-                          lib.found(req, res, {result:true, wideningForbidden: wideningForbidden, validIssuers: validIssuers})
+                          lib.found(req, res, true)
                         }
                       }
                 })
@@ -407,9 +402,9 @@ function isAllowedToInheritFrom(req, res, queryString) {
                     } else
                       if (++count == addedAncestors.length) {
                         addOK = true
-                        if (removeOK && wideningCalculated) {
+                        if (removeOK && allPotentialAncestorsVoted) {
                           responded = true
-                          lib.found(req, res, {result:true, wideningForbidden: wideningForbidden, validIssuers: validIssuers})
+                          lib.found(req, res, true)
                         }
                       }
                 })
@@ -419,21 +414,15 @@ function isAllowedToInheritFrom(req, res, queryString) {
               for (let i=0; i < potentialAncestors.length; i++) 
                 withAncestorPermissionsDo(req, res, potentialAncestors[i], 
                   function (permissions) {
-                    wideningForbidden = wideningForbidden || !!(permissions._constraints && permissions._constraints.wideningForbidden)
-                    if (permissions._validIssuers)
-                      if (validIssuers)
-                        validIssuers = permissions._validIssuers.filter(iss => validIssuers.indexOf(iss) >= 0)
-                      else
-                        validIssuers = permissions._validIssuers
                     return false
                   },
                   function(stopped) {
-                    if (!wideningCalculated)
+                    if (!allPotentialAncestorsVoted)
                       if (stopped || ++count == potentialAncestors.length) {
-                        wideningCalculated = true
+                        allPotentialAncestorsVoted = true
                         if (removeOK && addOK) {
                           responded = true
-                          lib.found(req, res, {result: true, wideningForbidden: wideningForbidden, validIssuers: validIssuers})
+                          lib.found(req, res, true)
                         }
                       }
                   }
