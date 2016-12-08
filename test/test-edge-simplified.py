@@ -257,7 +257,7 @@ def main():
     r = requests.get(url, headers=headers, json=permissions)
     if r.status_code == 200:
         heirs = r.json()
-        if set(heirs) == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
+        if set(heirs['contents']) == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
             print 'correctly returned heirs of http://apigee.com/o/acme after update of permissions to use team' 
         else:
             print 'incorrect heirs of http://apigee.com/o/acme %s expected: %s' % (heirs, {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS})
