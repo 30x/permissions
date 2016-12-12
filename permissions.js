@@ -455,16 +455,17 @@ function processEvent(event) {
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} before: ${event.data.before} after ${event.data.after}`)
       var beforeMembers = event.data.before.members || []
       var afterMembers = event.data.after.members || []
-      var removedMembers = beforeMembers.filter(member => afterMembers.indexOf(member) == -1)
-      var addedMembers = afterMembers.filter(member => beforeMembers.indexOf(member) == -1)
-      var affectedMembers = removedMembers.concat(addedMembers)
-      for (var i = 0; i < affectedMembers.length; i++)
-        delete teamsCache[affectedMembers[i]]
+      for (let i = 0; i < beforeMembers.length; i++)
+        if (afterMembers.indexOf(beforeMembers[i]) == -1)
+          delete teamsCache[beforeMembers[i]]
+      for (let i = 0; i < afterMembers.length; i++)
+        if (beforeMembers.indexOf(afterMembers[i]) == -1)
+          delete teamsCache[afterMembers[i]]
     } else if (event.data.action == 'delete' || event.data.action == 'create') {
       var members = event.data.team.members
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} members: `, members)
       if (members !== undefined) {
-        for (var i = 0; i < members.length; i++) {
+        for (let i = 0; i < members.length; i++) {
           delete teamsCache[members[i]]
         }
       }
