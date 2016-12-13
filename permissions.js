@@ -47,7 +47,7 @@ function collateAllowedActions(permissionsObject, property, actors) {
 }
 
 function isActionAllowed(permissionsObject, property, actors, action) {
-  console.log(`permissions:isActionAllowed: property: ${property} action: ${action} actors: ${actors}`)
+  console.log(`permissions:isActionAllowed: _subject: ${permissionsObject._subject} property: ${property} action: ${action} actors: ${actors}`)
   if (permissionsObject._constraints && permissionsObject._constraints.validIssuers) // only users validated with these issuers allowed
     if (actors.length == 0 || permissionsObject._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) // user's issuer not in the list
       return false

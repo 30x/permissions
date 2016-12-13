@@ -174,7 +174,7 @@ def main():
             if key not in ['test-data', '_subject']:
                 for n_key, n_value in value.iteritems():
                     if server_permissions[key][n_key] != n_value:
-                        print 'retrieved permissions but comparison failed: %s' % json.dumps(server_permissions, indent=2)
+                        print 'retrieved permissions but comparison failed: key: %s n_key: %s n_value: %s server_permissions: %s' % (key, n_key, n_value, json.dumps(server_permissions, indent=2))
                         return
         if ('Etag' in r.headers):
             ACME_ORG_IF_MATCH = r.headers['Etag']
@@ -241,6 +241,7 @@ def main():
         print 'correctly retrieved permissions'
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
+        return
     
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
     r = requests.get(org_permissions, headers=headers, json=permissions)
@@ -249,6 +250,7 @@ def main():
         print 'correctly refused to retrieve permissions for USER2'
     else:
         print 'failed to refuse permissions %s %s' % (r.status_code, r.text)
+        return
     
     # Retrieve Acme org heirs
 
