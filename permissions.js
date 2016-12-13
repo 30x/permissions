@@ -251,8 +251,8 @@ function withAllowedActionsDo(req, res, resource, property, user, callback) {
       var [ancestorActions, ancestorWideningForbidden] = calculateActions(node[i], actors)
       if (ancestorWideningForbidden)
         if (wideningForbidden) 
-          for (var key in actions1) {
-            if (!key in actions2)
+          for (var key in actions) {
+            if (!key in ancestorActions)
               delete actions[key]
           }
         else 
