@@ -170,22 +170,8 @@ function withTeamsDo(req, res, user, callback) {
 }
 
 function withPermissionFlagDo(req, res, subject, property, action, callback) {
-  var actors
-  var user = lib.getUser(req.headers.authorization)
-  if (user == null)
-    withActorsDo([])
-  else {
-    var actors = teamsCache[user] 
-    if (actors !== undefined)
-      withActorsDo(actors)
-    else
-      withTeamsDo(req, res, user, function(actors) {
-        teamsCache[user] = actors
-        withActorsDo(actors)
-      })
-  }
-  var allowed = null;
   function withActorsDo (actors) {  
+    var allowed = null;
     withAncestorPermissionsDo(req, res, subject, function(permissions) {
       var opinion = isActionAllowed(permissions, property, actors, action)
       if (opinion == true) { // someone says its OK, but there may be  a veto later
@@ -199,6 +185,20 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
     }, function() {
       callback(allowed)
     }) 
+  }
+  var actors
+  var user = lib.getUser(req.headers.authorization)
+  if (user == null)
+    withActorsDo([])
+  else {
+    var actors = teamsCache[user] 
+    if (actors !== undefined)
+      withActorsDo(actors)
+    else
+      withTeamsDo(req, res, user, function(actors) {
+        teamsCache[user] = actors
+        withActorsDo(actors)
+      })
   }
 }
 
