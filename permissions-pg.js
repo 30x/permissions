@@ -31,31 +31,39 @@ function withPermissionsDo(req, subject, callback) {
 }
 
 function init(callback) {
-  var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag int, data jsonb);'
-  pool.query(query, function(err, pgResult) {
+  var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag int, data jsonb);'  
+  pool.connect(function(err, client, release) {
     if(err)
       console.error('error creating permissions table', err)
-    else {
-      console.log('permissions-db: connected to PG: ', config)
-      var permissions = {
-        "_subject": "scheme://authority/", 
-        "permissions":  {"read": [ANYONE], "create": [ANYONE]}, 
-        "teams":        {"read": [ANYONE], "create": [ANYONE]}, 
-        "_permissions": {"read": [ANYONE], "update": [ANYONE]}, 
-        "_self":        {"read": [ANYONE], "update": [ANYONE]}
-      }
-      query = `INSERT INTO permissions (subject, etag, data) values('${permissions._subject}', 1, '${JSON.stringify(permissions)}') RETURNING etag`
-      pool.query(query, function(err, pgResult) {
-        if(err)
-          if (err.code == 23505)
-            callback()
-          else
-            console.error('error creating permissions for "/"', err)
-        else 
-          callback()
-      })
-    }
-  })    
+    else
+      client.query(query, function(err, pgResult) {
+        if(err) {
+          release()
+          console.error('error creating permissions table', err)
+        } else {
+          console.log('permissions-db: connected to PG: ', config)
+          var permissions = {
+            "_subject": "scheme://authority/", 
+            "permissions":  {"read": [ANYONE], "create": [ANYONE]}, 
+            "teams":        {"read": [ANYONE], "create": [ANYONE]}, 
+            "_permissions": {"read": [ANYONE], "update": [ANYONE]}, 
+            "_self":        {"read": [ANYONE], "update": [ANYONE]}
+          }
+          query = `INSERT INTO permissions (subject, etag, data) values('${permissions._subject}', 1, '${JSON.stringify(permissions)}') RETURNING etag`
+          client.query(query, function(err, pgResult) {
+            release()
+            if(err)
+              if (err.code == 23505) {
+                callback()
+                console.error('permissions for "/" already existed')
+              } else
+                console.error('error creating permissions for "/"', err)
+            else 
+              callback()
+          })
+        }
+      })    
+  })
 }
 
 exports.withPermissionsDo = withPermissionsDo
