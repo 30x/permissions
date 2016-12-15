@@ -442,7 +442,11 @@ function isAllowedToInheritFrom(req, res, queryString) {
 }
 
 function processEvent(event) {
-  if (event.topic == 'permissions')
+  if (event.topic == 'eventGapDetected') {
+    console.log('permissions: processEvent: event.topic: eventGapDetected')
+    permissionsCache = {}
+    teamsCache = {}
+  } else if (event.topic == 'permissions')
     if (event.data.action == 'deleteAll') {
       console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`)
       permissionsCache = {}
