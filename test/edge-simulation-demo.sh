@@ -24,7 +24,7 @@ permissions=$(cat << "EOF"
     }
 EOF)
 echo "permissions=$permissions"
-command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt' 
+command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt -sS' 
 echo $command
 read -n 1 -p "create these permissions?"
 while IFS=':' read key value; do
@@ -127,7 +127,7 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/o/acme to allow permissions inheritance?"
 while IFS=':' read key value; do
@@ -142,7 +142,7 @@ echo ''
 ####
 read -n 1 -p "continue?"
 echo "team=$team"
-command='echo $team | envsubst | curl http://localhost:8080/teams -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt'
+command='echo $team | envsubst | curl http://localhost:8080/teams -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "retry creation of this team?"
 while IFS=':' read key value; do
@@ -176,7 +176,7 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/o/acme to reference org admin team rather than user?"
 while IFS=':' read key value; do
@@ -240,7 +240,7 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/o/acme to allow creation of environments?"
 while IFS=':' read key value; do
@@ -271,7 +271,7 @@ permissions=$(cat << "EOF"
     }
 EOF)
 echo "permissions=$permissions"
-command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt' 
+command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt -sS' 
 echo $command
 read -n 1 -p "create the permissions for http://apigee.com/env/acme-prod?"
 while IFS=':' read key value; do
@@ -317,7 +317,7 @@ permissions=$(cat << "EOF"
     }
 EOF)
 echo "permissions=$permissions"
-command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt' 
+command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt -sS' 
 echo $command
 read -n 1 -p "create the permissions for http://apigee.com/env/acme-test?"
 while IFS=':' read key value; do
@@ -342,7 +342,7 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_PROD_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_PROD_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/env/acme-prod to allow APIGEE_USER2 to access and administer it?"
 while IFS=':' read key value; do
@@ -365,7 +365,7 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_TEST_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_TEST_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/env/acme-test to allow APIGEE_USER3 to access and administer it?"
 while IFS=':' read key value; do
@@ -401,7 +401,7 @@ team=$(cat << "EOF"
 }
 EOF)
 echo "team=$team"
-command='echo $team | envsubst | curl http://localhost:8080/teams -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2" -D - -o ttx.txt'
+command='echo $team | envsubst | curl http://localhost:8080/teams -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "have APIGEE_USER2 create the Acme Production Team?"
 while IFS=':' read key value; do
@@ -446,7 +446,7 @@ team=$(cat << EOF
 }
 EOF)
 echo "team=$team"
-command='echo $team | curl http://localhost:8080/teams -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3" -D - -o ttx.txt'
+command='echo $team | curl http://localhost:8080/teams -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "have APIGEE_USER3 create the Acme Test Team?"
 while IFS=':' read key value; do
@@ -475,7 +475,7 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN2" -H "If-Match: $ACME_PROD_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN2" -H "If-Match: $ACME_PROD_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "have APIGEE_USER2 patch permissions for http://apigee.com/env/acme-prod to reference prod team?"
 while IFS=':' read key value; do
@@ -499,7 +499,7 @@ patch=$(cat << "EOF"
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "have APIGEE_USER3 patch permissions for http://apigee.com/env/acme-test to reference test team?"
 while IFS=':' read key value; do
@@ -584,7 +584,7 @@ permissions=$(cat << "EOF"
     }
 EOF)
 echo "permissions=$permissions"
-command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2" -D - -o ttx.txt' 
+command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2" -D - -o ttx.txt -sS' 
 echo $command
 read -n 1 -p "let APIGEE_USER2 create this folder permissions?"
 while IFS=':' read key value; do
@@ -619,7 +619,7 @@ permissions=$(cat << "EOF"
     }
 EOF)
 echo "permissions=$permissions"
-command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt' 
+command='echo $permissions | envsubst | curl http://localhost:8080/permissions -d @-  -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt -sS' 
 echo $command
 read -n 1 -p "let APIGEE_USER3 create this folder permissions?"
 while IFS=':' read key value; do
@@ -641,7 +641,7 @@ patch=$(cat << EOF
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN2" -H "If-Match: $ACME_PROD_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/env/acme-prod -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN2" -H "If-Match: $ACME_PROD_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "have APIGEE_USER2 patch permissions for http://apigee.com/env/acme-prod to inherit from folder?"
 while IFS=':' read key value; do
@@ -663,7 +663,7 @@ patch=$(cat << EOF
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/env/acme-test -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ENV_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "have APIGEE_USER3 patch permissions for http://apigee.com/env/acme-test to inherit from folder?"
 while IFS=':' read key value; do
@@ -734,7 +734,7 @@ patch=$(cat << "EOF"
    ]
 EOF)
 echo "patch=$patch"
-command='echo $patch | envsubst | curl localhost:8080$ACME_TEST_TEAM -X PATCH -d @-  -H "Content-Type: application/json-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_TEAM_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | envsubst | curl localhost:8080$ACME_TEST_TEAM -X PATCH -d @-  -H "Content-Type: application/json-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_TEAM_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
      
 read -n 1 -p "have APIGEE_USER3 add APIGEE_USER4 to test_assets folder?"
@@ -765,7 +765,7 @@ patch=$(cat << EOF
 }
 EOF)
 echo "patch=$patch"
-command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/o/acme -d @- -X PATCH -H "Content-Type: application/merge-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN1" -H "If-Match: $ACME_ORG_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "patch permissions for http://apigee.com/o/acme to allow permissions inheritance?"
 while IFS=':' read key value; do
@@ -841,7 +841,7 @@ patch=$(cat << EOF
    ]
 EOF)
 echo "patch=$patch"
-command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/folder/acme-test-assets -d @- -X PATCH -H "Content-Type: application/json-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ASSETS_PERMISSIONS_ETAG" -D - -o ttx.txt'
+command='echo $patch | curl http://localhost:8080/permissions?http://apigee.com/folder/acme-test-assets -d @- -X PATCH -H "Content-Type: application/json-patch+json" -H "Authorization: Bearer $APIGEE_TOKEN3" -H "If-Match: $ACME_TEST_ASSETS_PERMISSIONS_ETAG" -D - -o ttx.txt -sS'
 echo $command
 read -n 1 -p "have APIGEE_USER3 patch permissions for http://apigee.com/folder/acme-test-assets to inherit from http://apigee.com/folder/confidential?"
 while IFS=':' read key value; do

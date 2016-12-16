@@ -1,3 +1,4 @@
 node_modules
 ttx.txt
 *.dat
+.vscode
