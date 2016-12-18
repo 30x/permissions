@@ -10,12 +10,14 @@ Here are the steps I went through to get this going on my new Google machine:
 
 ### Intall homebrew if you don't have it
 * follow the instuction here to set up homebrew: https://wiki.corp.google.com/twiki/bin/view/Main/MacRoadWarrior#Homebrew
+
 ### Intall and configure Postgres
 * brew install postgres
 * createdb $(whoami)
 * psql (just to verify it works)
 * createuser -P martinnally (when prompted for password, use martinnally). Alternatively create the user of your choice and modify the test script local-export-pg-connection-variables.sh to use it. 
 * createdb permissions
+
 ### Clone and initialize the 4 components of the permissions service
 * Follow the instructions at go/github to get connected to github
 * git clone git@github.com:30x/permissions.git
@@ -26,15 +28,18 @@ Here are the steps I went through to get this going on my new Google machine:
 * optionally clone 30x/http-helper-functions, execute `npm link` in that directory, and execute `npm link http-helper-functions` where it is used. Same for 30x/permissions-helper-functions, 30x/pg-event-producer and 30x/pg-event-consumer 
 * source local-export-pg-connection-variables.sh will set up environment variables for PG
 * execute ./test/run-... in each of these directories, each in a different shell window
+
 ### install and configure nginx
 * brew install nginx
 * nginx (starts in the background)
 * cp nginx.conf /Users/mnally/homebrew/etc/nginx/nginx.conf (executed from this test directory. nginx -V will show the location from which nginx is loading nginx.conf)
 * nginx -s reload
+
 ### install prereqs and run the tests
 * sudo easy_install requests (this python egg is used by the test script)
 * source renew-tokens.sh
 * in the test subdirectory, enter ./test-edge-simplified.sh
+
 ### install prereqs and run the demo
 * brew install gettext
 * brew link --force gettext
