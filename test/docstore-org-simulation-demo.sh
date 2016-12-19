@@ -169,15 +169,15 @@ echo ''
 echo -e "\n\n\x1B[7m Step 4 - lets see what USER3 can do with these permissions \x1B[27m\n\n" #clear
 read -n 1 -p "continue?"
 
-command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=read" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=read" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3" -Ss'
 echo $command
 echo -n "Have APIGEE_USER1 ask if APIGEE_USER1 can read http://apigee.com/spec/12345: "
-eval $command
+echo -e "\x1B[7m$(eval $command)\x1B[27m" 
 echo ''
-command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=update" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=update" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3" -Ss'
 echo $command
 echo -n "Have APIGEE_USER1 ask if APIGEE_USER1 can update http://apigee.com/spec/12345: "
-eval $command
+echo -e "\x1B[7m$(eval $command)\x1B[27m" 
 echo ''
 echo 'So USER3 cannot update the spec she just made'
 read -n 1 -p "continue?"
@@ -273,14 +273,14 @@ echo ''
 echo -e "\n\n\x1B[7m Step 6 - lets see what USER3 can do with these permissions \x1B[27m\n\n" #clear
 read -n 1 -p "continue?"
 
-command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=read" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=read" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3" -Ss'
 echo $command
 echo -n "Have APIGEE_USER1 ask if APIGEE_USER1 can read http://apigee.com/spec/12345: "
-eval $command
+echo -e "\x1B[7m$(eval $command)\x1B[27m" 
 echo ''
-command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=update" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
+command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=update" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3" -Ss'
 echo $command
 echo -n "Have APIGEE_USER1 ask if APIGEE_USER1 can update http://apigee.com/spec/12345: "
-eval $command
+echo -e "\x1B[7m$(eval $command)\x1B[27m" 
 echo ''
 echo 'So now USER3 can update the spec she just made'
