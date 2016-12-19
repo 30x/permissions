@@ -263,7 +263,7 @@ command='echo $patch | envsubst | curl http://localhost:8080/permissions?http://
 while IFS=':' read key value; do
     value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
     if [ "$key" == 'Etag' ]; then
-        ACME_ORG_PERMISSIONS_ETAG="$value";
+        ACME_ORG_FOLDER_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
 echo 'Acme root folder permissions'
