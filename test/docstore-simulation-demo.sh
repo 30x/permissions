@@ -270,7 +270,7 @@ echo 'Acme root folder permissions'
 cat ttx.txt | python -mjson.tool
 echo ''
 
-echo -e "\n\n\x1B[7m Step 4 - lets see what USER3 can do with these permissions \x1B[27m\n\n" #clear
+echo -e "\n\n\x1B[7m Step 6 - lets see what USER3 can do with these permissions \x1B[27m\n\n" #clear
 read -n 1 -p "continue?"
 
 command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/spec/12345&user=$APIGEE_USER3&action=read" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN3"'
