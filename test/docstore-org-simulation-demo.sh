@@ -54,6 +54,9 @@ while IFS=':' read key value; do
         export ACME_ORG_ADMINS="$value";
     fi
 done < <(eval $command)
+echo "Created Acme Org Admins Team: $ACME_ORG_ADMINS"
+echo $team | python -mjson.tool
+read -n 1 -p "continue?"
 
 ##
 team=$(cat << "EOF"
@@ -73,6 +76,9 @@ while IFS=':' read key value; do
         export ACME_BUSINESS_USERS="$value";
     fi
 done < <(eval $command)
+echo "Created Acme Business Users Team: $ACME_BUSINESS_USERS"
+echo $team | python -mjson.tool
+read -n 1 -p "continue?"
 
 ##
 team=$(cat << "EOF"
@@ -92,6 +98,9 @@ while IFS=':' read key value; do
         export ACME_REGULAR_USERS="$value";
     fi
 done < <(eval $command)
+echo "Created Acme Regular Users Team: $ACME_REGULAR_USERS"
+echo $team | python -mjson.tool
+read -n 1 -p "continue?"
 
 ####
 patch=$(cat << "EOF"
@@ -119,7 +128,7 @@ while IFS=':' read key value; do
         ACME_ORG_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
-echo 'Acme Org permissions'
+echo 'Created Acme Org permissions:'
 cat ttx.txt | python -mjson.tool
 echo ''
 
@@ -196,7 +205,7 @@ EOF)
 echo $permissions | python -mjson.tool
 echo 'This would create a lot of specs whose permissions reference individuals, which is not desirable in an org setting.'
 
-echo -e "\n\n\x1B[7m Step 5 - instead lets change the root permissions to get a different behavior \x1B[27m\n\n" #clear
+echo -e "\n\n\x1B[7m Step 5 - instead lets change the root folder permissions to get a better behavior \x1B[27m\n\n" #clear
 read -n 1 -p "continue?"
 
 ##
@@ -217,44 +226,23 @@ while IFS=':' read key value; do
         export ACME_SPEC_AUTHORS="$value";
     fi
 done < <(eval $command)
-echo 'Acme spec writer team'
-cat ttx.txt | python -mjson.tool
+echo 'Created Acme Spec Authors team:'
+echo $team | python -mjson.tool
 echo ''
-
-##
-team=$(cat << "EOF"
-{
-    "isA": "Team",
-    "name": "Acme Spec Readers",
-    "_permissions": {"_inheritsPermissionsOf": ["http://apigee.com/o/acme"],"test-data": true},
-    "members": ["$APIGEE_USER2"],
-    "test-data": true
-    }
-EOF)
-
-command='echo $team | envsubst | curl http://localhost:8080/teams -d @- -H "Content-Type: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1" -D - -o ttx.txt -sS'
-while IFS=':' read key value; do
-    value=${value##+([[:space:]])}; value=${value%%+([[:space:]])}
-    if [ "$key" == 'Location' ]; then
-        export ACME_SPEC_READERS="$value";
-    fi
-done < <(eval $command)
-echo 'Acme spec reader team'
-cat ttx.txt | python -mjson.tool
-echo ''
-
+read -n 1 -p "continue?"
 
 ####
 patch=$(cat << "EOF"
 {
+    "_inheritsPermissionsOf": ["http://apigee.com/o/acme"],
     "_self": {
         "update":  ["$ACME_SPEC_AUTHORS"], 
-        "read":    ["$ACME_SPEC_AUTHORS", "$ACME_SPEC_READERS"], 
+        "read":    ["$ACME_SPEC_AUTHORS"], 
         "delete":  ["$ACME_SPEC_AUTHORS"] 
         }, 
     "_permissionsHeirs": {
-        "add":    ["$ACME_SPEC_AUTHORS", "$ACME_SPEC_READERS"],
-        "read":   ["$ACME_SPEC_AUTHORS", "$ACME_SPEC_READERS"],
+        "add":    ["$ACME_SPEC_AUTHORS"],
+        "read":   ["$ACME_SPEC_AUTHORS"],
         "remove": ["$ACME_SPEC_AUTHORS"]
         }
 }
@@ -266,8 +254,8 @@ while IFS=':' read key value; do
         ACME_ORG_FOLDER_PERMISSIONS_ETAG="$value";
     fi
 done < <(eval $command)
-echo 'Acme root folder permissions'
-cat ttx.txt | python -mjson.tool
+echo 'Patch Acme root folder permissions'
+echo $patch | python -mjson.tool
 echo ''
 
 echo -e "\n\n\x1B[7m Step 6 - lets see what USER3 can do with these permissions \x1B[27m\n\n" #clear
