@@ -44,10 +44,12 @@ Here are the steps I went through to get this going on my new Google machine:
 * brew install gettext
 * brew link --force gettext
 * source renew-prod-token.sh
-* ./demo.sh
+* ./edge-simulation-demo.sh
+* ./docstore-org-simulation-demo.sh
+* ./docstore-personal-simulation-demo.sh
 
 It is also possible to run the 4 permissions applications on minikube (a local kubernetes environment).
 To do this, install Docker tools, virtualbox and minikube. There is also a configuration using `docker for mac`, minikube and
 xhyve (osx built-in hypervisor) that should work, but I have not tried it. Having installed these prereqs, you
-should be able to do the following:
+should be able to run the k8s-start.sh and k8s-restart.sh scripts.
 
