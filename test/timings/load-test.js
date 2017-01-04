@@ -31,6 +31,7 @@ for (let i = 0; i < numberOfOrgs; i++) {
 
 /* Create a permissions document for each org */
 const orgs = Array()
+const orgEtags = Array()
 for (let i = 0; i < numberOfOrgs; i++) {
   orgs[i] = `/o/${lib.uuid4()}`
   let orgPermissions = {
@@ -46,6 +47,8 @@ for (let i = 0; i < numberOfOrgs; i++) {
     } else {
       getResponseBody(res, function(body) {
         if (res.statusCode == 201) {
+          orgEtags[i] = res.headers['etag']
+          createTeam(i)
         }
         else {
           console.log(`failed to create permissions for ${orgPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
@@ -58,7 +61,7 @@ for (let i = 0; i < numberOfOrgs; i++) {
 /* Create org admins team for each org */
 
 const orgAdminTeams = new Array()
-for (let i = 0; i < numberOfOrgs; i++) {
+function createTeam(i) {
   let team = {
     isA: 'Team',
     _permissions: {_inheritsPermissionsOf: [orgs[i]], 'test-data': true},
@@ -73,9 +76,38 @@ for (let i = 0; i < numberOfOrgs; i++) {
       getResponseBody(res, function(body) {
         if (res.statusCode == 201) {
           orgAdminTeams[i] = res.headers['location']
+          patchOrg(i)
         }
         else {
           console.log(`failed to create org admin team statusCode: ${res.statusCode} text: ${body}`)
+        }
+      })
+    }
+  })
+}
+
+/* Patch permissions document for each org to reference org admins team */
+function patchOrg(i) {
+  let orgPermissions = {
+    _permissions: {read: [orgAdminTeams[i]], update: [orgAdminTeams[i]], delete: [orgAdminTeams[i]]},
+    _permissionsHeirs: {read: [orgAdminTeams[i]], add: [orgAdminTeams[i]], remove: [orgAdminTeams[i]]},
+    'test-data': true
+  }
+  var headers = {
+    Authorization: `Bearer ${orgAdminTokens[i]}`, 
+    'Content-Type': 'application/merge-patch+json',
+    'If-Match': orgEtags[i]
+  }
+  sendRequest('PATCH', `/permissions?${orgs[i]}`, headers, JSON.stringify(orgPermissions), function(err, res) {
+    if (err) {
+      console.log(err)
+      return
+    } else {
+      getResponseBody(res, function(body) {
+        if (res.statusCode == 200) {
+        }
+        else {
+          console.log(`failed to patch permissions for ${orgs[i]} statusCode: ${res.statusCode} text: ${body}`)
         }
       })
     }
