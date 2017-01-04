@@ -187,7 +187,7 @@ def main():
 
     permissions_patch = {
         '_subject': 'http://apigee.com/o/acme',
-            '_permissions': {
+        '_permissions': {
             'read': [ORG_ADMINS],
             'delete': [ORG_ADMINS],
             'update': [ORG_ADMINS]
