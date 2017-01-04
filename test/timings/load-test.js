@@ -130,19 +130,21 @@ function createOrgApps(i) {
       _permissions: {_inheritsPermissionsOf: orgs[i]},
       'test-data': true
     }
-    sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(appPermissions), function(err, res) {
-      if (err) {
-        console.log(err)
-        return
-      } else {
-        getResponseBody(res, function(body) {
-          if (res.statusCode == 201) {
-          }
-          else {
-            console.log(`failed to create permissions for ${appPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
-          }
-        })
-      }
+    schedule(function(callback) {
+      sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(appPermissions), callback(function(err, res) {
+        if (err) {
+          console.log(err)
+          return
+        } else {
+          getResponseBody(res, function(body) {
+            if (res.statusCode == 201) {
+            }
+            else {
+              console.log(`failed to create permissions for ${appPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
+            }
+          })
+        }
+      }))
     })
   }
 }
@@ -157,20 +159,43 @@ function createOrgDevelopers(i) {
       _permissions: {_inheritsPermissionsOf: orgs[i]},
       'test-data': true
     }
-    sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(devPermissions), function(err, res) {
-      if (err) {
-        console.log(err)
-        return
-      } else {
-        getResponseBody(res, function(body) {
-          if (res.statusCode == 201) {
-          }
-          else {
-            console.log(`failed to create permissions for ${devPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
-          }
-        })
-      }
+    schedule(function(callback) {
+      sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(devPermissions), callback(function(err, res) {
+        if (err) {
+          console.log(err)
+          return
+        } else {
+          getResponseBody(res, function(body) {
+            if (res.statusCode == 201) {
+            }
+            else {
+              console.log(`failed to create permissions for ${devPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
+            }
+          })
+        }
+      }))
     })
+  }
+}
+
+var queue = Array()
+var outstandingRequests = 0
+const maxOutstandingRequests = 50
+function schedule(func) {
+  function scheduleCallback(callback) {
+    return function() {
+      if (queue.length > 0)
+        queue.shift()(scheduleCallback)
+      else
+        --outstandingRequests
+      callback.apply(this, arguments)
+    }    
+  }
+  if (outstandingRequests > maxOutstandingRequests)
+    queue.push(func)
+  else {
+    ++outstandingRequests
+    func(scheduleCallback)
   }
 }
 
