@@ -1,6 +1,7 @@
 'use strict'
 const lib = require('http-helper-functions')
 const http = require('http')
+var d3 = require('d3-random')
 
 const PERMISSIONS_SCHEME = process.env.scheme || 'http'
 const PERMISSIONS_HOSTNAME = process.env.host || 'localhost'
@@ -8,8 +9,11 @@ const PERMISSIONS_PORT = process.env.port || 8080
 
 const numberOfUsers = process.env.numberOfUsers || 1
 const numberOfOrgs  = process.env.numberOfOrgs || 1
-const maxNumberOfDevelopersPerOrg = process.env.maxNumberOfDevelopersPerOrg || 100
-const maxNumberOfAppsPerOrg = process.env.maxNumberOfAppsPerOrg || 10
+const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 5
+const meanNumberOfAppsPerOrg = process.env.meanNumberOfAppsPerOrg || 5
+const deviationsOfDevelopersPerOrg = process.env.deviationsOfDevelopersPerOrg || 1.5
+const deviationsOfAppsPerOrg = process.env.deviationsOfAppsPerOrg || 1.5
+
 
 const tokens = new Array()
 const users = new Array()
@@ -105,6 +109,8 @@ function patchOrg(i) {
     } else {
       getResponseBody(res, function(body) {
         if (res.statusCode == 200) {
+          createOrgApps(i)
+          createOrgDevelopers(i)
         }
         else {
           console.log(`failed to patch permissions for ${orgs[i]} statusCode: ${res.statusCode} text: ${body}`)
@@ -112,6 +118,60 @@ function patchOrg(i) {
       })
     }
   })
+}
+
+function createOrgApps(i) {
+  var randomLogNormal = d3.randomLogNormal(meanNumberOfAppsPerOrg, deviationsOfAppsPerOrg)
+  var count = Math.floor(randomLogNormal())
+  console.log('# of apps', count)
+  for (let j = 0; j < count; j++) {
+    let appPermissions = {
+      _subject: `/apps/${lib.uuid4()}`,
+      _permissions: {_inheritsPermissionsOf: orgs[i]},
+      'test-data': true
+    }
+    sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(appPermissions), function(err, res) {
+      if (err) {
+        console.log(err)
+        return
+      } else {
+        getResponseBody(res, function(body) {
+          if (res.statusCode == 201) {
+          }
+          else {
+            console.log(`failed to create permissions for ${appPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
+          }
+        })
+      }
+    })
+  }
+}
+
+function createOrgDevelopers(i) {
+  var randomLogNormal = d3.randomLogNormal(meanNumberOfDevelopersPerOrg, deviationsOfDevelopersPerOrg)
+  var count = Math.floor(randomLogNormal())
+  console.log('# of devs', count)
+  for (let j = 0; j < count; j++) {
+    let devPermissions = {
+      _subject: `/devs/${lib.uuid4()}`,
+      _permissions: {_inheritsPermissionsOf: orgs[i]},
+      'test-data': true
+    }
+    sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(devPermissions), function(err, res) {
+      if (err) {
+        console.log(err)
+        return
+      } else {
+        getResponseBody(res, function(body) {
+          if (res.statusCode == 201) {
+          }
+          else {
+            console.log(`failed to create permissions for ${devPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
+          }
+        })
+      }
+    })
+  }
 }
 
 function sendRequest(method, requestURI, headers, body, callback) {
