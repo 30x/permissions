@@ -72,21 +72,23 @@ function createTeam(i) {
     members: [orgAdmins[i]],
     'test-data': true
   }
-  sendRequest('POST', '/teams', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(team), function(err, res) {
-    if (err) {
-      console.log(err)
-      return
-    } else {
-      getResponseBody(res, function(body) {
-        if (res.statusCode == 201) {
-          orgAdminTeams[i] = res.headers['location']
-          patchOrg(i)
-        }
-        else {
-          console.log(`failed to create org admin team statusCode: ${res.statusCode} text: ${body}`)
-        }
-      })
-    }
+  schedule(function(callback) {
+    sendRequest('POST', '/teams', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(team), callback(function(err, res) {
+      if (err) {
+        console.log(err)
+        return
+      } else {
+        getResponseBody(res, function(body) {
+          if (res.statusCode == 201) {
+            orgAdminTeams[i] = res.headers['location']
+            patchOrg(i)
+          }
+          else {
+            console.log(`failed to create org admin team statusCode: ${res.statusCode} text: ${body}`)
+          }
+        })
+      }
+    }))
   })
 }
 
@@ -180,9 +182,11 @@ function createOrgDevelopers(i) {
 
 var queue = Array()
 var outstandingRequests = 0
+var totalRequests = 0
 const maxOutstandingRequests = 50
 function schedule(func) {
   function scheduleCallback(callback) {
+    totalRequests++
     return function() {
       if (queue.length > 0)
         queue.shift()(scheduleCallback)
