@@ -10,8 +10,8 @@ const PERMISSIONS_PORT = process.env.port || 8080
 
 const numberOfUsers = process.env.numberOfUsers || 1
 const numberOfOrgs  = process.env.numberOfOrgs || 1
-const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 10
-const meanNumberOfAppsPerOrg = process.env.meanNumberOfAppsPerOrg || 10
+const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 5
+const meanNumberOfAppsPerOrg = process.env.meanNumberOfAppsPerOrg || 3
 const deviationsOfDevelopersPerOrg = process.env.deviationsOfDevelopersPerOrg || 1.5
 const deviationsOfAppsPerOrg = process.env.deviationsOfAppsPerOrg || 1.5
 
