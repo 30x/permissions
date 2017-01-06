@@ -1,6 +1,7 @@
 'use strict'
 const lib = require('http-helper-functions')
 const http = require('http')
+var keepAliveAgent = new http.Agent({ keepAlive: true });
 var d3 = require('d3-random')
 
 const PERMISSIONS_SCHEME = process.env.scheme || 'http'
@@ -9,11 +10,10 @@ const PERMISSIONS_PORT = process.env.port || 8080
 
 const numberOfUsers = process.env.numberOfUsers || 1
 const numberOfOrgs  = process.env.numberOfOrgs || 1
-const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 5
-const meanNumberOfAppsPerOrg = process.env.meanNumberOfAppsPerOrg || 5
+const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 10
+const meanNumberOfAppsPerOrg = process.env.meanNumberOfAppsPerOrg || 10
 const deviationsOfDevelopersPerOrg = process.env.deviationsOfDevelopersPerOrg || 1.5
 const deviationsOfAppsPerOrg = process.env.deviationsOfAppsPerOrg || 1.5
-
 
 const tokens = new Array()
 const users = new Array()
@@ -104,21 +104,23 @@ function patchOrg(i) {
     'Content-Type': 'application/merge-patch+json',
     'If-Match': orgEtags[i]
   }
-  sendRequest('PATCH', `/permissions?${orgs[i]}`, headers, JSON.stringify(orgPermissions), function(err, res) {
-    if (err) {
-      console.log(err)
-      return
-    } else {
-      getResponseBody(res, function(body) {
-        if (res.statusCode == 200) {
-          createOrgApps(i)
-          createOrgDevelopers(i)
-        }
-        else {
-          console.log(`failed to patch permissions for ${orgs[i]} statusCode: ${res.statusCode} text: ${body}`)
-        }
-      })
-    }
+  schedule(function(callback) {
+    sendRequest('PATCH', `/permissions?${orgs[i]}`, headers, JSON.stringify(orgPermissions), callback(function(err, res) {
+      if (err) {
+        console.log(err)
+        return
+      } else {
+        getResponseBody(res, function(body) {
+          if (res.statusCode == 200) {
+            createOrgApps(i)
+            createOrgDevelopers(i)
+          }
+          else {
+            console.log(`failed to patch permissions for ${orgs[i]} statusCode: ${res.statusCode} text: ${body}`)
+          }
+        })
+      }
+    }))
   })
 }
 
@@ -209,7 +211,8 @@ function sendRequest(method, requestURI, headers, body, callback) {
     hostname: PERMISSIONS_HOSTNAME,
     path: requestURI,
     method: method,
-    headers: headers
+    headers: headers,
+    agent: keepAliveAgent
   }
   if (PERMISSIONS_HOSTNAME)
     options.port = PERMISSIONS_PORT
@@ -217,7 +220,7 @@ function sendRequest(method, requestURI, headers, body, callback) {
     callback(null, clientRes)
   })
   clientReq.on('error', function (err) {
-    console.log(`sendInternalRequest: error ${err}`)
+    console.log(`load-test.js sendRequest: error ${err}`)
     callback(err)
   })
   if (body) 

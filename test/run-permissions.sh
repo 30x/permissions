@@ -8,4 +8,5 @@ export INTERNAL_SY_ROUTER_HOST="localhost"
 export INTERNAL_SY_ROUTER_PORT="8080"
 
 source test/local-export-pg-connection-variables.sh
+#NODE_DEBUG=net
 node permissions.js
