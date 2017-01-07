@@ -10,10 +10,34 @@ const PERMISSIONS_PORT = process.env.port || 8080
 
 const numberOfUsers = process.env.numberOfUsers || 1
 const numberOfOrgs  = process.env.numberOfOrgs || 1
-const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 5
-const meanNumberOfAppsPerOrg = process.env.meanNumberOfAppsPerOrg || 3
+const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 8
+const meanNumberOfAppsPerOrg = process.env.meanNumberOfAppsPerOrg || 5
 const deviationsOfDevelopersPerOrg = process.env.deviationsOfDevelopersPerOrg || 1.5
 const deviationsOfAppsPerOrg = process.env.deviationsOfAppsPerOrg || 1.5
+
+var queue = Array()
+var outstandingRequests = 0
+var totalRequests = 0
+const maxOutstandingRequests = 20
+
+function schedule(func) {
+  function scheduleCallback(callback) {
+    totalRequests++
+    return function() {
+      if (queue.length > 0)
+        queue.shift()(scheduleCallback)
+      else
+        --outstandingRequests
+      callback.apply(this, arguments)
+    }    
+  }
+  if (outstandingRequests > maxOutstandingRequests)
+    queue.push(func)
+  else {
+    ++outstandingRequests
+    func(scheduleCallback)
+  }
+}
 
 const tokens = new Array()
 const users = new Array()
@@ -44,7 +68,8 @@ for (let i = 0; i < numberOfOrgs; i++) {
     _permissionsHeirs: {read: [orgAdmins[i]], add: [orgAdmins[i]], remove: [orgAdmins[i]]},
     'test-data': true
   }
-  sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(orgPermissions), function(err, res) {
+ schedule(function(callback) {
+   sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(orgPermissions), callback(function(err, res) {
     if (err) {
       console.log(err)
       return
@@ -59,8 +84,9 @@ for (let i = 0; i < numberOfOrgs; i++) {
         }
       })
     }
-  })
-}
+   }))
+ })
+} 
 
 /* Create org admins team for each org */
 
@@ -164,6 +190,7 @@ function createOrgDevelopers(i) {
       'test-data': true
     }
     schedule(function(callback) {
+      var hrstart = process.hrtime()
       sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(devPermissions), callback(function(err, res) {
         if (err) {
           console.log(err)
@@ -171,6 +198,8 @@ function createOrgDevelopers(i) {
         } else {
           getResponseBody(res, function(body) {
             if (res.statusCode == 201) {
+              var hrend = process.hrtime(hrstart)
+              //console.log(`load-test:createDeveloper:success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
             }
             else {
               console.log(`failed to create permissions for ${devPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
@@ -179,30 +208,6 @@ function createOrgDevelopers(i) {
         }
       }))
     })
-  }
-}
-
-var queue = Array()
-var outstandingRequests = 0
-var totalRequests = 0
-const maxOutstandingRequests = 50
-
-function schedule(func) {
-  function scheduleCallback(callback) {
-    totalRequests++
-    return function() {
-      if (queue.length > 0)
-        queue.shift()(scheduleCallback)
-      else
-        --outstandingRequests
-      callback.apply(this, arguments)
-    }    
-  }
-  if (outstandingRequests > maxOutstandingRequests)
-    queue.push(func)
-  else {
-    ++outstandingRequests
-    func(scheduleCallback)
   }
 }
 
