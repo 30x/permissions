@@ -186,6 +186,7 @@ var queue = Array()
 var outstandingRequests = 0
 var totalRequests = 0
 const maxOutstandingRequests = 50
+
 function schedule(func) {
   function scheduleCallback(callback) {
     totalRequests++
