@@ -9,12 +9,16 @@ const pge = require('pg-event-consumer')
 const ANYONE = 'http://apigee.com/users#anyone'
 const INCOGNITO = 'http://apigee.com/users#incognito'
 
+function log(method, text) {
+  console.log(Date.now(), process.env.COMPONENT, method, text)
+}
+
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host)
   var user = queryParts.user
   var property = queryParts.property || '_self'
-  console.log(`permissions:getAllowedActions: resource: ${resource} user: ${user} property: ${property}`)
+  log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property}`)
   if (user == lib.getUser(req.headers.authorization)) 
     withAllowedActionsDo(req, res, resource, property, user, function(allowedActions) {
       lib.found(req, res, allowedActions)
@@ -47,7 +51,7 @@ function collateAllowedActions(permissionsObject, property, actors) {
 }
 
 function isActionAllowed(permissionsObject, property, actors, action) {
-  console.log(`permissions:isActionAllowed: _subject: ${permissionsObject._subject} property: ${property} action: ${action} actors: ${actors}`)
+  log('isActionAllowed', `_subject: ${permissionsObject._subject} property: ${property} action: ${action} actors: ${actors}`)
   if (permissionsObject._constraints && permissionsObject._constraints.validIssuers) // only users validated with these issuers allowed
     if (actors.length == 0 || permissionsObject._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) // user's issuer not in the list
       return false
@@ -159,8 +163,8 @@ function withTeamsDo(req, res, user, callback) {
           actors.push([user.split('#')[0], 'anyone'].join('#')) // anyone from the user's issuer
           callback(actors)
         } else {
-          var err = `withTeamsDo: unable to retrieve /teams?${user} statusCode ${clientResponse.statusCode}`
-          console.log(err)
+          var err = `unable to retrieve /teams?${user} statusCode ${clientResponse.statusCode}`
+          log('withTeamsDo', err)
           lib.internalError(res, err)
         }
       })
@@ -282,7 +286,7 @@ function isAllowed(req, res, queryString) {
   var property = queryParts.property || '_self'
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
   resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-  console.log(`permissions:isAllowed: user: ${user} action: ${action} property: ${property} resources: ${resources}`)
+  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action !== undefined)
       if (queryParts.resource !== undefined) {
@@ -298,12 +302,12 @@ function isAllowed(req, res, queryString) {
                   lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
                   responded = true
                   var hrend = process.hrtime(hrstart)
-                  console.log(`permissions:isAllowed:success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
+                  log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
                 } else if (answer == false) {
                   lib.found(req, res, false)
                   responded = true
                   var hrend = process.hrtime(hrstart)
-                  console.log(`permissions:isAllowed:success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
+                  log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
                 }
               }
             })
@@ -443,20 +447,20 @@ function isAllowedToInheritFrom(req, res, queryString) {
 
 function processEvent(event) {
   if (event.topic == 'eventGapDetected') {
-    console.log('permissions: processEvent: event.topic: eventGapDetected')
+    log('processEvent', 'event.topic: eventGapDetected')
     permissionsCache = {}
     teamsCache = {}
   } else if (event.topic == 'permissions')
     if (event.data.action == 'deleteAll') {
-      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`)
+      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`)
       permissionsCache = {}
     } else {
-      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} subject: ${event.data.subject}`)
+      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} subject: ${event.data.subject}`)
       delete permissionsCache[event.data.subject]
     }
   else if (event.topic == 'teams')
     if (event.data.action == 'update') {
-      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} before: ${event.data.before} after ${event.data.after}`)
+      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} before: ${event.data.before} after ${event.data.after}`)
       var beforeMembers = event.data.before.members || []
       var afterMembers = event.data.after.members || []
       for (let i = 0; i < beforeMembers.length; i++)
@@ -467,16 +471,16 @@ function processEvent(event) {
           delete teamsCache[afterMembers[i]]
     } else if (event.data.action == 'delete' || event.data.action == 'create') {
       var members = event.data.team.members
-      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} members: `, members)
+      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} members: `, members)
       if (members !== undefined) {
         for (let i = 0; i < members.length; i++) {
           delete teamsCache[members[i]]
         }
       }
     } else
-      console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`)
+      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`)
   else
-    console.log(`permissions: processEvent: event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`)    
+    log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`)    
 }
 
 function processEventPost(req, res, event) {
@@ -523,7 +527,7 @@ function start() {
     var port = process.env.PORT
     permissionsEventConsumer.init(function() {
       http.createServer(requestHandler).listen(port, function() {
-        console.log(`server is listening on ${port}`)
+        log('start', `server is listening on ${port}`)
       })
     })
   })

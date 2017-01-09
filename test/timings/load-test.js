@@ -18,7 +18,7 @@ const deviationsOfAppsPerOrg = process.env.deviationsOfAppsPerOrg || 1.5
 var queue = Array()
 var outstandingRequests = 0
 var totalRequests = 0
-const maxOutstandingRequests = 20
+const maxOutstandingRequests = 100
 
 function schedule(func) {
   function scheduleCallback(callback) {
@@ -182,6 +182,7 @@ function createOrgApps(i) {
 function createOrgDevelopers(i) {
   var randomLogNormal = d3.randomLogNormal(meanNumberOfDevelopersPerOrg, deviationsOfDevelopersPerOrg)
   var count = Math.floor(randomLogNormal())
+  count = 50000
   console.log('# of devs', count)
   for (let j = 0; j < count; j++) {
     let devPermissions = {
@@ -192,6 +193,7 @@ function createOrgDevelopers(i) {
     schedule(function(callback) {
       var hrstart = process.hrtime()
       sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(devPermissions), callback(function(err, res) {
+        process.stdout.write(`Developer #: ${j}\r`)
         if (err) {
           console.log(err)
           return
@@ -211,7 +213,7 @@ function createOrgDevelopers(i) {
   }
 }
 
-function sendRequest(method, requestURI, headers, body, callback) {
+function sendRequest(method, requestURI, headers, body, callback, port) {
   var options = {
     protocol: `${PERMISSIONS_SCHEME}:`,
     hostname: PERMISSIONS_HOSTNAME,
@@ -220,8 +222,11 @@ function sendRequest(method, requestURI, headers, body, callback) {
     headers: headers,
     agent: keepAliveAgent
   }
-  if (PERMISSIONS_HOSTNAME)
-    options.port = PERMISSIONS_PORT
+  if (port)
+    options.port = port
+  else
+    if (PERMISSIONS_HOSTNAME)
+      options.port = PERMISSIONS_PORT
   var clientReq = http.request(options, function(clientRes) {
     callback(null, clientRes)
   })
