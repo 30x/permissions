@@ -189,6 +189,7 @@ function createOrgDevelopers(orgIndex) {
   console.log('# of devs', count)
   var processedCount = 0;
   var times = Array()
+  var hrstartall
   var developers = Array()
   orgDevelopers[orgIndex] = developers
   for (let j = 0; j < count; j++) {
@@ -200,6 +201,8 @@ function createOrgDevelopers(orgIndex) {
     }
     schedule(function(callback) {
       var hrstart = process.hrtime()
+      if (hrstartall === undefined)
+        hrstartall = hrstart
       sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[orgIndex]}`}, JSON.stringify(devPermissions), callback(function(err, res) {
         processedCount++
         if (err) {
@@ -212,6 +215,7 @@ function createOrgDevelopers(orgIndex) {
               var hrend = process.hrtime(hrstart)
               times[j] = hrend[0] + hrend[1]/1000000000
               if (processedCount >= count) {
+                var hrendall = process.hrtime(hrstartall)
                 var fileName = `dev_timings${orgs[orgIndex]}.json`.replace(new RegExp('/','g'),'-')
                 fs.writeFile(fileName, JSON.stringify(times), function(err) {
                   if(err)
@@ -225,6 +229,7 @@ function createOrgDevelopers(orgIndex) {
                     console.log('    90th percentile:', s.percentile(90).toFixed(4))    
                     console.log('    99th percentile:', s.percentile(99).toFixed(4))    
                     console.log('    range:', s.range())    
+                    console.log('    tps:            ', count / (hrendall[0] + hrendall[1]/1000000000))
                   }
                 })
                 getIsAllowedRandomly(orgIndex)
@@ -250,6 +255,7 @@ function getIsAllowedRandomly(orgIndex) {
   var times = Array()
   var count = numberOfIsAllowedCallsPerApp
   var processedCount = 0;
+  var hrstartall
   for (let i = 0; i < numberOfIsAllowedCallsPerApp; i++) {
     let developers = orgDevelopers[orgIndex]
     let userIndex = getRandomInt(0, users.length)
@@ -258,6 +264,8 @@ function getIsAllowedRandomly(orgIndex) {
     let developer = developers[getRandomInt(0, developers.length)]
     schedule(function(callback) {
       var hrstart = process.hrtime()
+      if (hrstartall === undefined)
+        hrstartall = hrstart
       sendRequest('GET', `/is-allowed?resource=${developer}&user=${user.replace('#', '%23')}&action=read`, {Authorization: `Bearer ${userToken}`}, null, callback(function(err, res) {
         processedCount++
         if (err) {
@@ -270,6 +278,7 @@ function getIsAllowedRandomly(orgIndex) {
               process.stdout.write(`isAllowed: ${body} time: ${hrend[0] + hrend[1]/1000000000}\r`)
               times[i] = hrend[0] + hrend[1]/1000000000
               if (processedCount >= count) {
+                var hrendall = process.hrtime(hrstartall)
                 var fileName = `is_allowed_timings${orgs[orgIndex]}.json`.replace(new RegExp('/','g'),'-')
                 fs.writeFile(fileName, JSON.stringify(times), function(err) {
                   if(err)
@@ -282,7 +291,8 @@ function getIsAllowedRandomly(orgIndex) {
                     console.log('    50th percentile:', s.percentile(50).toFixed(4))    
                     console.log('    90th percentile:', s.percentile(90).toFixed(4))    
                     console.log('    99th percentile:', s.percentile(99).toFixed(4))    
-                    console.log('    range:', s.range())    
+                    console.log('    range:          ', s.range())    
+                    console.log('    tps:            ', count / (hrendall[0] + hrendall[1]/1000000000))
                   }
                 })
               }
