@@ -4,11 +4,12 @@ const http = require('http')
 var keepAliveAgent = new http.Agent({ keepAlive: true });
 var d3 = require('d3-random')
 var fs = require('fs')
+var Stats = require('fast-stats').Stats
 
 const PERMISSIONS_SCHEME = process.env.scheme || 'http'
 const PERMISSIONS_HOSTNAME = process.env.host || 'localhost'
 const PERMISSIONS_PORT = process.env.port || 8080
-
+const ROUTING_API_KEY = process.env.routing_api_key
 const numberOfUsers = process.env.numberOfUsers || 1
 const numberOfOrgs  = process.env.numberOfOrgs || 1
 const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 8
@@ -207,17 +208,26 @@ function createOrgDevelopers(orgIndex) {
         } else {
           getResponseBody(res, function(body) {
             if (res.statusCode == 201) {
+              process.stdout.write(`Developer #: ${j}\r`)
               var hrend = process.hrtime(hrstart)
               times[j] = hrend[0] + hrend[1]/1000000000
-              if (processedCount == count) {
-                var fileName = `dev_timings-${orgs[orgIndex]}.json`.replace(new RegExp('/','g'),'-')
+              if (processedCount >= count) {
+                var fileName = `dev_timings${orgs[orgIndex]}.json`.replace(new RegExp('/','g'),'-')
                 fs.writeFile(fileName, JSON.stringify(times), function(err) {
                   if(err)
                     return console.log(err)
-                  else
+                  else {
                     console.log(`${fileName} was saved!`)
-                getIsAllowedRandomly(orgIndex)
+                    var s = new Stats().push(times)
+                    console.log('    mean:           ', s.amean().toFixed(4))    
+                    console.log('    gmean:          ', s.gmean().toFixed(4))    
+                    console.log('    50th percentile:', s.percentile(50).toFixed(4))    
+                    console.log('    90th percentile:', s.percentile(90).toFixed(4))    
+                    console.log('    99th percentile:', s.percentile(99).toFixed(4))    
+                    console.log('    range:', s.range())    
+                  }
                 })
+                getIsAllowedRandomly(orgIndex)
               }
             }
             else {
@@ -237,7 +247,10 @@ function getRandomInt(min, max) {
 }
 
 function getIsAllowedRandomly(orgIndex) {
-  for (var i = 0; i < numberOfIsAllowedCallsPerApp; i++) {
+  var times = Array()
+  var count = numberOfIsAllowedCallsPerApp
+  var processedCount = 0;
+  for (let i = 0; i < numberOfIsAllowedCallsPerApp; i++) {
     let developers = orgDevelopers[orgIndex]
     let userIndex = getRandomInt(0, users.length)
     let user = users[userIndex]
@@ -246,6 +259,7 @@ function getIsAllowedRandomly(orgIndex) {
     schedule(function(callback) {
       var hrstart = process.hrtime()
       sendRequest('GET', `/is-allowed?resource=${developer}&user=${user.replace('#', '%23')}&action=read`, {Authorization: `Bearer ${userToken}`}, null, callback(function(err, res) {
+        processedCount++
         if (err) {
           console.log(err)
           return
@@ -253,7 +267,25 @@ function getIsAllowedRandomly(orgIndex) {
           getResponseBody(res, function(body) {
             if (res.statusCode == 200) {
               var hrend = process.hrtime(hrstart)
-              console.log(`isAllowed: ${body} time: ${hrend[0] + hrend[1]/1000000000}`)
+              process.stdout.write(`isAllowed: ${body} time: ${hrend[0] + hrend[1]/1000000000}\r`)
+              times[i] = hrend[0] + hrend[1]/1000000000
+              if (processedCount >= count) {
+                var fileName = `is_allowed_timings${orgs[orgIndex]}.json`.replace(new RegExp('/','g'),'-')
+                fs.writeFile(fileName, JSON.stringify(times), function(err) {
+                  if(err)
+                    return console.log(err)
+                  else {
+                    console.log(`${fileName} was saved!`)
+                    var s = new Stats().push(times)
+                    console.log('    mean:           ', s.amean().toFixed(4))    
+                    console.log('    gmean:          ', s.gmean().toFixed(4))    
+                    console.log('    50th percentile:', s.percentile(50).toFixed(4))    
+                    console.log('    90th percentile:', s.percentile(90).toFixed(4))    
+                    console.log('    99th percentile:', s.percentile(99).toFixed(4))    
+                    console.log('    range:', s.range())    
+                  }
+                })
+              }
             }
             else {
               console.log(`failed to read isAllowed for ${developer} statusCode: ${res.statusCode} text: ${body}`)
@@ -266,6 +298,8 @@ function getIsAllowedRandomly(orgIndex) {
 }
 
 function sendRequest(method, requestURI, headers, body, callback, port) {
+  if (ROUTING_API_KEY)
+    headers['x-routing-api-key'] = ROUTING_API_KEY
   var options = {
     protocol: `${PERMISSIONS_SCHEME}:`,
     hostname: PERMISSIONS_HOSTNAME,
