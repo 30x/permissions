@@ -3,6 +3,7 @@ const lib = require('http-helper-functions')
 const http = require('http')
 var keepAliveAgent = new http.Agent({ keepAlive: true });
 var d3 = require('d3-random')
+var fs = require('fs')
 
 const PERMISSIONS_SCHEME = process.env.scheme || 'http'
 const PERMISSIONS_HOSTNAME = process.env.host || 'localhost'
@@ -18,7 +19,7 @@ const deviationsOfAppsPerOrg = process.env.deviationsOfAppsPerOrg || 1.5
 var queue = Array()
 var outstandingRequests = 0
 var totalRequests = 0
-const maxOutstandingRequests = 100
+const maxOutstandingRequests = 1
 
 function schedule(func) {
   function scheduleCallback(callback) {
@@ -91,25 +92,24 @@ for (let i = 0; i < numberOfOrgs; i++) {
 /* Create org admins team for each org */
 
 const orgAdminTeams = new Array()
-function createTeam(i) {
+function createTeam(orgIndex) {
   let team = {
     isA: 'Team',
-    _permissions: {_inheritsPermissionsOf: [orgs[i]], 'test-data': true},
-    members: [orgAdmins[i]],
+    _permissions: {_inheritsPermissionsOf: [orgs[orgIndex]], 'test-data': true},
+    members: [orgAdmins[orgIndex]],
     'test-data': true
   }
   schedule(function(callback) {
-    sendRequest('POST', '/teams', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(team), callback(function(err, res) {
+    sendRequest('POST', '/teams', {Authorization: `Bearer ${orgAdminTokens[orgIndex]}`}, JSON.stringify(team), callback(function(err, res) {
       if (err) {
         console.log(err)
         return
       } else {
         getResponseBody(res, function(body) {
           if (res.statusCode == 201) {
-            orgAdminTeams[i] = res.headers['location']
-            patchOrg(i)
-          }
-          else {
+            orgAdminTeams[orgIndex] = res.headers['location']
+            patchOrg(orgIndex)
+          } else {
             console.log(`failed to create org admin team statusCode: ${res.statusCode} text: ${body}`)
           }
         })
@@ -119,30 +119,30 @@ function createTeam(i) {
 }
 
 /* Patch permissions document for each org to reference org admins team */
-function patchOrg(i) {
+function patchOrg(orgIndex) {
   let orgPermissions = {
-    _permissions: {read: [orgAdminTeams[i]], update: [orgAdminTeams[i]], delete: [orgAdminTeams[i]]},
-    _permissionsHeirs: {read: [orgAdminTeams[i]], add: [orgAdminTeams[i]], remove: [orgAdminTeams[i]]},
+    _permissions: {read: [orgAdminTeams[orgIndex]], update: [orgAdminTeams[orgIndex]], delete: [orgAdminTeams[orgIndex]]},
+    _permissionsHeirs: {read: [orgAdminTeams[orgIndex]], add: [orgAdminTeams[orgIndex]], remove: [orgAdminTeams[orgIndex]]},
     'test-data': true
   }
   var headers = {
-    Authorization: `Bearer ${orgAdminTokens[i]}`, 
+    Authorization: `Bearer ${orgAdminTokens[orgIndex]}`, 
     'Content-Type': 'application/merge-patch+json',
-    'If-Match': orgEtags[i]
+    'If-Match': orgEtags[orgIndex]
   }
   schedule(function(callback) {
-    sendRequest('PATCH', `/permissions?${orgs[i]}`, headers, JSON.stringify(orgPermissions), callback(function(err, res) {
+    sendRequest('PATCH', `/permissions?${orgs[orgIndex]}`, headers, JSON.stringify(orgPermissions), callback(function(err, res) {
       if (err) {
         console.log(err)
         return
       } else {
         getResponseBody(res, function(body) {
           if (res.statusCode == 200) {
-            createOrgApps(i)
-            createOrgDevelopers(i)
+            createOrgApps(orgIndex)
+            createOrgDevelopers(orgIndex)
           }
           else {
-            console.log(`failed to patch permissions for ${orgs[i]} statusCode: ${res.statusCode} text: ${body}`)
+            console.log(`failed to patch permissions for ${orgs[orgIndex]} statusCode: ${res.statusCode} text: ${body}`)
           }
         })
       }
@@ -150,18 +150,18 @@ function patchOrg(i) {
   })
 }
 
-function createOrgApps(i) {
+function createOrgApps(orgIndex) {
   var randomLogNormal = d3.randomLogNormal(meanNumberOfAppsPerOrg, deviationsOfAppsPerOrg)
   var count = Math.floor(randomLogNormal())
   console.log('# of apps', count)
   for (let j = 0; j < count; j++) {
     let appPermissions = {
       _subject: `/apps/${lib.uuid4()}`,
-      _permissions: {_inheritsPermissionsOf: orgs[i]},
+      _permissions: {_inheritsPermissionsOf: orgs[orgIndex]},
       'test-data': true
     }
     schedule(function(callback) {
-      sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(appPermissions), callback(function(err, res) {
+      sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[orgIndex]}`}, JSON.stringify(appPermissions), callback(function(err, res) {
         if (err) {
           console.log(err)
           return
@@ -179,21 +179,22 @@ function createOrgApps(i) {
   }
 }
 
-function createOrgDevelopers(i) {
+function createOrgDevelopers(orgIndex) {
   var randomLogNormal = d3.randomLogNormal(meanNumberOfDevelopersPerOrg, deviationsOfDevelopersPerOrg)
   var count = Math.floor(randomLogNormal())
-  count = 50000
   console.log('# of devs', count)
+  var processedCount = 0;
+  var times = Array()
   for (let j = 0; j < count; j++) {
     let devPermissions = {
       _subject: `/devs/${lib.uuid4()}`,
-      _permissions: {_inheritsPermissionsOf: orgs[i]},
+      _permissions: {_inheritsPermissionsOf: orgs[orgIndex]},
       'test-data': true
     }
     schedule(function(callback) {
       var hrstart = process.hrtime()
-      sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[i]}`}, JSON.stringify(devPermissions), callback(function(err, res) {
-        process.stdout.write(`Developer #: ${j}\r`)
+      sendRequest('POST', '/permissions', {Authorization: `Bearer ${orgAdminTokens[orgIndex]}`}, JSON.stringify(devPermissions), callback(function(err, res) {
+        processedCount++
         if (err) {
           console.log(err)
           return
@@ -201,7 +202,17 @@ function createOrgDevelopers(i) {
           getResponseBody(res, function(body) {
             if (res.statusCode == 201) {
               var hrend = process.hrtime(hrstart)
-              //console.log(`load-test:createDeveloper:success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
+              times = hrend[0] + hrend[1]/1000000000
+              if (processedCount == count) {
+                var fileName = `dev_timings-${orgs[orgIndex]}.json`.replace(new RegExp('/','g'),'-')
+                fs.writeFile(fileName, JSON.stringify(times), function(err) {
+                  if(err)
+                    return console.log(err)
+                  else
+                    console.log(`${fileName} was saved!`)
+                })
+              getIsAllowedRandomly(orgIndex)
+              }
             }
             else {
               console.log(`failed to create permissions for ${devPermissions._subject} statusCode: ${res.statusCode} text: ${body}`)
@@ -211,6 +222,10 @@ function createOrgDevelopers(i) {
       }))
     })
   }
+}
+
+function getIsAllowedRandomly(orgIndex) {
+
 }
 
 function sendRequest(method, requestURI, headers, body, callback, port) {
