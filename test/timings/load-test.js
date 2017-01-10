@@ -245,7 +245,7 @@ function getIsAllowedRandomly(orgIndex) {
     let developer = developers[getRandomInt(0, developers.length)]
     schedule(function(callback) {
       var hrstart = process.hrtime()
-      sendRequest('GET', `/isAllowed?resource=${developer}&user=${user.replace('#', '%23')}`, {Authorization: `Bearer ${userToken}`}, null, callback(function(err, res) {
+      sendRequest('GET', `/is-allowed?resource=${developer}&user=${user.replace('#', '%23')}&action=read`, {Authorization: `Bearer ${userToken}`}, null, callback(function(err, res) {
         if (err) {
           console.log(err)
           return
@@ -253,8 +253,7 @@ function getIsAllowedRandomly(orgIndex) {
           getResponseBody(res, function(body) {
             if (res.statusCode == 200) {
               var hrend = process.hrtime(hrstart)
-              time = hrend[0] + hrend[1]/1000000000
-              console.log(`isAllowed: ${body} time: ${time}`)
+              console.log(`isAllowed: ${body} time: ${hrend[0] + hrend[1]/1000000000}`)
             }
             else {
               console.log(`failed to read isAllowed for ${developer} statusCode: ${res.statusCode} text: ${body}`)
