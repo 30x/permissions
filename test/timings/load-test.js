@@ -16,6 +16,8 @@ const meanNumberOfAppsPerOrg = process.env.meanNumberOfAppsPerOrg || 5
 const deviationsOfDevelopersPerOrg = process.env.deviationsOfDevelopersPerOrg || 1.5
 const deviationsOfAppsPerOrg = process.env.deviationsOfAppsPerOrg || 1.5
 
+const numberOfIsAllowedCallsPerApp = process.env.numberOfIsAllowedCallsPerApp || 1.5
+
 var queue = Array()
 var outstandingRequests = 0
 var totalRequests = 0
@@ -179,15 +181,19 @@ function createOrgApps(orgIndex) {
   }
 }
 
+var orgDevelopers = Array()
 function createOrgDevelopers(orgIndex) {
   var randomLogNormal = d3.randomLogNormal(meanNumberOfDevelopersPerOrg, deviationsOfDevelopersPerOrg)
   var count = Math.floor(randomLogNormal())
   console.log('# of devs', count)
   var processedCount = 0;
   var times = Array()
+  var developers = Array()
+  orgDevelopers[orgIndex] = developers
   for (let j = 0; j < count; j++) {
+    developers[j] = `/devs/${lib.uuid4()}`
     let devPermissions = {
-      _subject: `/devs/${lib.uuid4()}`,
+      _subject: developers[j],
       _permissions: {_inheritsPermissionsOf: orgs[orgIndex]},
       'test-data': true
     }
@@ -202,7 +208,7 @@ function createOrgDevelopers(orgIndex) {
           getResponseBody(res, function(body) {
             if (res.statusCode == 201) {
               var hrend = process.hrtime(hrstart)
-              times = hrend[0] + hrend[1]/1000000000
+              times[j] = hrend[0] + hrend[1]/1000000000
               if (processedCount == count) {
                 var fileName = `dev_timings-${orgs[orgIndex]}.json`.replace(new RegExp('/','g'),'-')
                 fs.writeFile(fileName, JSON.stringify(times), function(err) {
@@ -210,8 +216,8 @@ function createOrgDevelopers(orgIndex) {
                     return console.log(err)
                   else
                     console.log(`${fileName} was saved!`)
+                getIsAllowedRandomly(orgIndex)
                 })
-              getIsAllowedRandomly(orgIndex)
               }
             }
             else {
@@ -224,8 +230,40 @@ function createOrgDevelopers(orgIndex) {
   }
 }
 
-function getIsAllowedRandomly(orgIndex) {
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min)) + min;
+}
 
+function getIsAllowedRandomly(orgIndex) {
+  for (var i = 0; i < numberOfIsAllowedCallsPerApp; i++) {
+    let developers = orgDevelopers[orgIndex]
+    let userIndex = getRandomInt(0, users.length)
+    let user = users[userIndex]
+    let userToken = tokens[userIndex]
+    let developer = developers[getRandomInt(0, developers.length)]
+    schedule(function(callback) {
+      var hrstart = process.hrtime()
+      sendRequest('GET', `/isAllowed?resource=${developer}&user=${user.replace('#', '%23')}`, {Authorization: `Bearer ${userToken}`}, null, callback(function(err, res) {
+        if (err) {
+          console.log(err)
+          return
+        } else {
+          getResponseBody(res, function(body) {
+            if (res.statusCode == 200) {
+              var hrend = process.hrtime(hrstart)
+              time = hrend[0] + hrend[1]/1000000000
+              console.log(`isAllowed: ${body} time: ${time}`)
+            }
+            else {
+              console.log(`failed to read isAllowed for ${developer} statusCode: ${res.statusCode} text: ${body}`)
+            }
+          })
+        }
+      }))
+    })
+  }
 }
 
 function sendRequest(method, requestURI, headers, body, callback, port) {
