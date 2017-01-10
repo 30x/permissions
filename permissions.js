@@ -81,6 +81,7 @@ function isActionAllowed(permissionsObject, property, actors, action) {
 
 function cache(resource, permissions, etag) {
   permissions._Etag = etag
+  permissions._metadata = null
   permissionsCache[resource] = permissions
 }
 
