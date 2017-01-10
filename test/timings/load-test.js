@@ -223,11 +223,11 @@ function createOrgDevelopers(orgIndex) {
                   else {
                     console.log(`${fileName} was saved!`)
                     var s = new Stats().push(times)
-                    console.log('    mean:           ', s.amean().toFixed(4))    
-                    console.log('    50th percentile:', s.percentile(50).toFixed(4))    
-                    console.log('    90th percentile:', s.percentile(90).toFixed(4))    
-                    console.log('    99th percentile:', s.percentile(99).toFixed(4))    
-                    console.log('    range:', s.range())    
+                    console.log('    mean:           ', s.amean().toFixed(4), 'ms')    
+                    console.log('    50th percentile:', s.percentile(50).toFixed(4), 'ms')    
+                    console.log('    90th percentile:', s.percentile(90).toFixed(4), 'ms')    
+                    console.log('    99th percentile:', s.percentile(99).toFixed(4), 'ms')    
+                    console.log('    range:          ', s.range(), 'ms')    
                     console.log('    tps:            ', count / (hrendall[0] + hrendall[1]/1000000000))
                   }
                 })
@@ -285,11 +285,11 @@ function getIsAllowedRandomly(orgIndex) {
                   else {
                     console.log(`${fileName} was saved!`)
                     var s = new Stats().push(times)
-                    console.log('    mean:           ', s.amean().toFixed(4))    
-                    console.log('    50th percentile:', s.percentile(50).toFixed(4))    
-                    console.log('    90th percentile:', s.percentile(90).toFixed(4))    
-                    console.log('    99th percentile:', s.percentile(99).toFixed(4))    
-                    console.log('    range:          ', s.range())    
+                    console.log('    mean:           ', s.amean().toFixed(4), 'ms')    
+                    console.log('    50th percentile:', s.percentile(50).toFixed(4), 'ms')    
+                    console.log('    90th percentile:', s.percentile(90).toFixed(4), 'ms')    
+                    console.log('    99th percentile:', s.percentile(99).toFixed(4), 'ms')    
+                    console.log('    range:          ', s.range(), 'ms')    
                     console.log('    tps:            ', count / (hrendall[0] + hrendall[1]/1000000000))
                   }
                 })
