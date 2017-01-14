@@ -49,6 +49,7 @@ function init(callback) {
             "_subject": "scheme://authority/", 
             "permissions":  {"read": [ANYONE], "create": [ANYONE]}, 
             "teams":        {"read": [ANYONE], "create": [ANYONE]}, 
+            "folders":      {"read": [ANYONE], "create": [ANYONE]}, 
             "_permissions": {"read": [ANYONE], "update": [ANYONE]}, 
             "_self":        {"read": [ANYONE], "update": [ANYONE]}
           }

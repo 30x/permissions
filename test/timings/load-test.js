@@ -10,6 +10,7 @@ const PERMISSIONS_SCHEME = process.env.scheme || 'http'
 const PERMISSIONS_HOSTNAME = process.env.host || 'localhost'
 const PERMISSIONS_PORT = process.env.port || 8080
 const ROUTING_API_KEY = process.env.routing_api_key
+
 const numberOfUsers = process.env.numberOfUsers || 1
 const numberOfOrgs  = process.env.numberOfOrgs || 1
 const meanNumberOfDevelopersPerOrg = process.env.meanNumberOfDevelopersPerOrg || 8
