@@ -12,6 +12,10 @@ var config = {
 
 var pool = new Pool(config)
 
+function log(method, text) {
+  console.log(Date.now(), process.env.COMPONENT, method, text)
+}
+
 function withPermissionsDo(req, subject, callback) {
   var hrstart = process.hrtime()
   // fetch the permissions resource for `subject`.
@@ -29,7 +33,7 @@ function withPermissionsDo(req, subject, callback) {
         callback(null, row.data, row.etag)
       }
     var hrend = process.hrtime(hrstart)
-    console.log(`permissions-pg:withPermissionsDo, subject: ${subject} time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
+    log('permissions-pg:withPermissionsDo', `subject: ${subject} time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
   })
 }
 

@@ -489,7 +489,8 @@ function processEvent(event) {
     }
   else if (event.topic == 'teams')
     if (event.data.action == 'update') {
-      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} before: ${event.data.before} after ${event.data.after}`)
+      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} event.data.url: ${event.data.url} before: ${event.data.before} after ${event.data.after}`)
+      delete roleCache[event.data.url]
       var beforeMembers = event.data.before.members || []
       var afterMembers = event.data.after.members || []
       for (let i = 0; i < beforeMembers.length; i++)
@@ -499,8 +500,9 @@ function processEvent(event) {
         if (beforeMembers.indexOf(afterMembers[i]) == -1)
           delete teamsCache[afterMembers[i]]
     } else if (event.data.action == 'delete' || event.data.action == 'create') {
+      delete roleCache[event.data.url]
       var members = event.data.team.members
-      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} members: `, members)
+      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} event.data.url: ${event.data.url} members: ${members}`)
       if (members !== undefined) {
         for (let i = 0; i < members.length; i++) {
           delete teamsCache[members[i]]
@@ -520,8 +522,9 @@ function processEventPost(req, res, event) {
 var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
 var permissionsEventConsumer = new pge.eventConsumer(IPADDRESS, processEvent)
 
-var permissionsCache = {}
-var teamsCache = {}
+var permissionsCache = {} // key is permissions subject URL, value is permissions object
+var teamsCache = {} // key is User's URL, value is array of URLS
+var roleCache = {} // key is team/role URL, value is role object
 
 function requestHandler(req, res) {
   if (req.url == '/events')
