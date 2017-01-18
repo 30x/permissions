@@ -39,6 +39,8 @@ function collateAllowedActions(permissionsObject, property, actors) {
         else if (actors !== null) 
           if (allowedActors.indexOf(ANYONE) > -1) 
             allowedActions[action] = true       
+          else if (allowedActors.indexOf(allowedActors[0].split('#')[0] + '#anyone') > -1)
+            allowedActions[action] = true
           else
             for (var j=0; j<actors.length; j++) {
               var user = actors[j]
@@ -63,6 +65,8 @@ function isActionAllowed(permissionsObject, property, actors, action) {
         return true
       else if (actors !== null)
         if (allowedActors.indexOf(ANYONE) > -1)
+          return true
+        else if (allowedActors.indexOf(allowedActors[0].split('#')[0] + '#anyone') > -1) // first entry in allowedActors is the user
           return true
         else
           for (var j=0; j<actors.length; j++) {
@@ -161,7 +165,6 @@ function withTeamsDo(req, res, user, callback) {
           var actors = JSON.parse(body).contents
           lib.internalizeURLs(actors, req.headers.host)
           actors.unshift(user) // user guaranteed to be first
-          actors.push([user.split('#')[0], 'anyone'].join('#')) // anyone from the user's issuer
           callback(actors)
         } else {
           var err = `unable to retrieve /teams?${user} statusCode ${clientResponse.statusCode}`
@@ -174,9 +177,34 @@ function withTeamsDo(req, res, user, callback) {
     lib.badRequest(res, 'user must be provided' + req.url)
 }
 
+function withRoleDo(req, res, roleURL, callback) {
+  callback({})
+}
+
 function withPermissionFlagDo(req, res, subject, property, action, callback) {
   function withActorsDo (actors) {  
     var allowed = null;
+    function checkRoles(answer) {
+      function permissionMatch(subject, permissions) {
+        return (permissions != null) && (subject in role.permissions)
+      }
+      if (answer === null && property == '_self') {
+        var count = 0
+        var responded = false
+        for (let i = 1; i < actors.length; i++)
+          withRoleDo(req, res, actors[i], function(role) {
+            if (permissionMatch(subject, role.permissions))
+              if (role.permissions[subject].indexOf(action) > -1)
+                answer = true
+            if (++count == actors.length && !responded) {
+              responded = true
+              callback(answer)
+            }
+          })        
+      }
+      else
+        callback(answer)
+    }
     withAncestorPermissionsDo(req, res, subject, function(permissions) {
       var opinion = isActionAllowed(permissions, property, actors, action)
       if (opinion == true) { // someone says its OK, but there may be  a veto later
@@ -188,7 +216,7 @@ function withPermissionFlagDo(req, res, subject, property, action, callback) {
       } else
         return false // keep going
     }, function() {
-      callback(allowed)
+      checkRoles(allowed)
     }) 
   }
   var actors
