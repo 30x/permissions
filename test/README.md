@@ -52,4 +52,3 @@ xhyve (osx built-in hypervisor) that should work, but I have not tried it. Havin
 should be able to do the following:
 * run ./docker_build.sh in each of the 4 repo directories
 * run the k8s-start.sh and k8s-restart.sh scripts.
-

@@ -27,7 +27,7 @@ def main():
         'isA': 'Folder',
         'test-data': True     
         }
-    folders_url = 'http://localhost:8080' + '/folders' 
+    folders_url = 'http://localhost:8080/folders' 
     headers = {'Accept': 'application/json'}
     r = requests.post(folders_url, headers=headers, json=folder1)
     if r.status_code == 403:
@@ -41,10 +41,27 @@ def main():
     r = requests.post(folders_url, headers=headers, json=folder1)
     if r.status_code == 201:
         print 'correctly created permissions'
-        folder1_url = urljoin(BASE_URL, r.headers['Location'])
+        folder1_rel_url = r.headers['Location']
+        folder1_url = urljoin(BASE_URL, folder1_rel_url)
     else:
         print 'failed to create folder %s %s' % (r.status_code, r.text)
         return
+    
+    # Retrieve permissions for Acme org
+
+    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.get('http://localhost:8080/permissions?%s' %folder1_rel_url, headers=headers)
+    if r.status_code == 200:
+        server_folder1_permissions = r.json()
+        if ('Etag' in r.headers):
+            folder1_permissions_if_match = r.headers['Etag']
+            print 'correctly retrieved folder permissions'
+            print json.dumps(server_folder1_permissions, indent = 4)
+            print 'etag: %s' % folder1_permissions_if_match
+        else:
+            print 'failed to find etag in get response'
+    else:
+        print 'failed to get folder %s %s' % (r.status_code, r.text)
     
     # Retrieve permissions for Acme org
 
@@ -84,6 +101,14 @@ def main():
     else:
         print 'failed to delete folder %s %s' % (r.status_code, r.text)
 
+    # Retrieve permissions for Acme org
 
+    headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.get('http://localhost:8080/permissions?%s' %folder1_rel_url, headers=headers)
+    if r.status_code == 404:
+        print 'folder permissions correctly deleted'
+    else:
+        print 'failed to fail to get folder permissions %s %s' % (r.status_code, r.text)
+    
 if __name__ == '__main__':
     main()
