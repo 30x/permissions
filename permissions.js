@@ -211,24 +211,27 @@ function withRoleDo(req, res, roleURL, callback) {
   }
 }
 
+function pathPatternMatch(pattern, pathParts) {
+  var pathPatternParts = pattern.split('/')
+  for (var j=0; j < pathPatternParts.length && j < pathParts.length; j++) {
+    var patternSegement = pathPatternParts[j]
+    if (patternSegement == '**') 
+      return true
+    if (patternSegement == '*' || patternSegement == pathParts[i])
+      ;
+    else
+      continue
+  }
+  if (j == pathPatternParts.length && j == pathParts.length)
+    return true
+}
+
 function pathMatch(role, base, path) {
   if (role != null) {
     var pathParts = path.split('/')
     var keys = Object.keys(role)
-    for (var i = 0; i < keys.length; i++) {
-      var pathPatternParts = keys[i].split('/')
-      for (var j=0; j < pathPatternParts.length && j < pathParts.length; j++) {
-        var patternSegement = pathPatternParts[j]
-        if (patternSegement == '**') 
-          return true
-        if (patternSegement == '*' || patternSegement == pathParts[i])
-          ;
-        else
-          continue
-      }
-      if (j == pathPatternParts.length && j == pathParts.length)
-        return true
-    }
+    for (var i = 0; i < keys.length; i++)
+      pathPatternMatch(keys[i], pathParts)
   }
   return false
 }
