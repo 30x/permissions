@@ -203,18 +203,37 @@ function withRoleDo(req, res, roleURL, callback) {
   }
 }
 
+  function pathMatch(role, base, path) {
+    if (role != null) {
+      var pathParts = path.split('/')
+      var keys = Object.keys(role)
+      for (var i = 0; i < keys.length; i++) {
+        var pathPatternParts = keys[i].split('/')
+        for (var j=0; j < pathPatternParts.length && j < pathParts.length; j++) {
+          var patternSegement = pathPatternParts[j]
+          if (patternSegement == '**') 
+            return true
+          if (patternSegement == '*' || patternSegement == pathParts[i])
+            ;
+          else
+            continue
+        }
+        if (j == pathPatternParts.length && j == pathParts.length)
+          return true
+      }
+    }
+    return false
+  }
+
 function withPermissionFlagDo(req, res, subject, property, action, path, callback) {
   function withActorsDo (actors) {  
     function checkRoles(answer) {
-      function pathMatch(role) {
-        return (role != null) && (path in role) && (role[path].indexOf(action) > -1)
-      }
       if (answer === null && path != null & actors.length > 1) {
         var count = 1
         var responded = false
         for (let i = 1; i < actors.length; i++)
           withRoleDo(req, res, actors[i], function(role) {
-            if (pathMatch(role)) {
+            if (pathMatch(role, null, path)) {
               responded = true
               callback(true)
             }

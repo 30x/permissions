@@ -515,7 +515,7 @@ def main():
     if r.status_code == 200:
         answer = r.json()
         if answer:
-            print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of permissions to use property. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+            print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
     else:
