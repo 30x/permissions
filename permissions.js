@@ -17,12 +17,14 @@ function log(method, text) {
 
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
-  var resource = lib.internalizeURL(queryParts.resource, req.headers.host)
+  var resource = queryParts.resource
+  if (resource !==undefined)
+    resource = lib.internalizeURL(resource, req.headers.host)
   var user = queryParts.user
   var path = queryParts.path
   var base = queryParts.base
   var property = queryParts.property || '_self'
-  log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property}`)
+  log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property} base: ${base} path: ${path}`)
   if (user == lib.getUser(req.headers.authorization)) 
     withAllowedActionsDo(req, res, resource, property, user, base, path, function(allowedActions) {
       lib.found(req, res, allowedActions)
@@ -196,9 +198,10 @@ function withRoleDo(req, res, roleURL, callback) {
     if (req_url.pathname.startsWith(TEAMS)) {
       var id = req_url.pathname.substring(TEAMS.length)  
       db.withRoleDo(req, id, function(err, role) {
-        if (err)
+        if (err) {
           lib.internalError(res, err)
-        else {
+          log('withRoleDo', `could not find role ${roleURL}`)
+        } else {
           roleCache[url] = role
           callback(role)
         }        
@@ -256,19 +259,22 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
         callback(answer)
     }
     var allowed = null;
-    withAncestorPermissionsDo(req, res, subject, function(permissions) {
-      var opinion = isActionAllowed(permissions, property, actors, action)
-      if (opinion == true) { // someone says its OK, but there may be  a veto later
-        allowed = true
-        return false // keep going
-      } else if (opinion == false) {
-        allowed = false
-        return true  // stop looking - operation is forbidden
-      } else
-        return false // keep going
-    }, function() {
-      checkRoles(allowed)
-    }) 
+    if (subject !== undefined) {
+      withAncestorPermissionsDo(req, res, subject, function(permissions) {
+        var opinion = isActionAllowed(permissions, property, actors, action)
+        if (opinion == true) { // someone says its OK, but there may be  a veto later
+          allowed = true
+          return false // keep going
+        } else if (opinion == false) {
+          allowed = false
+          return true  // stop looking - operation is forbidden
+        } else
+          return false // keep going
+      }, function() {
+        checkRoles(allowed)
+      }) 
+    } else
+      checkRoles(null)
   }
   var actors
   var user = lib.getUser(req.headers.authorization)
@@ -312,28 +318,33 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback) {
 function withAllowedActionsDo(req, res, resource, property, user, base, path, callback) {
   withTeamsDo(req, res, user, function(actors) {
     var actions = []
-    withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
-      var entityCalculations = calculateEntityActions(tree, actors)
-      var entityActions = Object.keys(entityCalculations[0])
-      for (let i=0; i<entityActions.length; i++) actions.push(entityActions[i])
-      var wideningForbidden = entityCalculations[1]
-      if (wideningForbidden || actors.length <=1 || path === undefined || base === undefined)
-        callback(actions)
-      else {
-        var pathParts = path.split('/')
-        var count = 1;
-        for (let i=1; i<actors.length; i++) {
-          withRoleDo(req, res, actors[i], function(role) {
-            if (role != null) {
-              var roleActions = calculateRoleActions(role, base, pathParts)
-              for (let i=0; i<roleActions.length; i++) actions.push(roleActions[i])
-            }
-            if (++count == actors.length)
-              callback(actions)
-          })
-        }
+    function calculateAllRoleActions(actons) {
+      var pathParts = path.split('/')
+      var count = 1;
+      for (let i=1; i<actors.length; i++) {
+        withRoleDo(req, res, actors[i], function(role) {
+          if (role != null) {
+            var roleActions = calculateRoleActions(role, base, pathParts)
+            for (let i=0; i<roleActions.length; i++) actions.push(roleActions[i])
+          }
+          if (++count == actors.length)
+            callback(actions)
+        })
       }
-    }) 
+    }
+    if (resource === undefined)
+      calculateAllRoleActions()
+    else
+      withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
+        var entityCalculations = calculateEntityActions(tree, actors)
+        var entityActions = Object.keys(entityCalculations[0])
+        for (let i=0; i<entityActions.length; i++) actions.push(entityActions[i])
+        var wideningForbidden = entityCalculations[1]
+        if (wideningForbidden || actors.length <=1 || path === undefined || base === undefined)
+          callback(actions)
+        else 
+          calculateAllRoleActions()
+      }) 
   })
   function calculateRoleActions(role, base, pathParts) {
     var result = []
@@ -387,36 +398,32 @@ function isAllowed(req, res, queryString) {
   var path = queryParts.path
   var base = queryParts.base
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
-  resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
+  if (queryParts.resource !== undefined) 
+    resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
   log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
-    if (action !== undefined)
-      if (queryParts.resource !== undefined) {
-        var count = 0
-        var responded = false
-        for (var i = 0; i< resources.length; i++) {
-          if (!responded) {
-            var resource = resources[i]
-            withPermissionFlagDo(req, res, resource, property, action, base, path, function(answer) {
-              if (!responded) {
-                if (++count == resources.length) {
-                  lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
-                  responded = true
-                  var hrend = process.hrtime(hrstart)
-                  log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
-                } else if (answer == false) {
-                  lib.found(req, res, false)
-                  responded = true
-                  var hrend = process.hrtime(hrstart)
-                  log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
-                }
+    if (action !== undefined) {
+      var count = 0
+      var responded = false
+      for (var i = 0; i< resources.length; i++) {
+        if (!responded)
+          withPermissionFlagDo(req, res, resources[i], property, action, base, path, function(answer) {
+            if (!responded) {
+              if (++count == resources.length) {
+                lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                responded = true
+                var hrend = process.hrtime(hrstart)
+                log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
+              } else if (answer == false) {
+                lib.found(req, res, false)
+                responded = true
+                var hrend = process.hrtime(hrstart)
+                log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
               }
-            })
-          }
-        }
-      } else
-        lib.badRequest(res, 'resource  query parameter must be provided: ' + req.url)
-    else
+            }
+          })
+      }
+    } else
       lib.badRequest(res, 'action query parameter must be provided: ' + req.url)
   else  
     lib.forbidden(req, res)

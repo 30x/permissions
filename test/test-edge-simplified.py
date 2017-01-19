@@ -535,6 +535,38 @@ def main():
         else:
             print 'incorrect returned allowed-action of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
     else:
+        print 'failed to return allowed-actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+
+    # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+
+    url = urljoin(BASE_URL, '/is-allowed?user=%s&action=read&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
+    start = timer()
+    r = requests.get(url, headers=headers, json=permissions)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
+    else:
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+
+    # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+
+    url = urljoin(BASE_URL, '/allowed-actions?user=%s&action=read&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
+    start = timer()
+    r = requests.get(url, headers=headers, json=permissions)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if 'read' in answer:
+            print 'correctly returned allowed-actions (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned allowed-action of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
+    else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
 
 if __name__ == '__main__':
