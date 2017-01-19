@@ -203,27 +203,27 @@ function withRoleDo(req, res, roleURL, callback) {
   }
 }
 
-  function pathMatch(role, base, path) {
-    if (role != null) {
-      var pathParts = path.split('/')
-      var keys = Object.keys(role)
-      for (var i = 0; i < keys.length; i++) {
-        var pathPatternParts = keys[i].split('/')
-        for (var j=0; j < pathPatternParts.length && j < pathParts.length; j++) {
-          var patternSegement = pathPatternParts[j]
-          if (patternSegement == '**') 
-            return true
-          if (patternSegement == '*' || patternSegement == pathParts[i])
-            ;
-          else
-            continue
-        }
-        if (j == pathPatternParts.length && j == pathParts.length)
+function pathMatch(role, base, path) {
+  if (role != null) {
+    var pathParts = path.split('/')
+    var keys = Object.keys(role)
+    for (var i = 0; i < keys.length; i++) {
+      var pathPatternParts = keys[i].split('/')
+      for (var j=0; j < pathPatternParts.length && j < pathParts.length; j++) {
+        var patternSegement = pathPatternParts[j]
+        if (patternSegement == '**') 
           return true
+        if (patternSegement == '*' || patternSegement == pathParts[i])
+          ;
+        else
+          continue
       }
+      if (j == pathPatternParts.length && j == pathParts.length)
+        return true
     }
-    return false
   }
+  return false
+}
 
 function withPermissionFlagDo(req, res, subject, property, action, path, callback) {
   function withActorsDo (actors) {  
