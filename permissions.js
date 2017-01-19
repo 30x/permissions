@@ -217,10 +217,8 @@ function pathPatternMatch(pattern, pathParts) {
     var patternSegement = pathPatternParts[j]
     if (patternSegement == '**') 
       return true
-    if (patternSegement == '*' || patternSegement == pathParts[i])
-      ;
-    else
-      continue
+    if (patternSegement != '*' && patternSegement != pathParts[j])
+      return false
   }
   if (j == pathPatternParts.length && j == pathParts.length)
     return true
@@ -231,7 +229,8 @@ function pathMatch(role, base, path) {
     var pathParts = path.split('/')
     var keys = Object.keys(role)
     for (var i = 0; i < keys.length; i++)
-      pathPatternMatch(keys[i], pathParts)
+      if (pathPatternMatch(keys[i], pathParts))
+        return true
   }
   return false
 }
