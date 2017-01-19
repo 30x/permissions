@@ -9,6 +9,8 @@ const pge = require('pg-event-consumer')
 const ANYONE = 'http://apigee.com/users#anyone'
 const INCOGNITO = 'http://apigee.com/users#incognito'
 
+const TEAMS = '/teams/'
+
 function log(method, text) {
   console.log(Date.now(), process.env.COMPONENT, method, text)
 }
@@ -98,7 +100,7 @@ function withPermissionsDo(req, res, resource, callback) {
       if (err == 404)
         lib.notFound(req, res)
       else if (err)
-        lib.internalError(err)
+        lib.internalError(res, err)
       else {
         cache(resource, permissions, etag)
         callback(permissions, etag)
@@ -178,33 +180,53 @@ function withTeamsDo(req, res, user, callback) {
 }
 
 function withRoleDo(req, res, roleURL, callback) {
-  callback({})
+  var role = roleCache[roleURL]
+  if (role !== undefined)
+    callback(role)
+  else {
+    var req_url = url.parse(roleURL)
+    if (req_url.pathname.startsWith(TEAMS)) {
+      var id = req_url.pathname.substring(TEAMS.length)  
+      db.withRoleDo(req, id, function(err, role) {
+        if (err)
+          lib.internalError(res, err)
+        else {
+          roleCache[url] = role
+          callback(role)
+        }        
+      })
+    } else {
+      var err = `unexpected role URL ${roleURL}`
+      log('withRoleDo', err)
+      lib.internalError(res, err)
+    }
+  }
 }
 
-function withPermissionFlagDo(req, res, subject, property, action, callback) {
+function withPermissionFlagDo(req, res, subject, property, action, path, callback) {
   function withActorsDo (actors) {  
-    var allowed = null;
     function checkRoles(answer) {
-      function permissionMatch(subject, permissions) {
-        return (permissions != null) && (subject in role.permissions)
+      function pathMatch(role) {
+        return (role != null) && (path in role) && (role[path].indexOf(action) > -1)
       }
-      if (answer === null && property == '_self') {
-        var count = 0
+      if (answer === null && path != null & actors.length > 1) {
+        var count = 1
         var responded = false
         for (let i = 1; i < actors.length; i++)
           withRoleDo(req, res, actors[i], function(role) {
-            if (permissionMatch(subject, role.permissions))
-              if (role.permissions[subject].indexOf(action) > -1)
-                answer = true
+            if (pathMatch(role)) {
+              responded = true
+              callback(true)
+            }
             if (++count == actors.length && !responded) {
               responded = true
               callback(answer)
             }
           })        
-      }
-      else
+      } else
         callback(answer)
     }
+    var allowed = null;
     withAncestorPermissionsDo(req, res, subject, function(permissions) {
       var opinion = isActionAllowed(permissions, property, actors, action)
       if (opinion == true) { // someone says its OK, but there may be  a veto later
@@ -313,9 +335,10 @@ function isAllowed(req, res, queryString) {
   var user = queryParts.user
   var action = queryParts.action
   var property = queryParts.property || '_self'
+  var path = queryParts.path
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
   resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources}`)
+  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} path: ${path}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action !== undefined)
       if (queryParts.resource !== undefined) {
@@ -324,19 +347,18 @@ function isAllowed(req, res, queryString) {
         for (var i = 0; i< resources.length; i++) {
           if (!responded) {
             var resource = resources[i]
-            var resourceParts = url.parse(resource)
-            withPermissionFlagDo(req, res, resource, property, action, function(answer) {
+            withPermissionFlagDo(req, res, resource, property, action, path, function(answer) {
               if (!responded) {
                 if (++count == resources.length) {
                   lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
                   responded = true
                   var hrend = process.hrtime(hrstart)
-                  log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
+                  log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
                 } else if (answer == false) {
                   lib.found(req, res, false)
                   responded = true
                   var hrend = process.hrtime(hrstart)
-                  log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
+                  log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
                 }
               }
             })
@@ -375,7 +397,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
   var subject = queryParts.subject
   if (subject !== undefined) {
     subject = lib.internalizeURL(subject, req.headers.host)
-    withPermissionFlagDo(req, res, subject, '_permissions', 'read', function(answer) {
+    withPermissionFlagDo(req, res, subject, '_permissions', 'read', null, function(answer) {
       if (answer) {
         var sharingSet = queryParts.sharingSet
         var existingAncestors = null
@@ -411,7 +433,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
             if (removedAncestors.length > 0) {
               let count = 0
               for (let i=0; i < removedAncestors.length; i++)
-                withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', function(answer) {
+                withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', null, function(answer) {
                   if (!responded) 
                     if (!answer) {
                       responded = true
@@ -429,7 +451,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
             if (addedAncestors.length > 0) {
               let count = 0
               for (let i=0; i < addedAncestors.length; i++) 
-                withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', function(answer) {
+                withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', null, function(answer) {
                   if (!responded)
                     if (!answer) {
                       responded = true

@@ -37,6 +37,23 @@ function withPermissionsDo(req, subject, callback) {
   })
 }
 
+function withRoleDo(req, id, callback) {
+  pool.query('SELECT etag, data FROM teams WHERE id = $1', [id], function (err, pg_res) {
+    if (err) {
+      callback(500)
+    }
+    else {
+      if (pg_res.rowCount === 0) { 
+        callback(404)
+      }
+      else {
+        var row = pg_res.rows[0]
+        callback(null, row.data.role)
+      }
+    }
+  })
+}
+
 function init(callback) {
   var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag int, data jsonb);'  
   pool.connect(function(err, client, release) {
@@ -75,5 +92,6 @@ function init(callback) {
 }
 
 exports.withPermissionsDo = withPermissionsDo
+exports.withRoleDo = withRoleDo
 exports.init = init
 exports.pool = pool
