@@ -19,10 +19,12 @@ function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   var resource = lib.internalizeURL(queryParts.resource, req.headers.host)
   var user = queryParts.user
+  var path = queryParts.path
+  var base = queryParts.base
   var property = queryParts.property || '_self'
   log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property}`)
   if (user == lib.getUser(req.headers.authorization)) 
-    withAllowedActionsDo(req, res, resource, property, user, function(allowedActions) {
+    withAllowedActionsDo(req, res, resource, property, user, base, path, function(allowedActions) {
       lib.found(req, res, allowedActions)
     })
   else
@@ -305,13 +307,32 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback) {
   withAncestorPermissionsDo(subject, tree, callback)
 }
 
-function withAllowedActionsDo(req, res, resource, property, user, callback) {
+function withAllowedActionsDo(req, res, resource, property, user, base, path, callback) {
   withTeamsDo(req, res, user, function(actors) {
-    var actions = {}
+    var actions = []
     withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
-      callback(Object.keys(calculateActions(tree, actors)[0]))
+      var entityCalculations = calculateActions(tree, actors)
+      var entityActions = Object.keys(entityCalculations[0])
+      for (let i=0; i<entityActions.length; i++) actions.push(entityActions[i])
+      var wideningForbidden = entityCalculations[1]
+      if (wideningForbidden || actors.length <=1)
+        callback(actions)
+      else {
+        var count = 1;
+        for (let i=1; i<actors.length; i++) {
+          withRoleDo(req, res, actors[i], function(role) {
+            var roleActions = calculateRoleActions(role)
+            for (let i=0; i<roleActions.length; i++) actions.push(roleActions[i])
+            if (++count == actors.length)
+              callback(actions)
+          })
+        }
+      }
     }) 
   })
+  function calculateRoleActions(role) {
+    return []
+  }
   function calculateActions(node, actors) {
     var permissions = node[0]
     if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
