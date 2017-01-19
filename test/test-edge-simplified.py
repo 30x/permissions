@@ -492,7 +492,7 @@ def main():
 
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
 
-    patch = {'role': {'http://apigee.com/o/acme/keyvaluemaps': ['read']}}
+    patch = {'role': {'http://apigee.com/o/acme': {'/keyvaluemaps': ['read']}}}
     patch_headers = {'If-Match': ORDINARY_USERS_ETAG}
     patch_headers.update(headers)
     patch_headers['Content-Type'] = 'application/merge-patch+json'
@@ -507,7 +507,7 @@ def main():
 
     # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
-    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&path=http://apigee.com/o/acme/keyvaluemaps' % (USER3_E))
+    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
     r = requests.get(url, headers=headers, json=permissions)
@@ -523,7 +523,7 @@ def main():
 
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
-    url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&path=http://apigee.com/o/acme/keyvaluemaps' % (USER3_E))
+    url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
     r = requests.get(url, headers=headers, json=permissions)
@@ -536,7 +536,6 @@ def main():
             print 'incorrect returned allowed-action of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
-
 
 if __name__ == '__main__':
     main()

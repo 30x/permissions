@@ -225,9 +225,9 @@ function pathPatternMatch(pattern, pathParts) {
 }
 
 function pathMatch(role, base, path) {
-  if (role != null) {
+  if (role != null && base in role) {
     var pathParts = path.split('/')
-    var keys = Object.keys(role)
+    var keys = Object.keys(role[base])
     for (var i = 0; i < keys.length; i++)
       if (pathPatternMatch(keys[i], pathParts))
         return true
@@ -235,15 +235,15 @@ function pathMatch(role, base, path) {
   return false
 }
 
-function withPermissionFlagDo(req, res, subject, property, action, path, callback) {
+function withPermissionFlagDo(req, res, subject, property, action, base, path, callback) {
   function withActorsDo (actors) {  
     function checkRoles(answer) {
-      if (answer === null && path != null & actors.length > 1) {
+      if (answer === null && base != null && path != null & actors.length > 1) {
         var count = 1
         var responded = false
         for (let i = 1; i < actors.length; i++)
           withRoleDo(req, res, actors[i], function(role) {
-            if (pathMatch(role, null, path)) {
+            if (pathMatch(role, base, path)) {
               responded = true
               callback(true)
             }
@@ -317,7 +317,7 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
       var entityActions = Object.keys(entityCalculations[0])
       for (let i=0; i<entityActions.length; i++) actions.push(entityActions[i])
       var wideningForbidden = entityCalculations[1]
-      if (wideningForbidden || actors.length <=1 || path === undefined)
+      if (wideningForbidden || actors.length <=1 || path === undefined || base === undefined)
         callback(actions)
       else {
         var pathParts = path.split('/')
@@ -325,7 +325,7 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
         for (let i=1; i<actors.length; i++) {
           withRoleDo(req, res, actors[i], function(role) {
             if (role != null) {
-              var roleActions = calculateRoleActions(role, pathParts)
+              var roleActions = calculateRoleActions(role, base, pathParts)
               for (let i=0; i<roleActions.length; i++) actions.push(roleActions[i])
             }
             if (++count == actors.length)
@@ -335,14 +335,16 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
       }
     }) 
   })
-  function calculateRoleActions(role, pathParts) {
+  function calculateRoleActions(role, base, pathParts) {
     var result = []
-    var paths = Object.keys(role)
-    for (var i=0; i<paths.length; i++) {
-      var path = paths[i]
-      if (pathPatternMatch(path, pathParts)) {
-        var actions = role[path]
-        for (var j=0;j<actions.length; j++) result.push(actions[j])
+    if (base in role) {
+      var paths = Object.keys(role[base])
+      for (var i=0; i<paths.length; i++) {
+        var path = paths[i]
+        if (pathPatternMatch(path, pathParts)) {
+          var actions = role[base][path]
+          for (var j=0;j<actions.length; j++) result.push(actions[j])
+        }
       }
     }
     return result
@@ -383,9 +385,10 @@ function isAllowed(req, res, queryString) {
   var action = queryParts.action
   var property = queryParts.property || '_self'
   var path = queryParts.path
+  var base = queryParts.base
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
   resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} path: ${path}`)
+  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action !== undefined)
       if (queryParts.resource !== undefined) {
@@ -394,7 +397,7 @@ function isAllowed(req, res, queryString) {
         for (var i = 0; i< resources.length; i++) {
           if (!responded) {
             var resource = resources[i]
-            withPermissionFlagDo(req, res, resource, property, action, path, function(answer) {
+            withPermissionFlagDo(req, res, resource, property, action, base, path, function(answer) {
               if (!responded) {
                 if (++count == resources.length) {
                   lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
@@ -444,7 +447,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
   var subject = queryParts.subject
   if (subject !== undefined) {
     subject = lib.internalizeURL(subject, req.headers.host)
-    withPermissionFlagDo(req, res, subject, '_permissions', 'read', null, function(answer) {
+    withPermissionFlagDo(req, res, subject, '_permissions', 'read', null, null, function(answer) {
       if (answer) {
         var sharingSet = queryParts.sharingSet
         var existingAncestors = null
@@ -480,7 +483,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
             if (removedAncestors.length > 0) {
               let count = 0
               for (let i=0; i < removedAncestors.length; i++)
-                withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', null, function(answer) {
+                withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', null, null, function(answer) {
                   if (!responded) 
                     if (!answer) {
                       responded = true
@@ -498,7 +501,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
             if (addedAncestors.length > 0) {
               let count = 0
               for (let i=0; i < addedAncestors.length; i++) 
-                withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', null, function(answer) {
+                withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', null, null, function(answer) {
                   if (!responded)
                     if (!answer) {
                       responded = true
