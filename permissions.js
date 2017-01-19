@@ -313,18 +313,21 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
   withTeamsDo(req, res, user, function(actors) {
     var actions = []
     withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
-      var entityCalculations = calculateActions(tree, actors)
+      var entityCalculations = calculateEntityActions(tree, actors)
       var entityActions = Object.keys(entityCalculations[0])
       for (let i=0; i<entityActions.length; i++) actions.push(entityActions[i])
       var wideningForbidden = entityCalculations[1]
-      if (wideningForbidden || actors.length <=1)
+      if (wideningForbidden || actors.length <=1 || path === undefined)
         callback(actions)
       else {
+        var pathParts = path.split('/')
         var count = 1;
         for (let i=1; i<actors.length; i++) {
           withRoleDo(req, res, actors[i], function(role) {
-            var roleActions = calculateRoleActions(role)
-            for (let i=0; i<roleActions.length; i++) actions.push(roleActions[i])
+            if (role != null) {
+              var roleActions = calculateRoleActions(role, pathParts)
+              for (let i=0; i<roleActions.length; i++) actions.push(roleActions[i])
+            }
             if (++count == actors.length)
               callback(actions)
           })
@@ -332,10 +335,19 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
       }
     }) 
   })
-  function calculateRoleActions(role) {
-    return []
+  function calculateRoleActions(role, pathParts) {
+    var result = []
+    var paths = Object.keys(role)
+    for (var i=0; i<paths.length; i++) {
+      var path = paths[i]
+      if (pathPatternMatch(path, pathParts)) {
+        var actions = role[path]
+        for (var j=0;j<actions.length; j++) result.push(actions[j])
+      }
+    }
+    return result
   }
-  function calculateActions(node, actors) {
+  function calculateEntityActions(node, actors) {
     var permissions = node[0]
     if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
       if (actors.length == 0 || permissions._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) { // user's issuer not in the list
@@ -344,7 +356,7 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
     var actions = {}
     var wideningForbidden = false
     for (var i = 1; i < node.length; i++) {
-      var [ancestorActions, ancestorWideningForbidden] = calculateActions(node[i], actors)
+      var [ancestorActions, ancestorWideningForbidden] = calculateEntityActions(node[i], actors)
       if (ancestorWideningForbidden)
         if (wideningForbidden) 
           for (var key in actions) {
