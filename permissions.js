@@ -158,23 +158,29 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
 
 function withTeamsDo(req, res, user, callback) {
   if (user !== null) {
-    user = lib.internalizeURL(user, req.headers.host)
-    lib.sendInternalRequestThen(req, res, `/teams?${user.replace('#', '%23')}`, 'GET', undefined, function (clientResponse) {
-      lib.getClientResponseBody(clientResponse, function(body) {
-        if (err)
-          lib.internalError(res, err)
-        else if (clientResponse.statusCode == 200) { 
-          var actors = JSON.parse(body).contents
-          lib.internalizeURLs(actors, req.headers.host)
-          actors.unshift(user) // user guaranteed to be first
-          callback(actors)
-        } else {
-          var err = `unable to retrieve /teams?${user} statusCode ${clientResponse.statusCode}`
-          log('withTeamsDo', err)
-          lib.internalError(res, err)
-        }
+    var actors = teamsCache[user] 
+    if (actors !== undefined)
+      callback(actors)
+    else {  
+      user = lib.internalizeURL(user, req.headers.host)
+      lib.sendInternalRequestThen(req, res, `/teams?${user.replace('#', '%23')}`, 'GET', undefined, function (clientResponse) {
+        lib.getClientResponseBody(clientResponse, function(body) {
+          if (err)
+            lib.internalError(res, err)
+          else if (clientResponse.statusCode == 200) { 
+            var actors = JSON.parse(body).contents
+            lib.internalizeURLs(actors, req.headers.host)
+            actors.unshift(user) // user guaranteed to be first
+            teamsCache[user] = actors
+            callback(actors)
+          } else {
+            var err = `unable to retrieve /teams?${user} statusCode ${clientResponse.statusCode}`
+            log('withTeamsDo', err)
+            lib.internalError(res, err)
+          }
+        })
       })
-    })
+    }
   } else
     lib.badRequest(res, 'user must be provided' + req.url)
 }
@@ -265,14 +271,9 @@ function withPermissionFlagDo(req, res, subject, property, action, path, callbac
   if (user == null)
     withActorsDo([])
   else {
-    var actors = teamsCache[user] 
-    if (actors !== undefined)
+    withTeamsDo(req, res, user, function(actors) {
       withActorsDo(actors)
-    else
-      withTeamsDo(req, res, user, function(actors) {
-        teamsCache[user] = actors
-        withActorsDo(actors)
-      })
+    })
   }
 }
 
@@ -305,14 +306,12 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback) {
 }
 
 function withAllowedActionsDo(req, res, resource, property, user, callback) {
-  var actors = teamsCache[user]
-  if (actors !== undefined)
-    withActorsDo(actors)
-  else
-    withTeamsDo(req, res, user, function(actors) {
-      teamsCache[user] = actors
-      withActorsDo(actors)
-    })
+  withTeamsDo(req, res, user, function(actors) {
+    var actions = {}
+    withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
+      callback(Object.keys(calculateActions(tree, actors)[0]))
+    }) 
+  })
   function calculateActions(node, actors) {
     var permissions = node[0]
     if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
@@ -339,12 +338,6 @@ function withAllowedActionsDo(req, res, resource, property, user, callback) {
     if (!wideningForbidden)
       Object.assign(actions, collateAllowedActions(permissions, property, actors))
     return [actions, wideningForbidden || (permissions._constraints !== undefined && permissions._constraints.wideningForbidden)]
-  }
-  function withActorsDo (actors) {  
-    var actions = {}
-    withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
-      callback(Object.keys(calculateActions(tree, actors)[0]))
-    }) 
   }
 }
 
