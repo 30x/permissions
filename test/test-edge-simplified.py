@@ -569,5 +569,52 @@ def main():
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
 
+    # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
+
+    patch = {'role': {'http://apigee.com/o/acme': {'/environments/*': ['read']}}}
+    patch_headers = {'If-Match': ORDINARY_USERS_ETAG}
+    patch_headers.update(headers)
+    patch_headers['Content-Type'] = 'application/merge-patch+json'
+    patch_headers['Authorization'] = 'Bearer %s' % TOKEN1
+    r = requests.patch(urljoin(BASE_URL, ORDINARY_USERS), headers=patch_headers, json=patch)
+    if r.status_code == 200:
+        ORDINARY_USERS_ETAG = r.headers['Etag'] 
+        print 'correctly patched Ordinary Users team'
+    else:
+        print 'failed to patch Ordinary Users team %s %s' % (r.status_code, r.text)
+        return
+
+    # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+
+    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
+    start = timer()
+    r = requests.get(url, headers=headers, json=permissions)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned is-allowed of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
+    else:
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme/environments/test for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+
+    # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+
+    url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
+    start = timer()
+    r = requests.get(url, headers=headers, json=permissions)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if 'read' in answer:
+            print 'correctly returned allowed-actions (%s) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned allowed-actions of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
+    else:
+        print 'failed to return allowed-actions of http://apigee.com/o/acme/environments/test for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+
 if __name__ == '__main__':
     main()

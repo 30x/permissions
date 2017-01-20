@@ -95,16 +95,20 @@ function cache(resource, permissions, etag) {
   permissionsCache[resource] = permissions
 }
 
-function withPermissionsDo(req, res, resource, callback) {
+function withPermissionsDo(req, res, resource, callback, errorCallback) {
   var permissions = permissionsCache[resource]
   if (permissions !== undefined) {
     callback(permissions, permissions._Etag)
   } else {
     function checkResult(err, permissions, etag) {
-      if (err == 404)
-        lib.notFound(req, res)
-      else if (err)
-        lib.internalError(res, err)
+      if (err)
+        if (errorCallback !== undefined)
+          errorCallback(err)
+        else
+          if (err == 404)
+            lib.notFound(req, res)
+          else
+            lib.internalError(res, err)          
       else {
         cache(resource, permissions, etag)
         callback(permissions, etag)
@@ -126,9 +130,9 @@ function withPermissionsDo(req, res, resource, callback) {
   }
 }
 
-function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallback) {
+function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallback, errorCallback) {
   var recursionSet = {}
-  function ancestors(resource, callback) {
+  function ancestors(resource, callback, errCallback) {
     withPermissionsDo(req, res, resource, function(permissions) {
       var stopHere = itemCallback(permissions)
       if (stopHere) 
@@ -155,9 +159,9 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
         } else
           callback()
       }
-    })
+    }, errCallback)
   }
-  ancestors(subject, finalCallback)
+  ancestors(subject, finalCallback, errorCallback)
 }
 
 function withTeamsDo(req, res, user, callback) {
@@ -272,7 +276,12 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
           return false // keep going
       }, function() {
         checkRoles(allowed)
-      }) 
+      }, function(err) {
+        if (err == 404)
+          checkRoles(null)
+        else
+          lib.internalError(res, err)              
+      })
     } else
       checkRoles(null)
   }
@@ -287,10 +296,10 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
   }
 }
 
-function withAncestorPermissionsTreeDo(req, res, subject, callback) {
+function withAncestorPermissionsTreeDo(req, res, subject, callback, errorCallback) {
   var recursionSet = {}
   var tree = []
-  function withAncestorPermissionsDo(resource, tree, callback) {
+  function withAncestorPermissionsSubtreeDo(resource, tree, callback, errCallback) {
     withPermissionsDo(req, res, resource, function(permissions) {
       tree[0] = permissions
       var inheritsPermissionsOf = permissions._inheritsPermissionsOf
@@ -301,7 +310,7 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback) {
           for (var j = 0; j < inheritsPermissionsOf.length; j++) {
             recursionSet[inheritsPermissionsOf[j]] = true 
             tree[j+1] = []
-            withAncestorPermissionsDo(inheritsPermissionsOf[j], tree[j+1], function(subtree) {
+            withAncestorPermissionsSubtreeDo(inheritsPermissionsOf[j], tree[j+1], function(subtree) {
               if (++count == inheritsPermissionsOf.length) 
                 callback(tree)
             })
@@ -310,9 +319,9 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback) {
           callback(tree)
       } else
         callback(tree)
-    })
+    }, errCallback)
   }
-  withAncestorPermissionsDo(subject, tree, callback)
+  withAncestorPermissionsSubtreeDo(subject, tree, callback, errorCallback)
 }
 
 function withAllowedActionsDo(req, res, resource, property, user, base, path, callback) {
@@ -344,6 +353,11 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
           callback(actions)
         else 
           calculateAllRoleActions()
+      }, function(err) {
+        if (err == 404)
+          calculateAllRoleActions()
+        else
+          lib.internalError(res, err) 
       }) 
   })
   function calculateRoleActions(role, base, pathParts) {
