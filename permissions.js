@@ -326,49 +326,47 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback, errorCallbac
 
 function withAllowedActionsDo(req, res, resource, property, user, base, path, callback) {
   withTeamsDo(req, res, user, function(actors) {
-    var actions = []
-    function calculateAllRoleActions(actons) {
+    function calculateAllRoleActions(actions) {
       var pathParts = path.split('/')
       var count = 1;
       for (let i=1; i<actors.length; i++) {
         withRoleDo(req, res, actors[i], function(role) {
           if (role != null) {
             var roleActions = calculateRoleActions(role, base, pathParts)
-            for (let i=0; i<roleActions.length; i++) actions.push(roleActions[i])
+            Object.assign(actions, roleActions)
           }
           if (++count == actors.length)
-            callback(actions)
+            callback(Object.keys(actions))
         })
       }
     }
     if (resource === undefined)
-      calculateAllRoleActions()
+      calculateAllRoleActions({})
     else
       withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
         var entityCalculations = calculateEntityActions(tree, actors)
         var entityActions = Object.keys(entityCalculations[0])
-        for (let i=0; i<entityActions.length; i++) actions.push(entityActions[i])
         var wideningForbidden = entityCalculations[1]
         if (wideningForbidden || actors.length <=1 || path === undefined || base === undefined)
-          callback(actions)
+          callback(entityActions)
         else 
-          calculateAllRoleActions()
+          calculateAllRoleActions(entityActions)
       }, function(err) {
         if (err == 404)
-          calculateAllRoleActions()
+          calculateAllRoleActions({})
         else
           lib.internalError(res, err) 
       }) 
   })
   function calculateRoleActions(role, base, pathParts) {
-    var result = []
+    var result = {}
     if (base in role) {
       var paths = Object.keys(role[base])
       for (var i=0; i<paths.length; i++) {
         var path = paths[i]
         if (pathPatternMatch(path, pathParts)) {
           var actions = role[base][path]
-          for (var j=0;j<actions.length; j++) result.push(actions[j])
+          for (var j=0;j<actions.length; j++) result[actions[j]] = 0
         }
       }
     }
