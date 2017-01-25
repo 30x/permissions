@@ -221,20 +221,16 @@ function withRolesDo(req, res, teamURL, callback) {
 function pathPatternMatch(pathPatternParts, pathParts) {
   for (var j=0; j < pathPatternParts.length && j < pathParts.length; j++) {
     var patternSegement = pathPatternParts[j]
-    if (patternSegement == '**') 
-      return true
     if (patternSegement != '*' && patternSegement != pathParts[j])
       return false
   }
-  if (j == pathPatternParts.length && j == pathParts.length)
-    return true
+  return true
 }
 
 function calculateRoleActions(roles, base, pathParts) {
   if (roles != null && base in roles) {
     var role = roles[base]
     var pathPatternsParts = Object.keys(role).map(pattern => pattern.split('/')).sort((a, b) => (b.length - a.length) % 2)
-    console.log(pathPatternsParts)
     for (var i=0; i<pathPatternsParts.length; i++)
       if (pathPatternMatch(pathPatternsParts[i], pathParts))
         return role[pathPatternsParts[i].join('/')]
