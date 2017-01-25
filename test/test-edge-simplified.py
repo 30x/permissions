@@ -492,7 +492,7 @@ def main():
 
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
 
-    patch = {'role': {'http://apigee.com/o/acme': {'/keyvaluemaps': ['read']}}}
+    patch = {'roles': {'http://apigee.com/o/acme': {'/keyvaluemaps': ['read']}}}
     patch_headers = {'If-Match': ORDINARY_USERS_ETAG}
     patch_headers.update(headers)
     patch_headers['Content-Type'] = 'application/merge-patch+json'
@@ -571,7 +571,7 @@ def main():
 
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
 
-    patch = {'role': {'http://apigee.com/o/acme': {'/environments/*': ['read']}}}
+    patch = {'roles': {'http://apigee.com/o/acme': {'/environments/*': ['read']}}}
     patch_headers = {'If-Match': ORDINARY_USERS_ETAG}
     patch_headers.update(headers)
     patch_headers['Content-Type'] = 'application/merge-patch+json'

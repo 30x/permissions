@@ -37,7 +37,7 @@ function withPermissionsDo(req, subject, callback) {
   })
 }
 
-function withRoleDo(req, id, callback) {
+function withTeamDo(req, id, callback) {
   pool.query('SELECT etag, data FROM teams WHERE id = $1', [id], function (err, pg_res) {
     if (err) {
       callback(500)
@@ -48,7 +48,7 @@ function withRoleDo(req, id, callback) {
       }
       else {
         var row = pg_res.rows[0]
-        callback(null, row.data.role)
+        callback(null, row.data)
       }
     }
   })
@@ -92,6 +92,6 @@ function init(callback) {
 }
 
 exports.withPermissionsDo = withPermissionsDo
-exports.withRoleDo = withRoleDo
+exports.withTeamDo = withTeamDo
 exports.init = init
 exports.pool = pool
