@@ -218,8 +218,7 @@ function withRolesDo(req, res, teamURL, callback) {
   }
 }
 
-function pathPatternMatch(pattern, pathParts) {
-  var pathPatternParts = pattern.split('/')
+function pathPatternMatch(pathPatternParts, pathParts) {
   for (var j=0; j < pathPatternParts.length && j < pathParts.length; j++) {
     var patternSegement = pathPatternParts[j]
     if (patternSegement == '**') 
@@ -231,15 +230,16 @@ function pathPatternMatch(pattern, pathParts) {
     return true
 }
 
-function pathMatch(roles, base, path) {
+function calculateRoleActions(roles, base, pathParts) {
   if (roles != null && base in roles) {
-    var pathParts = path.split('/')
-    var keys = Object.keys(roles[base])
-    for (var i = 0; i < keys.length; i++)
-      if (pathPatternMatch(keys[i], pathParts))
-        return true
+    var role = roles[base]
+    var pathPatternsParts = Object.keys(role).map(pattern => pattern.split('/')).sort((a, b) => (b.length - a.length) % 2)
+    console.log(pathPatternsParts)
+    for (var i=0; i<pathPatternsParts.length; i++)
+      if (pathPatternMatch(pathPatternsParts[i], pathParts))
+        return role[pathPatternsParts[i].join('/')]
   }
-  return false
+  return null
 }
 
 function withPermissionFlagDo(req, res, subject, property, action, base, path, callback) {
@@ -250,7 +250,8 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
         var responded = false
         for (let i = 1; i < actors.length; i++)
           withRolesDo(req, res, actors[i], function(roles) {
-            if (pathMatch(roles, base, path)) {
+            var actions = calculateRoleActions(roles, base, path.split('/'))
+            if (actions !== null && actions.indexOf(action) > -1) {
               responded = true
               callback(true)
             }
@@ -333,7 +334,9 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
         withRolesDo(req, res, actors[i], function(roles) {
           if (roles != null) {
             var roleActions = calculateRoleActions(roles, base, pathParts)
-            Object.assign(actions, roleActions)
+            if (roleActions !== null)
+              for (var i = 0; i < roleActions.length; i++)
+                actions[roleActions[i]] = true
           }
           if (++count == actors.length)
             callback(Object.keys(actions))
@@ -358,20 +361,6 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
           lib.internalError(res, err) 
       }) 
   })
-  function calculateRoleActions(roles, base, pathParts) {
-    var result = {}
-    if (base in roles) {
-      var paths = Object.keys(roles[base])
-      for (var i=0; i<paths.length; i++) {
-        var path = paths[i]
-        if (pathPatternMatch(path, pathParts)) {
-          var actions = roles[base][path]
-          for (var j=0;j<actions.length; j++) result[actions[j]] = 0
-        }
-      }
-    }
-    return result
-  }
   function calculateEntityActions(node, actors) {
     var permissions = node[0]
     if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
