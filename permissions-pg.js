@@ -55,7 +55,7 @@ function withTeamDo(req, id, callback) {
 }
 
 function init(callback) {
-  var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag int, data jsonb);'  
+  var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag text, data jsonb);'  
   pool.connect(function(err, client, release) {
     if(err)
       console.error('error creating permissions table', err)
