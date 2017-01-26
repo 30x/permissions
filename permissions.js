@@ -206,8 +206,13 @@ function withRolesDo(req, res, teamURL, callback) {
           lib.internalError(res, err)
           log('withRolesDo', `could not find team: ${teamURL}`)
         } else {
-          rolesCache[url] = team.roles
-          callback(team.roles)
+          var roles = team.roles
+          for (var base in roles) {
+            var sortedPaths = Object.keys(roles[base]).sort((a,b) => b.length - a.length)
+            roles[base] = sortedPaths.map(x => {return {path: x.split('/'), actions: roles[base][x]}})
+          } 
+          rolesCache[url] = roles
+          callback(roles)
         }        
       })
     } else {
@@ -230,10 +235,10 @@ function pathPatternMatch(pathPatternParts, pathParts) {
 function calculateRoleActions(roles, base, pathParts) {
   if (roles != null && base in roles) {
     var role = roles[base]
-    var pathPatternsParts = Object.keys(role).map(pattern => pattern.split('/')).sort((a, b) => (b.length - a.length) % 2)
-    for (var i=0; i<pathPatternsParts.length; i++)
-      if (pathPatternMatch(pathPatternsParts[i], pathParts))
-        return role[pathPatternsParts[i].join('/')]
+    var pathPatternsParts = Object.keys(role).map(pattern => pattern.split('/')).sort((a, b) => b.length - a.length)
+    for (var i=0; i<role.length; i++)
+      if (pathPatternMatch(role[i].path, pathParts))
+        return role[i].actions
   }
   return null
 }
