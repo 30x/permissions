@@ -101,6 +101,8 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
     callback(permissions)
   } else {
     function checkResult(err, permissions, etag) {
+      if (err == 404)
+        permissionsCache[resource] = null
       if (err)
         if (errorCallback !== undefined)
           errorCallback(err)
@@ -276,10 +278,9 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
       }, function() {
         checkRoles(allowed)
       }, function(err) {
-        if (err == 404) {
-          permissionsCache[subject] = null
+        if (err == 404)
           checkRoles(null)
-        } else
+        else
           lib.internalError(res, err)              
       })
     } else
@@ -353,10 +354,9 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
         else 
           calculateAllRoleActions(entityActions)
       }, function(err) {
-        if (err == 404) {
-          permissionsCache[resource] == null
+        if (err == 404)
           calculateAllRoleActions({})
-        } else
+        else
           lib.internalError(res, err) 
       }) 
   })
