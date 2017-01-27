@@ -48,8 +48,21 @@ function withTeamDo(req, id, callback) {
       }
       else {
         var row = pg_res.rows[0]
-        callback(null, row.data)
+        callback(null, row.data, row.etag)
       }
+    }
+  })
+}
+
+function withTeamsForUserDo(req, user, callback) {
+  //var query = "SELECT id FROM teams, jsonb_array_elements(teams.data->'members') AS member WHERE member = $1"
+  var query = `SELECT id, etag, data FROM teams WHERE data->'members' ? '${user}'`
+  pool.query(query, function (err, pg_res) {
+    if (err) {
+      callback(err)
+    }
+    else {
+      callback(null, pg_res.rows)
     }
   })
 }
@@ -92,6 +105,6 @@ function init(callback) {
 }
 
 exports.withPermissionsDo = withPermissionsDo
-exports.withTeamDo = withTeamDo
+exports.withTeamsForUserDo = withTeamsForUserDo
 exports.init = init
 exports.pool = pool

@@ -500,7 +500,7 @@ def main():
     r = requests.patch(urljoin(BASE_URL, ORDINARY_USERS), headers=patch_headers, json=patch)
     if r.status_code == 200:
         ORDINARY_USERS_ETAG = r.headers['Etag'] 
-        print 'correctly patched Ordinary Users team'
+        print 'correctly patched Ordinary Users team to add role'
     else:
         print 'failed to patch Ordinary Users team %s %s' % (r.status_code, r.text)
         return
@@ -579,7 +579,7 @@ def main():
     r = requests.patch(urljoin(BASE_URL, ORDINARY_USERS), headers=patch_headers, json=patch)
     if r.status_code == 200:
         ORDINARY_USERS_ETAG = r.headers['Etag'] 
-        print 'correctly patched Ordinary Users team'
+        print 'correctly patched Ordinary Users team %s' % ORDINARY_USERS
     else:
         print 'failed to patch Ordinary Users team %s %s' % (r.status_code, r.text)
         return

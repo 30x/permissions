@@ -164,63 +164,58 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
   ancestors(subject, finalCallback, errorCallback)
 }
 
-function withTeamsDo(req, res, user, callback) {
+function invalidateCachedUsers(teamURL, team) {
+  // We cache both teams and the list of teams for a user. These caches must be coherent. If an old cached entry is invalidated, then all the cache
+  // entries for its member users are also invalid.
+  var existingTeam = teamsCache[teamURL]
+  var beforeMembers = existingTeam !== undefined ? existingTeam.members : []
+  var afterMembers = team !== undefined ? team.members : []
+  for (let i = 0; i < beforeMembers.length; i++)
+    if (afterMembers.indexOf(beforeMembers[i]) == -1)
+      delete actorsForUserCache[beforeMembers[i]]
+  for (let i = 0; i < afterMembers.length; i++)
+    if (beforeMembers.indexOf(afterMembers[i]) == -1)
+      delete actorsForUserCache[afterMembers[i]]    
+  if (team === undefined)
+    delete teamsCache[teamURL]
+  else 
+    teamsCache[teamURL] = team
+}
+
+function withActorsForUserDo(req, res, user, callback) {
   if (user !== null) {
-    var actors = teamsCache[user] 
+    var actors = actorsForUserCache[user] 
     if (actors !== undefined)
       callback(actors)
     else {  
       user = lib.internalizeURL(user, req.headers.host)
-      lib.sendInternalRequestThen(req, res, `/teams?${user.replace('#', '%23')}`, 'GET', undefined, function (clientResponse) {
-        lib.getClientResponseBody(clientResponse, function(body) {
-          if (err)
-            lib.internalError(res, err)
-          else if (clientResponse.statusCode == 200) { 
-            var actors = JSON.parse(body).contents
-            lib.internalizeURLs(actors, req.headers.host)
-            actors.unshift(user) // user guaranteed to be first
-            teamsCache[user] = actors
-            callback(actors)
-          } else {
-            var err = `unable to retrieve /teams?${user} statusCode ${clientResponse.statusCode}`
-            log('withTeamsDo', err)
-            lib.internalError(res, err)
+      db.withTeamsForUserDo(req, user, function(err, rows) {
+        if (err)
+          lib.internalError(res, err)
+        else {
+          // We cache both teams and the list of teams for a user. These caches must be coherent.
+          var actors = [user]
+          for (let i = 0; i < rows.length; i++) {
+            var teamURL = `scheme://authority${TEAMS}${rows[i].id}`
+            var team = rows[i].data
+            team.self = teamURL
+            team.etag = rows[i].etag 
+            var roles = team.roles
+            if (roles !== undefined)
+              for (var base in roles) {
+                var sortedPaths = Object.keys(roles[base]).sort((a,b) => b.length - a.length)
+                roles[base] = sortedPaths.map(x => {return {path: x.split('/'), actions: roles[base][x]}})
+              } 
+            invalidateCachedUsers(teamURL, team)
+            actors.push(teamURL)
           }
-        })
+          actorsForUserCache[user] = actors  
+          callback(actors)
+        }
       })
     }
   } else
     lib.badRequest(res, 'user must be provided' + req.url)
-}
-
-function withRolesDo(req, res, teamURL, callback) {
-  var roles = rolesCache[teamURL]
-  if (roles !== undefined)
-    callback(roles)
-  else {
-    var req_url = url.parse(teamURL)
-    if (req_url.pathname.startsWith(TEAMS)) {
-      var id = req_url.pathname.substring(TEAMS.length)  
-      db.withTeamDo(req, id, function(err, team) {
-        if (err) {
-          lib.internalError(res, err)
-          log('withRolesDo', `could not find team: ${teamURL}`)
-        } else {
-          var roles = team.roles
-          for (var base in roles) {
-            var sortedPaths = Object.keys(roles[base]).sort((a,b) => b.length - a.length)
-            roles[base] = sortedPaths.map(x => {return {path: x.split('/'), actions: roles[base][x]}})
-          } 
-          rolesCache[url] = roles
-          callback(roles)
-        }        
-      })
-    } else {
-      var err = `unexpected team URL ${teamURL}`
-      log('withRolesDo', err)
-      lib.internalError(res, err)
-    }
-  }
 }
 
 function pathPatternMatch(pathPatternParts, pathParts) {
@@ -235,7 +230,6 @@ function pathPatternMatch(pathPatternParts, pathParts) {
 function calculateRoleActions(roles, base, pathParts) {
   if (roles != null && base in roles) {
     var role = roles[base]
-    var pathPatternsParts = Object.keys(role).map(pattern => pattern.split('/')).sort((a, b) => b.length - a.length)
     for (var i=0; i<role.length; i++)
       if (pathPatternMatch(role[i].path, pathParts))
         return role[i].actions
@@ -244,23 +238,23 @@ function calculateRoleActions(roles, base, pathParts) {
 }
 
 function withPermissionFlagDo(req, res, subject, property, action, base, path, callback) {
-  function withActorsDo (actors) {  
+  function calculateFlagForActors (actors) {  
     function checkRoles(answer) {
       if (answer === null && base != null && path != null & actors.length > 1) {
         var count = 1
         var responded = false
-        for (let i = 1; i < actors.length; i++)
-          withRolesDo(req, res, actors[i], function(roles) {
-            var actions = calculateRoleActions(roles, base, path.split('/'))
-            if (actions !== null && actions.indexOf(action) > -1) {
-              responded = true
-              callback(true)
-            }
-            if (++count == actors.length && !responded) {
-              responded = true
-              callback(answer)
-            }
-          })        
+        for (let i = 1; i < actors.length; i++) {
+          var roles = teamsCache[actors[i]].roles // should never happen that a team is not in the cache
+          var actions = calculateRoleActions(roles, base, path.split('/'))
+          if (actions !== null && actions.indexOf(action) > -1) {
+            responded = true
+            callback(true)
+          }
+          if (++count == actors.length && !responded) {
+            responded = true
+            callback(answer)
+          }
+        }        
       } else
         callback(answer)
     }
@@ -279,9 +273,9 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
       }, function() {
         checkRoles(allowed)
       }, function(err) {
-        if (err == 404)
+        if (err == 404) {
           checkRoles(null)
-        else
+        } else
           lib.internalError(res, err)              
       })
     } else
@@ -290,10 +284,10 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
   var actors
   var user = lib.getUser(req.headers.authorization)
   if (user == null)
-    withActorsDo([])
+    calculateFlagForActors([])
   else {
-    withTeamsDo(req, res, user, function(actors) {
-      withActorsDo(actors)
+    withActorsForUserDo(req, res, user, function(actors) {
+      calculateFlagForActors(actors)
     })
   }
 }
@@ -327,21 +321,20 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback, errorCallbac
 }
 
 function withAllowedActionsDo(req, res, resource, property, user, base, path, callback) {
-  withTeamsDo(req, res, user, function(actors) {
+  withActorsForUserDo(req, res, user, function(actors) {
     function calculateAllRoleActions(actions) {
       var pathParts = path.split('/')
       var count = 1;
       for (let i=1; i<actors.length; i++) {
-        withRolesDo(req, res, actors[i], function(roles) {
-          if (roles != null) {
-            var roleActions = calculateRoleActions(roles, base, pathParts)
-            if (roleActions !== null)
-              for (var i = 0; i < roleActions.length; i++)
-                actions[roleActions[i]] = true
-          }
-          if (++count == actors.length)
-            callback(Object.keys(actions))
-        })
+        var roles = teamsCache[actors[i]].roles
+        if (roles != null) {
+          var roleActions = calculateRoleActions(roles, base, pathParts)
+          if (roleActions !== null)
+            for (let i = 0; i < roleActions.length; i++)
+              actions[roleActions[i]] = true
+        }
+        if (++count == actors.length)
+          callback(Object.keys(actions))
       }
     }
     if (resource === undefined)
@@ -559,7 +552,7 @@ function processEvent(event) {
   if (event.topic == 'eventGapDetected') {
     log('processEvent', 'event.topic: eventGapDetected')
     permissionsCache = {}
-    teamsCache = {}
+    actorsForUserCache = {}
   } else if (event.topic == 'permissions')
     if (event.data.action == 'deleteAll') {
       log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`)
@@ -568,31 +561,29 @@ function processEvent(event) {
       log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} subject: ${event.data.subject}`)
       delete permissionsCache[event.data.subject]
     }
-  else if (event.topic == 'teams')
+  else if (event.topic == 'teams') {
+    log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} event.data.url: ${event.data.url}`)
     if (event.data.action == 'update') {
-      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} event.data.url: ${event.data.url} before: ${event.data.before} after ${event.data.after}`)
-      delete rolesCache[event.data.url]
-      var beforeMembers = event.data.before.members || []
-      var afterMembers = event.data.after.members || []
-      for (let i = 0; i < beforeMembers.length; i++)
-        if (afterMembers.indexOf(beforeMembers[i]) == -1)
-          delete teamsCache[beforeMembers[i]]
-      for (let i = 0; i < afterMembers.length; i++)
-        if (beforeMembers.indexOf(afterMembers[i]) == -1)
-          delete teamsCache[afterMembers[i]]
-    } else if (event.data.action == 'delete' || event.data.action == 'create') {
-      delete rolesCache[event.data.url]
+      var team = event.data.after
+      var roles = team.roles
+      if (roles !== undefined)
+        for (var base in roles) {
+          var sortedPaths = Object.keys(roles[base]).sort((a,b) => b.length - a.length)
+          roles[base] = sortedPaths.map(x => {return {path: x.split('/'), actions: roles[base][x]}})
+        } 
+      invalidateCachedUsers(event.data.url, team)    
+    } else if (event.data.action == 'delete')
+      invalidateCachedUsers(event.data.url)
+    else if (event.data.action == 'create') {
       var members = event.data.team.members
-      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} event.data.url: ${event.data.url} members: ${members}`)
-      if (members !== undefined) {
-        for (let i = 0; i < members.length; i++) {
-          delete teamsCache[members[i]]
-        }
-      }
-    } else
-      log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`)
-  else
-    log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action}`)    
+      if (members !== undefined)
+        for (let i=0; i<members.length; i++)
+          delete actorsForUserCache[members[i]]
+    } else if (event.data.action == 'deleteAll') {
+      teamsCache = {}
+      actorsForUserCache = {}
+    }
+  }    
 }
 
 function processEventPost(req, res, event) {
@@ -604,8 +595,8 @@ var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${pro
 var permissionsEventConsumer = new pge.eventConsumer(IPADDRESS, processEvent)
 
 var permissionsCache = {} // key is permissions subject URL, value is permissions object
-var teamsCache = {} // key is User's URL, value is array of URLS
-var rolesCache = {} // key is team URL, value is roles object whose keys are 'base URLs'
+var actorsForUserCache = {} // key is User's URL, value is array of URLS
+var teamsCache = {} // key is team URL, value is roles object whose keys are 'base URLs'
 
 function requestHandler(req, res) {
   if (req.url == '/events')
