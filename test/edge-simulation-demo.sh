@@ -423,7 +423,7 @@ eval "$command | python -mjson.tool"
 echo ''
 
 ####
-read -n 1 -p "continue?"
+read -n 1 -p "Note that the production team is 'self-managing' - its own members can change it. continue?"
 team=$(cat << EOF
 {
     "isA": "Team",
@@ -552,7 +552,7 @@ eval $command
 echo ''
 
 ####
-read -n 1 -p "continue?"
+read -n 1 -p "APIGEE_USER1 can access http://apigee.com/env/acme-prod because it inherits permissions from http://apigee.com/o/acme, which APIGEE_USER1 can access. continue?"
 command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER1" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
 echo $command
 read -n 1 -p "query the actions that APIGEE_USER1 can perform on the permissions of http://apigee.com/env/acme-test"
