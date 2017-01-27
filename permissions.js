@@ -97,8 +97,8 @@ function cache(resource, permissions, etag) {
 
 function withPermissionsDo(req, res, resource, callback, errorCallback) {
   var permissions = permissionsCache[resource]
-  if (permissions !== undefined) {
-    callback(permissions, permissions._Etag)
+  if (permissions != undefined && permissions !== null) {
+    callback(permissions)
   } else {
     function checkResult(err, permissions, etag) {
       if (err)
@@ -114,19 +114,22 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
         callback(permissions, etag)
       }      
     }
-    db.withPermissionsDo(req, resource, function(err, permissions, etag) {
-      if (err == 404)
-        lib.sendInternalRequestThen(req, res, '/permissions-migration/migration-request', 'POST', JSON.stringify({resource: resource}), function(clientResponse) {
-          if (clientResponse.statusCode = 200)
-            db.withPermissionsDo(req, resource, function(err, permissions, etag) {
-              checkResult(err, permissions, etag)
-            })
-          else
-            lib.notFound(req, res)
-        })
-      else 
-        checkResult(err, permissions, etag)
-    })
+    if (permissions === null) // we checked before — it's not there
+      checkResult(404)
+    else
+      db.withPermissionsDo(req, resource, function(err, permissions, etag) {
+        if (err == 404)
+          lib.sendInternalRequestThen(req, res, '/permissions-migration/migration-request', 'POST', JSON.stringify({resource: resource}), function(clientResponse) {
+            if (clientResponse.statusCode = 200)
+              db.withPermissionsDo(req, resource, function(err, permissions, etag) {
+                checkResult(err, permissions, etag)
+              })
+            else
+              lib.notFound(req, res)
+          })
+        else 
+          checkResult(err, permissions, etag)
+      })
   }
 }
 
@@ -274,6 +277,7 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
         checkRoles(allowed)
       }, function(err) {
         if (err == 404) {
+          permissionsCache[subject] = null
           checkRoles(null)
         } else
           lib.internalError(res, err)              
@@ -349,9 +353,10 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
         else 
           calculateAllRoleActions(entityActions)
       }, function(err) {
-        if (err == 404)
+        if (err == 404) {
+          permissionsCache[resource] == null
           calculateAllRoleActions({})
-        else
+        } else
           lib.internalError(res, err) 
       }) 
   })
