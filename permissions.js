@@ -137,7 +137,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
 
 function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallback, errorCallback) {
   var recursionSet = {}
-  function ancestors(resource, callback, errCallback) {
+  function ancestors(resource, callback) {
     withPermissionsDo(req, res, resource, function(permissions) {
       var stopHere = itemCallback(permissions)
       if (stopHere) 
@@ -164,9 +164,9 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
         } else
           callback()
       }
-    }, errCallback)
+    }, errorCallback)
   }
-  ancestors(subject, finalCallback, errorCallback)
+  ancestors(subject, finalCallback)
 }
 
 function invalidateCachedUsers(teamURL, team) {
