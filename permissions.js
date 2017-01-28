@@ -187,6 +187,20 @@ function invalidateCachedUsers(teamURL, team) {
     teamsCache[teamURL] = team
 }
 
+function sortAndSplitRoles(roles) {
+  function roleSortFunction(path1, path2) {
+    var result = path2.length - path1.length
+    if (result == 0)
+      result += (0.5 * (path2[path2.length-1] != '*') - 0.5 * (path1[path1.length-1] != '*'))
+    return result
+  }
+  if (roles !== undefined)
+    for (var base in roles) {
+      var sortedSplitPaths = Object.keys(roles[base]).map(x => x.split('/')).sort(roleSortFunction)
+      roles[base] = sortedSplitPaths.map(splitPath => {return {path: splitPath, actions: roles[base][splitPath.join('/')]}})
+    }
+}
+
 function withActorsForUserDo(req, res, user, callback) {
   if (user !== null) {
     var actors = actorsForUserCache[user] 
@@ -205,12 +219,7 @@ function withActorsForUserDo(req, res, user, callback) {
             var team = rows[i].data
             team.self = teamURL
             team.etag = rows[i].etag 
-            var roles = team.roles
-            if (roles !== undefined)
-              for (var base in roles) {
-                var sortedPaths = Object.keys(roles[base]).sort((a,b) => b.length - a.length)
-                roles[base] = sortedPaths.map(x => {return {path: x.split('/'), actions: roles[base][x]}})
-              } 
+            sortAndSplitRoles(team.roles)
             invalidateCachedUsers(teamURL, team)
             actors.push(teamURL)
           }
@@ -570,12 +579,7 @@ function processEvent(event) {
     log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} event.data.url: ${event.data.url}`)
     if (event.data.action == 'update') {
       var team = event.data.after
-      var roles = team.roles
-      if (roles !== undefined)
-        for (var base in roles) {
-          var sortedPaths = Object.keys(roles[base]).sort((a,b) => b.length - a.length)
-          roles[base] = sortedPaths.map(x => {return {path: x.split('/'), actions: roles[base][x]}})
-        } 
+      sortAndSplitRoles(team.roles) 
       invalidateCachedUsers(event.data.url, team)    
     } else if (event.data.action == 'delete')
       invalidateCachedUsers(event.data.url)
