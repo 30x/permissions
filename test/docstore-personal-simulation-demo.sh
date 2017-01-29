@@ -13,11 +13,9 @@ permissions=$(cat << "EOF"
     "_self": 
         {"update": ["$APIGEE_USER1"], 
         "read":    ["$APIGEE_USER1"], 
-        "delete":  ["$APIGEE_USER1"] 
-        }, 
-    "_permissions": 
-        {"read":   ["$APIGEE_USER1"], 
-        "update":  ["$APIGEE_USER1"] 
+        "delete":  ["$APIGEE_USER1"],
+        "admin":   ["$APIGEE_USER1"], 
+        "govern":  ["$APIGEE_USER1"] 
         },     
     "_permissionsHeirs": {
         "add":     ["$APIGEE_USER1"],

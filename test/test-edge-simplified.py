@@ -49,14 +49,12 @@ def main():
     
     permissions = {
         '_subject': 'http://apigee.com/o/acme',
-        '_permissions': 
-            {'read': [USER1],
-            'update': [USER1]
-            },     
         '_self': 
             {'update': [USER1],
             'read': [USER1],
-            'delete': [USER1]
+            'delete': [USER1],
+            'admin': [USER1],
+            'govern': [USER1]
             },
         '_permissionsHeirs': {
             'add': [USER1],
@@ -188,15 +186,13 @@ def main():
 
     permissions_patch = {
         '_subject': 'http://apigee.com/o/acme',
-        '_permissions': {
-            'read': [ORG_ADMINS],
-            'delete': [ORG_ADMINS],
-            'update': [ORG_ADMINS]
-            },
         '_self': { 
             'update': [ORG_ADMINS],
             'read': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
-            'delete': [ORG_ADMINS]
+            'delete': [ORG_ADMINS],
+            'admin': [ORG_ADMINS],
+            'govern': [ORG_ADMINS]
+            
             },
         '_permissionsHeirs': {
             'add': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],

@@ -84,8 +84,7 @@ function init(callback) {
             "permissions":  {"read": [ANYONE], "create": [ANYONE]}, 
             "teams":        {"read": [ANYONE], "create": [ANYONE]}, 
             "folders":      {"read": [ANYONE], "create": [ANYONE]}, 
-            "_permissions": {"read": [ANYONE], "update": [ANYONE]}, 
-            "_self":        {"read": [ANYONE], "update": [ANYONE]}
+            "_self":        {"read": [ANYONE], "update": [ANYONE], "admin": [ANYONE], "govern": [ANYONE]}
           }
           query = `INSERT INTO permissions (subject, etag, data) values('${permissions._subject}', 1, '${JSON.stringify(permissions)}') RETURNING etag`
           client.query(query, function(err, pgResult) {

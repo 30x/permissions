@@ -6,19 +6,17 @@ shopt -s extglob # Required to trim whitespace; see below
 #source renew-tokens.sh
 
 ##
-echo -e "\n\n\x1B[7m chapter 1 \x1B[27m\n\n" #clear
-read -n 1 -p "continue to chapter 1 - basic permissions?"
+echo -e "\n\n\x1B[7m Chapter 1: Basic Permissions \x1B[27m\n\n" #clear
+read -n 1 -p "continue to chapter 1"
 permissions=$(cat << "EOF"
 {
     "_subject": "http://apigee.com/o/acme", 
     "_self": 
         {"update": ["$APIGEE_USER1"], 
         "read": ["$APIGEE_USER1"], 
-        "delete": ["$APIGEE_USER1"] 
-        }, 
-    "_permissions": 
-        {"read": ["$APIGEE_USER1"], 
-        "update": ["$APIGEE_USER1"] 
+        "delete": ["$APIGEE_USER1"], 
+        "admin": ["$APIGEE_USER1"], 
+        "govern": ["$APIGEE_USER1"] 
         },     
     "test-data": true
     }
@@ -41,14 +39,6 @@ read -n 1 -p "continue?"
 command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/o/acme&user=$APIGEE_USER1" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
 echo $command
 read -n 1 -p "query the actions that APIGEE_USER1 can perform on http://apigee.com/o/acme?"
-eval $command
-echo ''
-
-####
-read -n 1 -p "continue?"
-command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/o/acme&user=$APIGEE_USER1&property=_permissions" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
-echo $command
-read -n 1 -p "query the actions that APIGEE_USER1 can perform on the permissions of http://apigee.com/o/acme?"
 eval $command
 echo ''
 
@@ -94,8 +84,8 @@ eval $command
 echo ''
 
 ##
-echo -e "\n\n\x1B[7m chapter 2 \x1B[27m\n\n" #clear
-read -n 1 -p "continue to chapter 2 - creating and using teams?"
+echo -e "\n\n\x1B[7m Chapter 2: Creating and Using Teams \x1B[27m\n\n" #clear
+read -n 1 -p "continue to chapter 2?"
 team=$(cat << "EOF"
 {
     "isA": "Team",
@@ -159,14 +149,12 @@ echo ''
 read -n 1 -p "continue?"
 patch=$(cat << "EOF"
 {
-    "_permissions": 
-        {"read": ["$ACME_ORG_ADMINS"], 
-        "update": ["$ACME_ORG_ADMINS"] 
-        },     
     "_self": 
         {"update": ["$ACME_ORG_ADMINS"], 
         "read": ["$ACME_ORG_ADMINS"], 
-        "delete": ["$ACME_ORG_ADMINS"] 
+        "delete": ["$ACME_ORG_ADMINS"], 
+        "read": ["$ACME_ORG_ADMINS"], 
+        "update": ["$ACME_ORG_ADMINS"] 
         }, 
     "_permissionsHeirs": {
         "add":    ["$ACME_ORG_ADMINS", "$APIGEE_USER2", "$APIGEE_USER3"],
@@ -198,14 +186,6 @@ echo ''
 
 ####
 read -n 1 -p "continue?"
-command='curl "http://localhost:8080/allowed-actions?resource=$ACME_ORG_ADMINS&user=$APIGEE_USER1&property=_permissions" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
-echo $command
-read -n 1 -p "query the actions that APIGEE_USER1 can perform on the permissions of $ACME_ORG_ADMINS?"
-eval $command
-echo ''
-
-####
-read -n 1 -p "continue?"
 command='curl "http://localhost:8080/allowed-actions?resource=$ACME_ORG_ADMINS&user=$APIGEE_USER2" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN2"'
 echo $command
 read -n 1 -p "query the actions that APIGEE_USER2 can perform on $ACME_ORG_ADMINS?"
@@ -221,8 +201,8 @@ eval $command
 echo ''
 
 ##
-echo -e "\n\n\x1B[7m chapter 3 \x1B[27m\n\n" #clear
-read -n 1 -p "continue to Chapter 3  - relationships?"
+echo -e "\n\n\x1B[7m chapter 3: Relationships \x1B[27m\n\n" #clear
+read -n 1 -p "continue to Chapter 3?"
 command='curl "http://localhost:8080/is-allowed?resource=http://apigee.com/o/acme&user=$APIGEE_USER1&action=create&property=environments" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
 echo $command
 read -n 1 -p "Ask if APIGEE_USER1 is allowed to create an environment in http://apigee.com/o/acme?"
@@ -261,8 +241,8 @@ eval $command
 echo ''
 
 ####
-echo -e "\n\n\x1B[7m chapter 4 \x1B[27m\n\n" #clear
-read -n 1 -p "continue to Chapter 4  - inheritance?"
+echo -e "\n\n\x1B[7m Chapter 4: Inheritance \x1B[27m\n\n" #clear
+read -n 1 -p "continue to Chapter 4?"
 permissions=$(cat << "EOF"
 {
     "_subject": "http://apigee.com/env/acme-prod", 
@@ -288,14 +268,6 @@ read -n 1 -p "continue?"
 command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-prod&user=$APIGEE_USER1" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
 echo $command
 read -n 1 -p "query the actions that APIGEE_USER1 can perform on http://apigee.com/env/acme-prod"
-eval $command
-echo ''
-
-####
-read -n 1 -p "continue?"
-command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-prod&user=$APIGEE_USER1&property=_permissions" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
-echo $command
-read -n 1 -p "query the actions that APIGEE_USER1 can perform on the permissions of http://apigee.com/env/acme-prod"
 eval $command
 echo ''
 
@@ -330,14 +302,14 @@ echo "permissions Etag: $ACME_TEST_ENV_PERMISSIONS_ETAG"
 cat ttx.txt | python -mjson.tool
 
 ##
-echo -e "\n\n\x1B[7m chapter 5 \x1B[27m\n\n" #clear
-read -n 1 -p "continue to Chapter 5 - beyond RBAC: delegating administrative authority?"
+echo -e "\n\n\x1B[7m Chapter 5: - Delegating Administrative Authority \x1B[27m\n\n" #clear
+read -n 1 -p "continue to Chapter 5 ?"
 ####
 patch=$(cat << "EOF"
 {
-    "_permissions": {
-        "read": ["$APIGEE_USER2"], 
-        "update": ["$APIGEE_USER2"] 
+    "_self": {
+        "admin": ["$APIGEE_USER2"], 
+        "govern": ["$APIGEE_USER2"] 
     }
 }
 EOF)
@@ -358,9 +330,9 @@ echo ''
 read -n 1 -p "continue?"
 patch=$(cat << "EOF"
 {
-    "_permissions": { 
-        "read": ["$APIGEE_USER3"], 
-        "update": ["$APIGEE_USER3"] 
+    "_self": { 
+        "admin": ["$APIGEE_USER3"], 
+        "govern": ["$APIGEE_USER3"] 
     }
 }
 EOF)
@@ -388,11 +360,9 @@ team=$(cat << "EOF"
         "_self": {
             "update": [""], 
             "read": [""], 
-            "delete": [""] 
-        }, 
-        "_permissions": { 
-            "read": [""], 
-            "update": [""] 
+            "delete": [""], 
+            "admin": [""], 
+            "govern": [""] 
         },
         "test-data": true
     },
@@ -433,11 +403,9 @@ team=$(cat << EOF
         "_self": { 
             "update": [""], 
             "read": [""], 
-            "delete": [""] 
-        }, 
-        "_permissions": { 
-            "read": [""], 
-            "update": [""] 
+            "delete": [""], 
+            "admin": [""], 
+            "govern": [""] 
         },
         "test-data": true
     },
@@ -555,12 +523,12 @@ echo ''
 read -n 1 -p "APIGEE_USER1 can access http://apigee.com/env/acme-prod because it inherits permissions from http://apigee.com/o/acme, which APIGEE_USER1 can access. continue?"
 command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER1" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
 echo $command
-read -n 1 -p "query the actions that APIGEE_USER1 can perform on the permissions of http://apigee.com/env/acme-test"
+read -n 1 -p "query the actions that APIGEE_USER1 can perform on http://apigee.com/env/acme-test"
 eval $command
 echo ''
 
 ##
-echo -e "\n\n\x1B[7m chapter 6 \x1B[27m\n\n" #clear
+echo -e "\n\n\x1B[7m Chapter 6 \x1B[27m\n\n" #clear
 read -n 1 -p 'continue to Chapter 6 - breaking free of the "logical hierarchy"?'
 ####
 permissions=$(cat << "EOF"
@@ -570,11 +538,9 @@ permissions=$(cat << "EOF"
     "_self": { 
         "update": ["$ACME_PROD_TEAM"], 
         "read": ["$ACME_PROD_TEAM"], 
-        "delete": ["$ACME_PROD_TEAM"] 
-    }, 
-    "_permissions": { 
-        "read": ["$ACME_PROD_TEAM"], 
-        "update": ["$ACME_PROD_TEAM"] 
+        "delete": ["$ACME_PROD_TEAM"], 
+        "admin": ["$ACME_PROD_TEAM"], 
+        "govern": ["$ACME_PROD_TEAM"] 
     },     
     "deployments": {
         "create": ["$ACME_PROD_TEAM"], 
@@ -605,11 +571,9 @@ permissions=$(cat << "EOF"
     "_self": { 
         "update": ["$ACME_TEST_TEAM"], 
         "read": ["$ACME_TEST_TEAM"], 
-        "delete": ["$ACME_TEST_TEAM"] 
-    }, 
-    "_permissions": {
-        "read": ["$ACME_TEST_TEAM"], 
-        "update": ["$ACME_TEST_TEAM"] 
+        "delete": ["$ACME_TEST_TEAM"],
+        "admin": ["$ACME_TEST_TEAM"], 
+        "govern": ["$ACME_TEST_TEAM"] 
     },     
     "deployments": {
         "create": ["$ACME_PROD_TEAM"], 
@@ -636,8 +600,7 @@ read -n 1 -p "continue?"
 patch=$(cat << EOF
 {
     "_inheritsPermissionsOf": ["http://apigee.com/folder/acme-prod-assets"], 
-    "_self": null, 
-    "_permissions": null
+    "_self": null
 }
 EOF)
 echo "patch=$patch"
@@ -658,8 +621,7 @@ read -n 1 -p "continue?"
 patch=$(cat << EOF
 {
     "_inheritsPermissionsOf": ["http://apigee.com/folder/acme-test-assets"], 
-    "_self": null, 
-    "_permissions": null
+    "_self": null
 }
 EOF)
 echo "patch=$patch"
@@ -719,13 +681,13 @@ echo ''
 read -n 1 -p "continue?"
 command='curl "http://localhost:8080/allowed-actions?resource=http://apigee.com/env/acme-test&user=$APIGEE_USER1" -H "Accept: application/json" -H "Authorization: Bearer $APIGEE_TOKEN1"'
 echo $command
-read -n 1 -p "query the actions that APIGEE_USER1 can perform on the permissions of http://apigee.com/env/acme-test"
+read -n 1 -p "query the actions that APIGEE_USER1 can perform on http://apigee.com/env/acme-test"
 eval $command
-echo ''
+echo 'APIGEE_USER1 can access http://apigee.com/env/acme-test because it inherits permissions from http://apigee.com/o/acme, which APIGEE_USER1 can access.'
 
 ##
-echo -e "\n\n\x1B[7m chapter 7 \x1B[27m\n\n" #clear
-read -n 1 -p 'continue to Chapter 7 - constraining access to subjects of a particular issuer'
+echo -e "\n\n\x1B[7m Chapter 7: Constraining Access to Subjects of a Particular Issuer \x1B[27m\n\n" #clear
+read -n 1 -p 'continue to Chapter 7?'
 ####
 
 patch=$(cat << "EOF"
@@ -794,8 +756,8 @@ eval $command
 echo ''
 
 ##
-echo -e "\n\n\x1B[7m chapter 8 \x1B[27m\n\n" #clear
-read -n 1 -p 'continue to Chapter 8 - restricting the ability to widen permissions?'
+echo -e "\n\n\x1B[7m chapter 8: Restricting the Ability to Widen Permissions \x1B[27m\n\n" #clear
+read -n 1 -p 'continue to Chapter 8?'
 ####
 permissions=$(cat << "EOF"
 {
@@ -803,11 +765,9 @@ permissions=$(cat << "EOF"
     "_self": { 
         "update": ["$APIGEE_USER1"], 
         "read": ["$APIGEE_USER1"], 
-        "delete": ["$APIGEE_USER1"] 
-    }, 
-    "_permissions": { 
-        "read": ["$APIGEE_USER1"], 
-        "update": ["$APIGEE_USER1"] 
+        "delete": ["$APIGEE_USER1"],
+        "admin": ["$APIGEE_USER1"], 
+        "govern": ["$APIGEE_USER1"] 
     },     
     "_permissionsHeirs": {
         "add":    ["$APIGEE_USER1", "$APIGEE_USER2", "$APIGEE_USER3"],
@@ -862,7 +822,7 @@ eval $command
 echo ''
 
 ##
-echo -e "\n\n\x1B[7m Last chapter - completing the circle \x1B[27m\n\n" #clear
+echo -e "\n\n\x1B[7m Last chapter - Completing the Circle \x1B[27m\n\n" #clear
 read -n 1 -p 'continue to Last Chapter - why was I able to create permissions and teams at the beginning of this tutorial?'
 
 ####

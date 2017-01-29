@@ -69,7 +69,7 @@ for (let i = 0; i < numberOfOrgs; i++) {
   orgs[i] = `/o/${lib.uuid4()}`
   let orgPermissions = {
     _subject: orgs[i] ,
-    _permissions: {read: [orgAdmins[i]], update: [orgAdmins[i]]},
+    _self: {admin: [orgAdmins[i]], govern: [orgAdmins[i]]},
     _permissionsHeirs: {read: [orgAdmins[i]], add: [orgAdmins[i]], remove: [orgAdmins[i]]},
     'test-data': true
   }
@@ -125,7 +125,7 @@ function createTeam(orgIndex) {
 /* Patch permissions document for each org to reference org admins team */
 function patchOrg(orgIndex) {
   let orgPermissions = {
-    _permissions: {read: [orgAdminTeams[orgIndex]], update: [orgAdminTeams[orgIndex]], delete: [orgAdminTeams[orgIndex]]},
+    _self: {admin: [orgAdminTeams[orgIndex]], govern: [orgAdminTeams[orgIndex]]},
     _permissionsHeirs: {read: [orgAdminTeams[orgIndex]], add: [orgAdminTeams[orgIndex]], remove: [orgAdminTeams[orgIndex]]},
     'test-data': true
   }

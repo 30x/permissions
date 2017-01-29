@@ -14,11 +14,9 @@ permissions=$(cat << "EOF"
     "_self": 
         {"update": ["$APIGEE_USER1"], 
         "read": ["$APIGEE_USER1"], 
-        "delete": ["$APIGEE_USER1"] 
-        }, 
-    "_permissions": 
-        {"read": ["$APIGEE_USER1"], 
-        "update": ["$APIGEE_USER1"] 
+        "delete": ["$APIGEE_USER1"], 
+        "admin": ["$APIGEE_USER1"], 
+        "govern": ["$APIGEE_USER1"] 
         },     
     "_permissionsHeirs": {
         "add":    ["$APIGEE_USER1", "$APIGEE_USER2", "$APIGEE_USER3"],
@@ -105,14 +103,12 @@ read -n 1 -p "continue?"
 ####
 patch=$(cat << "EOF"
 {
-    "_permissions": {
-        "read": ["$ACME_ORG_ADMINS"], 
-        "update": ["$ACME_ORG_ADMINS"] 
-        },     
     "_self": {
         "update": ["$ACME_ORG_ADMINS"], 
         "read":    ["$ACME_ORG_ADMINS", "$ACME_BUSINESS_USERS", "$ACME_REGULAR_USERS"], 
-        "delete":  ["$ACME_ORG_ADMINS"] 
+        "delete":  ["$ACME_ORG_ADMINS"],
+        "admin": ["$ACME_ORG_ADMINS"], 
+        "govern": ["$ACME_ORG_ADMINS"] 
         }, 
     "_permissionsHeirs": {
         "add":    ["$ACME_ORG_ADMINS", "$ACME_BUSINESS_USERS", "$ACME_REGULAR_USERS"],

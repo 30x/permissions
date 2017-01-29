@@ -463,7 +463,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
   var subject = queryParts.subject
   if (subject !== undefined) {
     subject = lib.internalizeURL(subject, req.headers.host)
-    withPermissionFlagDo(req, res, subject, '_permissions', 'read', null, null, function(answer) {
+    withPermissionFlagDo(req, res, subject, '_self', 'admin', null, null, function(answer) {
       if (answer) {
         var sharingSet = queryParts.sharingSet
         var existingAncestors = null
