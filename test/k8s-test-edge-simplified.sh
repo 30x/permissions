@@ -1,6 +1,6 @@
 export IPADDRESS="127.0.0.1"
 export PORT=3004
-export COMPONENT="permissions"
+export COMPONENT_NAME="permissions"
 export SPEEDUP=10
 export EXTERNAL_SY_ROUTER_HOST="sso.k8s.dev"
 export EXTERNAL_SY_ROUTER_PORT="30555"

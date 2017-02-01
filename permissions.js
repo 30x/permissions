@@ -13,7 +13,7 @@ const INCOGNITO = 'http://apigee.com/users#incognito'
 const TEAMS = '/teams/'
 
 function log(method, text) {
-  console.log(Date.now(), process.env.COMPONENT, method, text)
+  console.log(Date.now(), process.env.COMPONENT_NAME, method, text)
 }
 
 function getAllowedActions(req, res, queryString) {

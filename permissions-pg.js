@@ -13,7 +13,7 @@ var config = {
 var pool = new Pool(config)
 
 function log(method, text) {
-  console.log(Date.now(), process.env.COMPONENT, method, text)
+  console.log(Date.now(), process.env.COMPONENT_NAME, method, text)
 }
 
 function withPermissionsDo(req, subject, callback) {
