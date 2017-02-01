@@ -121,7 +121,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
     else
       db.withPermissionsDo(req, resource, function(err, permissions, etag) {
         if (err == 404)
-          lib.sendInternalRequestThen(req, res, '/permissions-migration/migration-request', 'POST', JSON.stringify({resource: resource}), function(clientResponse) {
+          lib.sendInternalRequestThen(res, 'POST', '/permissions-migration/migration-request', lib.flowThroughHeaders(req), JSON.stringify({resource: resource}), function(clientResponse) {
             if (clientResponse.statusCode = 200)
               db.withPermissionsDo(req, resource, function(err, permissions, etag) {
                 checkResult(err, permissions, etag)
