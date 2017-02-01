@@ -1,6 +1,7 @@
 'use strict'
 const http = require('http')
 const lib = require('http-helper-functions')
+const rLib = require('response-helper-functions')
 const db = require('./permissions-pg.js')
 const querystring = require('querystring')
 const url = require('url')
@@ -27,10 +28,10 @@ function getAllowedActions(req, res, queryString) {
   log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property} base: ${base} path: ${path}`)
   if (user == lib.getUser(req.headers.authorization)) 
     withAllowedActionsDo(req, res, resource, property, user, base, path, function(allowedActions) {
-      lib.found(req, res, allowedActions)
+      rLib.found(res, allowedActions, req.headers.accept, req.url)
     })
   else
-    lib.badRequest(res, 'user in query string must match user credentials')
+    rLib.badRequest(res, 'user in query string must match user credentials', req.headers.accept, req.url)
 }
 
 function collateAllowedActions(permissionsObject, property, actors) {
@@ -108,9 +109,9 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
           errorCallback(err)
         else
           if (err == 404)
-            lib.notFound(req, res)
+            rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
           else
-            lib.internalError(res, err)          
+            rLib.internalError(res, err)          
       else {
         cache(resource, permissions, etag)
         callback(permissions, etag)
@@ -127,7 +128,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
                 checkResult(err, permissions, etag)
               })
             else
-              lib.notFound(req, res)
+            rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
           })
         else 
           checkResult(err, permissions, etag)
@@ -210,7 +211,7 @@ function withActorsForUserDo(req, res, user, callback) {
       user = lib.internalizeURL(user, req.headers.host)
       db.withTeamsForUserDo(req, user, function(err, rows) {
         if (err)
-          lib.internalError(res, err)
+          rLib.internalError(res, err)
         else {
           // We cache both teams and the list of teams for a user. These caches must be coherent.
           var actors = [user]
@@ -229,7 +230,7 @@ function withActorsForUserDo(req, res, user, callback) {
       })
     }
   } else
-    lib.badRequest(res, 'user must be provided' + req.url)
+    rLib.badRequest(res, 'user must be provided' + req.url)
 }
 
 function pathPatternMatch(pathPatternParts, pathParts) {
@@ -366,7 +367,7 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
         if (err == 404)
           calculateAllRoleActions({})
         else
-          lib.internalError(res, err) 
+          rLib.internalError(res, err) 
       }) 
   })
   function calculateEntityActions(node, actors) {
@@ -419,12 +420,12 @@ function isAllowed(req, res, queryString) {
           withPermissionFlagDo(req, res, resources[i], property, action, base, path, function(answer) {
             if (!responded) {
               if (++count == resources.length) {
-                lib.found(req, res, !!answer)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                rLib.found(res, !!answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
                 responded = true
                 var hrend = process.hrtime(hrstart)
                 log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
               } else if (answer == false) {
-                lib.found(req, res, false)
+                rLib.found(res, false, req.headers.accept, req.url)
                 responded = true
                 var hrend = process.hrtime(hrstart)
                 log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
@@ -433,9 +434,9 @@ function isAllowed(req, res, queryString) {
           })
       }
     } else
-      lib.badRequest(res, 'action query parameter must be provided: ' + req.url)
+      rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
   else  
-    lib.forbidden(req, res)
+    rLib.forbidden(res)
 }
 
 function isAllowedToInheritFrom(req, res, queryString) {
@@ -503,13 +504,13 @@ function isAllowedToInheritFrom(req, res, queryString) {
                   if (!responded) 
                     if (!answer) {
                       responded = true
-                      lib.found(req, res, {result: false, reason: `may not remove permissions inheritance from ${removedAncestors[i]}`}) 
+                      rLib.found(res, {result: false, reason: `may not remove permissions inheritance from ${removedAncestors[i]}`}, req.headers.accept, req.url) 
                     } else
                       if (++count == removedAncestors.length) {
                         removeOK = true
                         if (addOK && allPotentialAncestorsVoted) {
                           responded = true
-                          lib.found(req, res, true)
+                          rLib.found(res, true, req.headers.accept, req.url)
                         }
                       }
                 })
@@ -521,13 +522,13 @@ function isAllowedToInheritFrom(req, res, queryString) {
                   if (!responded)
                     if (!answer) {
                       responded = true
-                      lib.found(req, res, {result: false, reason: `may not add permissions inheritance to ${addedAncestors[i]}`}) 
+                      rLib.found(res, {result: false, reason: `may not add permissions inheritance to ${addedAncestors[i]}`}, req.headers.accept, req.url) 
                     } else
                       if (++count == addedAncestors.length) {
                         addOK = true
                         if (removeOK && allPotentialAncestorsVoted) {
                           responded = true
-                          lib.found(req, res, true)
+                          rLib.found(res, true, req.headers.accept, req.url)
                         }
                       }
                 })
@@ -545,20 +546,20 @@ function isAllowedToInheritFrom(req, res, queryString) {
                         allPotentialAncestorsVoted = true
                         if (removeOK && addOK) {
                           responded = true
-                          lib.found(req, res, true)
+                          rLib.found(res, true, req.headers.accept, req.url)
                         }
                       }
                   }
                 )
             }
           } else
-            lib.found(req, res, {result: false, reason: `may not add cycle to permisions inheritance`}) // cycles not allowed
+            rLib.found(res, {result: false, reason: `may not add cycle to permisions inheritance`}, req.headers.accept, req.url) // cycles not allowed
         }        
       } else
-        lib.forbidden(req, res)
+        rLib.forbidden(res)
     })
   } else {
-    lib.badRequest(res, `must provide subject in querystring: ${queryString} ${JSON.stringify(queryParts)}`)
+    rLib.badRequest(res, `must provide subject in querystring: ${queryString} ${JSON.stringify(queryParts)}`)
   }
 }
 
@@ -597,7 +598,7 @@ function processEvent(event) {
 
 function processEventPost(req, res, event) {
   permissionsEventConsumer.processEvent(event)
-  lib.found(req, res)
+  rLib.found(res, req.headers.accept, req.url)
 }
 
 var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
@@ -612,26 +613,26 @@ function requestHandler(req, res) {
     if (req.method == 'POST')
       lib.getServerPostObject(req, res, (e) => processEventPost(req, res, e))
     else 
-      lib.methodNotAllowed(req, res, ['POST'])
+      rLib.methodNotAllowed(res, ['POST'])
   else {
     var req_url = url.parse(req.url)
     if (req_url.pathname == '/allowed-actions' && req_url.search !== null)
       if (req.method == 'GET')
         getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
       else
-        lib.methodNotAllowed(req, res, ['GET'])
+        rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/is-allowed' && req_url.search !== null)
       if (req.method == 'GET')
         isAllowed(req, res, req_url.search.substring(1))
       else
-        lib.methodNotAllowed(req, res, ['GET'])
+        rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/is-allowed-to-inherit-from' && req_url.search !== null)
       if (req.method == 'GET')
         isAllowedToInheritFrom(req, res, req_url.search.substring(1))
       else
-        lib.methodNotAllowed(req, res, ['GET'])
+        rLib.methodNotAllowed(res, ['GET'])
     else
-      lib.notFound(req, res)
+      rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
   }
 }
 
