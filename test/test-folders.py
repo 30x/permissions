@@ -117,9 +117,9 @@ def main():
     headers = {'Accept': 'application/json','Authorization': 'BEARER %s' % TOKEN1}
     r = requests.get('http://localhost:8080/permissions?%s' %folder1_rel_url, headers=headers)
     if r.status_code == 404:
-        print 'correctly deleted folder permissions'
+        print 'correctly saw that permissions are deleted for deleted folder (404)'
     else:
-        print 'failed to fail to get folder permissions %s %s' % (r.status_code, r.text)
+        print 'failed - expected 404 error for deleted folder permissions %s %s' % (r.status_code, r.text)
     
 if __name__ == '__main__':
     main()
