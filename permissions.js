@@ -31,7 +31,7 @@ function getAllowedActions(req, res, queryString) {
       rLib.found(res, allowedActions, req.headers.accept, req.url)
     })
   else
-    rLib.badRequest(res, 'user in query string must match user credentials', req.headers.accept, req.url)
+    rLib.forbidden(res, 'user in query string must match user credentials', req.headers.accept, req.url)
 }
 
 function collateAllowedActions(permissionsObject, property, actors) {
