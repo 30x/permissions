@@ -469,9 +469,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
           existingAncestors = existing
           withPotentialAncestorsDo(sharingSets, function (potential) {
             potentialAncestors = potential
-            if (existingAncestors !== null) {
-              processAncestors()
-            }
+            processAncestors()
           })
         })
         function processAncestors() {
@@ -485,7 +483,6 @@ function isAllowedToInheritFrom(req, res, queryString) {
             var responded = false
             var addOK = addedAncestors.length == 0
             var removeOK = removedAncestors.length == 0
-            var allPotentialAncestorsVoted = potentialAncestors.length == 0
             if (removedAncestors.length > 0) {
               let count = 0
               for (let i=0; i < removedAncestors.length; i++)
@@ -497,7 +494,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
                     } else
                       if (++count == removedAncestors.length) {
                         removeOK = true
-                        if (addOK && allPotentialAncestorsVoted) {
+                        if (addOK) {
                           responded = true
                           rLib.found(res, true, req.headers.accept, req.url)
                         }
@@ -515,32 +512,15 @@ function isAllowedToInheritFrom(req, res, queryString) {
                     } else
                       if (++count == addedAncestors.length) {
                         addOK = true
-                        if (removeOK && allPotentialAncestorsVoted) {
+                        if (removeOK) {
                           responded = true
                           rLib.found(res, true, req.headers.accept, req.url)
                         }
                       }
                 })
             }
-            if (potentialAncestors.length > 0) {
-              let count = 0
-              for (let i=0; i < potentialAncestors.length; i++) 
-                withAncestorPermissionsDo(req, res, potentialAncestors[i], 
-                  function (permissions) {
-                    return false
-                  },
-                  function(stopped) {
-                    if (!allPotentialAncestorsVoted)
-                      if (stopped || ++count == potentialAncestors.length) {
-                        allPotentialAncestorsVoted = true
-                        if (removeOK && addOK) {
-                          responded = true
-                          rLib.found(res, true, req.headers.accept, req.url)
-                        }
-                      }
-                  }
-                )
-            }
+            if (removedAncestors.length == 0 && addedAncestors.length == 0)
+              rLib.found(res, true, req.headers.accept, req.url)
           } else
             rLib.found(res, {result: false, reason: `may not add cycle to permisions inheritance`}, req.headers.accept, req.url) // cycles not allowed
         }        
