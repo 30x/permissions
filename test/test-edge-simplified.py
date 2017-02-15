@@ -47,8 +47,9 @@ USER3_E = USER3.replace('#', '%23')
 
 def main():
     
+    org_url = 'http://apigee.com/o/acme'
     permissions = {
-        '_subject': 'http://apigee.com/o/acme',
+        '_subject': org_url,
         '_self': 
             {'update': [USER1],
             'read': [USER1],
@@ -77,6 +78,49 @@ def main():
         print 'correctly created permissions url: %s etag: %s' % (org_permissions, org_permissions_etag)
     else:
         print 'failed to create permissions url: %s status_code: %s text: %s' % (permissions_url, r.status_code, r.text)
+        return
+    
+    # Get allowed-actions for USER1 on org
+
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
+    url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER1_E)) 
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        actions = r.json()
+        if set(actions) == {'read', 'admin', 'delete', 'govern', 'update'}:
+            print 'correctly retrieved allowed-actions for %s on %s' % (USER1, org_url)
+        else:
+            print 'retrieved allowed-actions for %s on %s but result is wrong %s' % (USER1, org_url, actions)
+            return
+    else:
+        print 'failed to retrieve allowed-actions for %s on %s status_code %s text %s' % (USER1, org_url, r.status_code, r.text)
+        return
+    
+    # Get allowed-actions for USER2 on org
+
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
+    url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER2_E)) 
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        actions = r.json()
+        if actions == []:
+            print 'correctly retrieved allowed-actions for %s on %s' % (USER2, org_url)
+        else:
+            print 'retrieved allowed-actions for %s on %s but result is wrong %s' % (USER2, org_url, actions)
+            return
+    else:
+        print 'failed to retrieve allowed-actions for %s on %s status_code %s text %s' % (USER1, org_url, r.status_code, r.text)
+        return
+    
+    # Have USER2 ask for allowed-actions for USER1 on org
+
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
+    url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER1_E)) 
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 403:
+        print 'correctly refused to let %s retrieve allowed-actions for %s on %s' % (USER2, USER1, org_url)
+    else:
+        print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
     
     # Retrieve resources shared with USER1
