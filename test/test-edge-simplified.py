@@ -123,8 +123,36 @@ def main():
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
     
-    # Retrieve resources shared with USER1
-
+    # Ask if USER1 can delete acme org
+    # http://localhost:8080/is-allowed?resource=http://apigee.com/o/acme&user=$APIGEE_USER1&action=delete
+    
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
+    url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER1_E)) 
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        if (r.json() == True):
+            print 'correctly retrieved is-allowed for %s to delete %s' % (USER1, org_url)
+        else:
+            print 'incorrect response to is-allowed for %s to delete %s' % (USER1, org_url)
+    else:
+        print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
+        return
+    
+    # Ask if USER1 can delete acme org
+    # http://localhost:8080/is-allowed?resource=http://apigee.com/o/acme&user=$APIGEE_USER1&action=delete
+    
+    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
+    url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER2_E)) 
+    r = requests.get(url, headers=headers, json=permissions)
+    if r.status_code == 200:
+        if (r.json() == False):
+            print 'correctly retrieved is-allowed for %s to delete %s' % (USER2, org_url)
+        else:
+            print 'incorrect response to is-allowed for %s to delete %s' % (USER2, org_url)
+    else:
+        print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
+        return
+    
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1_E) 
     r = requests.get(url, headers=headers, json=permissions)
@@ -139,20 +167,6 @@ def main():
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
     
-    # Retrieve allowed-actions for Acme org for USER1
-
-    url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(url, headers=headers, json=permissions)
-    if r.status_code == 200:
-        actions = r.json()
-        if all([item in actions for item in ['read', 'update', 'delete']]):
-            print 'correctly returned allowed actions of http://apigee.com/o/acme for USER1 after update of permissions to use team' 
-        else:
-            print 'incorrect returned actions of http://apigee.com/o/acme for USER1 %s' % actions
-    else:
-        print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
-
     # Create Acme Org Admins team
 
     team = {
