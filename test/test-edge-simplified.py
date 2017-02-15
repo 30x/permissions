@@ -124,7 +124,6 @@ def main():
         return
     
     # Ask if USER1 can delete acme org
-    # http://localhost:8080/is-allowed?resource=http://apigee.com/o/acme&user=$APIGEE_USER1&action=delete
     
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER1_E)) 
@@ -138,8 +137,7 @@ def main():
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
     
-    # Ask if USER1 can delete acme org
-    # http://localhost:8080/is-allowed?resource=http://apigee.com/o/acme&user=$APIGEE_USER1&action=delete
+    # Ask if USER2 can delete acme org
     
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER2_E)) 
