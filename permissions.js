@@ -255,23 +255,14 @@ function calculateRoleActions(roles, base, pathParts) {
 function withPermissionFlagDo(req, res, subject, property, action, base, path, callback) {
   function calculateFlagForActors (actors) {  
     function checkRoles(answer) {
-      if (answer === null && base != null && path != null & actors.length > 1) {
-        var count = 1
-        var responded = false
-        for (let i = 1; i < actors.length; i++) {
+      if (answer === null && base != null && path != null & actors.length > 1)
+        for (let i = 1; i < actors.length && answer === null ; i++) {
           var roles = teamsCache[actors[i]].roles // should never happen that a team is not in the cache
           var actions = calculateRoleActions(roles, base, path.split('/'))
-          if (actions !== null && actions.indexOf(action) > -1) {
-            responded = true
-            callback(true)
-          }
-          if (++count == actors.length && !responded) {
-            responded = true
-            callback(answer)
-          }
-        }        
-      } else
-        callback(answer)
+          if (actions !== null && actions.indexOf(action) > -1)
+            answer = true
+        }  
+      callback(answer)
     }
     var allowed = null;
     if (subject !== undefined) {
