@@ -441,15 +441,19 @@ function isAllowedToInheritFrom(req, res, queryString) {
     })
   }
   function withPotentialAncestorsDo(ancestors, callback) {
-    var allAncestors = ancestors.slice()
-    var count = 0
-    for (var i = 0; i < ancestors.length; i++)
-      withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {
-        allAncestors.push(permissions._subject)
-      }, function(){
-        if (++count == ancestors.length)
-          callback(Array.from(new Set(allAncestors)))
-      })      
+    if (ancestors.length == 0) 
+      callback([])
+    else {
+      var allAncestors = ancestors.slice()
+      var count = 0
+      for (var i = 0; i < ancestors.length; i++)
+        withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {
+          allAncestors.push(permissions._subject)
+        }, function(){
+          if (++count == ancestors.length)
+            callback(Array.from(new Set(allAncestors)))
+        })
+    }      
   }
   var queryParts = querystring.parse(queryString)
   var subject = queryParts.subject
@@ -457,25 +461,19 @@ function isAllowedToInheritFrom(req, res, queryString) {
     subject = lib.internalizeURL(subject, req.headers.host)
     withPermissionFlagDo(req, res, subject, '_self', 'admin', null, null, function(answer) {
       if (answer) {
-        var sharingSet = queryParts.sharingSet
-        var existingAncestors = null
-        var potentialAncestors = sharingSet !== undefined ? null : []
+        var sharingSet = queryParts.sharingSet || []
+        var sharingSets = (Array.isArray(sharingSet) ? sharingSet : [sharingSet]).map(anURL => lib.internalizeURL(anURL, req.headers.host))
+        var existingAncestors
+        var potentialAncestors
         withExistingAncestorsDo(subject, function(existing) {
           existingAncestors = existing
-          if (potentialAncestors !== null) {
-            processAncestors()
-          }
-        })
-        if (sharingSet !== undefined) {
-          var sharingSets = Array.isArray(sharingSet) ? sharingSet : [sharingSet]
-          sharingSets = sharingSets.map(anURL => lib.internalizeURL(anURL, req.headers.host))
           withPotentialAncestorsDo(sharingSets, function (potential) {
             potentialAncestors = potential
             if (existingAncestors !== null) {
               processAncestors()
             }
           })
-        }
+        })
         function processAncestors() {
           // The algorithm here is a bit different from the usual permissions inheritance lookup. In the usual case
           // we are considering a single action, and going up the hierarchy to find a permission that allows it. In this case
