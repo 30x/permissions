@@ -264,8 +264,8 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
         }  
       callback(answer)
     }
-    var allowed = null;
-    if (subject !== undefined) {
+    var allowed = null
+    if (subject !== undefined)
       withAncestorPermissionsDo(req, res, subject, function(permissions) {
         var opinion = isActionAllowed(permissions, property, actors, action)
         if (opinion == true) { // someone says its OK, but there may be  a veto later
@@ -284,7 +284,7 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, c
         else
           lib.internalError(res, err)              
       })
-    } else
+    else
       checkRoles(null)
   }
   var actors
@@ -329,19 +329,19 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback, errorCallbac
 function withAllowedActionsDo(req, res, resource, property, user, base, path, callback) {
   withActorsForUserDo(req, res, user, function(actors) {
     function calculateAllRoleActions(actions) {
-      var pathParts = path.split('/')
-      var count = 1;
-      for (let i=1; i<actors.length; i++) {
-        var roles = teamsCache[actors[i]].roles
-        if (roles != null) {
-          var roleActions = calculateRoleActions(roles, base, pathParts)
-          if (roleActions !== null)
-            for (let i = 0; i < roleActions.length; i++)
-              actions[roleActions[i]] = true
+      if (base && path) {
+        var pathParts = path.split('/')
+        for (let i=1; i<actors.length; i++) {
+          var roles = teamsCache[actors[i]].roles
+          if (roles != null) {
+            var roleActions = calculateRoleActions(roles, base, pathParts)
+            if (roleActions !== null)
+              for (let i = 0; i < roleActions.length; i++)
+                actions[roleActions[i]] = true
+          }
         }
-        if (++count == actors.length)
-          callback(Object.keys(actions))
       }
+      callback(Object.keys(actions))
     }
     if (resource === undefined)
       calculateAllRoleActions({})
