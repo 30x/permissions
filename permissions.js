@@ -472,6 +472,9 @@ function isAllowedToInheritFrom(req, res, queryString) {
             processAncestors()
           })
         })
+        function result() {
+          return {allowed: true, scopes: Array.from(new Set(existingAncestors.concat(potentialAncestors)))}
+        }
         function processAncestors() {
           // The algorithm here is a bit different from the usual permissions inheritance lookup. In the usual case
           // we are considering a single action, and going up the hierarchy to find a permission that allows it. In this case
@@ -490,13 +493,13 @@ function isAllowedToInheritFrom(req, res, queryString) {
                   if (!responded) 
                     if (!answer) {
                       responded = true
-                      rLib.found(res, {result: false, reason: `may not remove permissions inheritance from ${removedAncestors[i]}`}, req.headers.accept, req.url) 
+                      rLib.found(res, {allowed: false, reason: `may not remove permissions inheritance from ${removedAncestors[i]}`}, req.headers.accept, req.url) 
                     } else
                       if (++count == removedAncestors.length) {
                         removeOK = true
                         if (addOK) {
                           responded = true
-                          rLib.found(res, true, req.headers.accept, req.url)
+                          rLib.found(res, result(), req.headers.accept, req.url)
                         }
                       }
                 })
@@ -514,13 +517,13 @@ function isAllowedToInheritFrom(req, res, queryString) {
                         addOK = true
                         if (removeOK) {
                           responded = true
-                          rLib.found(res, true, req.headers.accept, req.url)
+                          rLib.found(res, result(), req.headers.accept, req.url)
                         }
                       }
                 })
             }
             if (removedAncestors.length == 0 && addedAncestors.length == 0)
-              rLib.found(res, true, req.headers.accept, req.url)
+              rLib.found(res, result(), req.headers.accept, req.url)
           } else
             rLib.found(res, {result: false, reason: `may not add cycle to permisions inheritance`}, req.headers.accept, req.url) // cycles not allowed
         }        
