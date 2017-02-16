@@ -415,7 +415,7 @@ function isAllowed(req, res, queryString) {
           withPermissionFlagDo(req, res, resources[i], property, action, base, path, withScopes, function(answer, scopes) {
             if (!responded) {
               if (++count == resources.length) {
-                rLib.found(res, withScopes ? {answer: answer, scopes: scopes} : !!answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                rLib.found(res, withScopes ? {answer: answer, scopes: scopes} : answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
                 responded = true
                 var hrend = process.hrtime(hrstart)
                 log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
