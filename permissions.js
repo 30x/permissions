@@ -60,7 +60,7 @@ function collateAllowedActions(permissionsObject, property, actors) {
 }
 
 function isActionAllowed(permissionsObject, property, actors, action) {
-  log('isActionAllowed', `_subject: ${permissionsObject._subject} property: ${property} action: ${action} actors: ${actors}`)
+  //log('isActionAllowed', `_subject: ${permissionsObject._subject} property: ${property} action: ${action} actors: ${actors}`)
   if (permissionsObject._constraints && permissionsObject._constraints.validIssuers) // only users validated with these issuers allowed
     if (actors.length == 0 || permissionsObject._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) // user's issuer not in the list
       return false
@@ -401,11 +401,11 @@ function isAllowed(req, res, queryString) {
   var property = queryParts.property || '_self'
   var path = queryParts.path
   var base = queryParts.base
-  var withScopes = queryParts.withScopes
+  var withScopes = queryParts.withScopes == '' || queryParts.withScopes
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path}`)
+  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path} withScopes: ${withScopes}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action !== undefined) {
       var count = 0
@@ -415,7 +415,7 @@ function isAllowed(req, res, queryString) {
           withPermissionFlagDo(req, res, resources[i], property, action, base, path, withScopes, function(answer, scopes) {
             if (!responded) {
               if (++count == resources.length) {
-                rLib.found(res, withScopes ? {answer: answer, scopes: scopes} : answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                rLib.found(res, withScopes ? {allowed: answer, scopes: scopes} : answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
                 responded = true
                 var hrend = process.hrtime(hrstart)
                 log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
