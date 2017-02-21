@@ -12,6 +12,33 @@ const INCOGNITO = 'http://apigee.com/users#incognito'
 
 const TEAMS = '/teams/'
 
+var permissionsCache = {} // key is permissions subject URL, value is permissions object
+var actorsForUserCache = {} // key is User's URL, value is array of URLS
+var teamsCache = {} // key is team URL, value is roles object whose keys are 'base URLs'
+
+function addToCache(resource, permissions, etag) {
+  if (permissions == null)
+    permissionsCache[resource] = null
+  else {
+    if (etag)
+      permissions._Etag = etag
+    permissions._metadata = null
+    permissionsCache[resource] = permissions
+  }
+}
+
+function retrieveFromCache(resource) {
+  return permissionsCache[resource]
+}
+
+function deleteFromCache(resource) {
+  delete permissionsCache[resource]
+}
+
+function resetCache() {
+  permissionsCache = {}
+}
+
 function log(method, text) {
   console.log(Date.now(), process.env.COMPONENT_NAME, method, text)
 }
@@ -90,20 +117,14 @@ function isActionAllowed(permissionsObject, property, actors, action) {
     return null // see if anyone else will say yes
 }
 
-function cache(resource, permissions, etag) {
-  permissions._Etag = etag
-  permissions._metadata = null
-  permissionsCache[resource] = permissions
-}
-
 function withPermissionsDo(req, res, resource, callback, errorCallback) {
-  var permissions = permissionsCache[resource]
+  var permissions = retrieveFromCache(resource)
   if (permissions != undefined && permissions !== null) {
     callback(permissions)
   } else {
     function checkResult(err, permissions, etag) {
       if (err == 404)
-        permissionsCache[resource] = null
+        addToCache(resource, null)
       if (err)
         if (errorCallback !== undefined)
           errorCallback(err)
@@ -113,7 +134,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
           else
             rLib.internalError(res, err)          
       else {
-        cache(resource, permissions, etag)
+        addToCache(resource, permissions, etag)
         callback(permissions, etag)
       }      
     }
@@ -548,15 +569,15 @@ function isAllowedToInheritFrom(req, res, queryString) {
 function processEvent(event) {
   if (event.topic == 'eventGapDetected') {
     log('processEvent', 'event.topic: eventGapDetected')
-    permissionsCache = {}
+    resetCache()
     actorsForUserCache = {}
   } else if (event.topic == 'permissions')
     if (event.data.action == 'deleteAll') {
       log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`)
-      permissionsCache = {}
+      resetCache
     } else {
       log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} subject: ${event.data.subject}`)
-      delete permissionsCache[event.data.subject]
+      deleteFromCache(event.data.subject)
     }
   else if (event.topic == 'teams') {
     log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} event.data.url: ${event.data.url}`)
@@ -585,10 +606,6 @@ function processEventPost(req, res, event) {
 
 var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS
 var permissionsEventConsumer = new pge.eventConsumer(IPADDRESS, processEvent)
-
-var permissionsCache = {} // key is permissions subject URL, value is permissions object
-var actorsForUserCache = {} // key is User's URL, value is array of URLS
-var teamsCache = {} // key is team URL, value is roles object whose keys are 'base URLs'
 
 function requestHandler(req, res) {
   if (req.url == '/events')
