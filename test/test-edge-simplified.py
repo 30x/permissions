@@ -84,7 +84,7 @@ def main():
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER1_E)) 
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         actions = r.json()
         if set(actions) == {'read', 'admin', 'delete', 'govern', 'update'}:
@@ -100,7 +100,7 @@ def main():
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER2_E)) 
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         actions = r.json()
         if actions == []:
@@ -116,7 +116,7 @@ def main():
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER1_E)) 
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 403:
         print 'correctly refused to let %s retrieve allowed-actions for %s on %s' % (USER2, USER1, org_url)
     else:
@@ -127,7 +127,7 @@ def main():
     
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER1_E)) 
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         if (r.json() == True):
             print 'correctly retrieved is-allowed for %s to delete %s' % (USER1, org_url)
@@ -141,7 +141,7 @@ def main():
     
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER2_E)) 
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         if (r.json() == False):
             print 'correctly retrieved is-allowed for %s to delete %s' % (USER2, org_url)
@@ -151,9 +151,11 @@ def main():
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
     
+    # get resources shared with USER1
+
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1_E) 
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         resources = r.json()
         if resources == ['http://apigee.com/o/acme']:
@@ -281,7 +283,7 @@ def main():
     # Retrieve Acme org permissions
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(org_permissions, headers=headers, json=permissions)
+    r = requests.get(org_permissions, headers=headers)
     if r.status_code == 200:
         server_permissions = r.json()
         for key, value in permissions_patch.iteritems():
@@ -297,7 +299,7 @@ def main():
         return
     
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
-    r = requests.get(org_permissions, headers=headers, json=permissions)
+    r = requests.get(org_permissions, headers=headers)
     if r.status_code == 403:
         server_permissions = r.json()
         print 'correctly refused to retrieve permissions for USER2'
@@ -309,7 +311,7 @@ def main():
 
     url = urljoin(BASE_URL, '/permissions-heirs?%s' % 'http://apigee.com/o/acme')
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         heirs = r.json()
         if set(heirs['contents']) == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
@@ -324,7 +326,7 @@ def main():
 
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         actions = r.json()
         if all([item in actions for item in ['read', 'update', 'delete']]):
@@ -338,7 +340,7 @@ def main():
 
     headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1_E) 
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         resources = r.json()
         if resources == ['http://apigee.com/o/acme']:
@@ -403,7 +405,7 @@ def main():
 
     url = urljoin(BASE_URL, '/users-who-can-access?%s' % 'http://apigee.com/o/acme/keyvaluemaps')
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     if r.status_code == 200:
         users = r.json()
         if all([item in users for item in [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS]]):
@@ -453,7 +455,7 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -469,7 +471,7 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme/keyvaluemaps', USER1_E, 'read'))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -499,7 +501,7 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER2_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN2}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -515,7 +517,7 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER2_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN2}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -531,7 +533,7 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -562,7 +564,7 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -578,7 +580,7 @@ def main():
     url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -594,7 +596,7 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?user=%s&action=read&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -610,7 +612,7 @@ def main():
     url = urljoin(BASE_URL, '/allowed-actions?user=%s&action=read&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -641,7 +643,7 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -657,7 +659,7 @@ def main():
     url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
     headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers, json=permissions)
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()

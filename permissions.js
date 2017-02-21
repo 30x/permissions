@@ -406,21 +406,29 @@ function isAllowed(req, res, queryString) {
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
   log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path} withScopes: ${withScopes}`)
+  var allScopes
+  function response(answer) {
+    return withScopes ? {allowed: answer, scopes: Array.from(new Set(allScopes))} : answer
+  }
   if (user == null || user == lib.getUser(req.headers.authorization))
-    if (action !== undefined) {
+    if (action === undefined)
+      rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
+    else {
       var count = 0
       var responded = false
-      for (var i = 0; i< resources.length; i++) {
+      for (var i = 0; i< resources.length; i++) { // multiple resources is interpreted to mean that the user must have access to all of them. A different API that answers "any of them" might be useful.
         if (!responded)
           withPermissionFlagDo(req, res, resources[i], property, action, base, path, withScopes, function(answer, scopes) {
+            if (withScopes)
+              allScopes = allScopes ? allScopes.concat(scopes) : scopes
             if (!responded) {
               if (++count == resources.length) {
-                rLib.found(res, withScopes ? {allowed: answer, scopes: scopes} : answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                rLib.found(res, response(answer), req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
                 responded = true
                 var hrend = process.hrtime(hrstart)
                 log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
-              } else if (answer == false) {
-                rLib.found(res, false, req.headers.accept, req.url)
+              } else if (answer != true) {
+                rLib.found(res, response(answer), req.headers.accept, req.url)
                 responded = true
                 var hrend = process.hrtime(hrstart)
                 log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
@@ -428,8 +436,7 @@ function isAllowed(req, res, queryString) {
             }
           })
       }
-    } else
-      rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
+    } 
   else  
     rLib.forbidden(res)
 }
