@@ -12,31 +12,47 @@ const INCOGNITO = 'http://apigee.com/users#incognito'
 
 const TEAMS = '/teams/'
 
-var permissionsCache = {} // key is permissions subject URL, value is permissions object
+const PERMISSIONS_CACHE_NUMBER_OF_SHARDS = process.env.PERMISSIONS_CACHE_NUMBER_OF_SHARDS || 10
+
+var permissionsCache = Array(PERMISSIONS_CACHE_NUMBER_OF_SHARDS) // key is permissions subject URL, value is permissions object
 var actorsForUserCache = {} // key is User's URL, value is array of URLS
 var teamsCache = {} // key is team URL, value is roles object whose keys are 'base URLs'
 
+function hash(str) {
+  var hash = 5381,
+      i    = str.length
+  while(i)
+    hash = (hash * 33) ^ str.charCodeAt(--i)
+  return hash >>> 0
+}
+
 function addToCache(resource, permissions, etag) {
-  if (permissions == null)
-    permissionsCache[resource] = null
+  var shard = hash(resource) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
+  if (permissionsCache[shard] === undefined)
+    permissionsCache[shard] = {}
+  if (permissions === null)
+    permissionsCache[shard][resource] = null
   else {
     if (etag)
       permissions._Etag = etag
     permissions._metadata = null
-    permissionsCache[resource] = permissions
+    permissionsCache[shard][resource] = permissions
   }
 }
 
 function retrieveFromCache(resource) {
-  return permissionsCache[resource]
+  var shard = hash(resource) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
+  return permissionsCache[shard] === undefined ? undefined : permissionsCache[shard][resource]
 }
 
 function deleteFromCache(resource) {
-  delete permissionsCache[resource]
+  var shard = hash(resource) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
+  if (permissionsCache[shard] !== undefined)
+    delete permissionsCache[shard][resource]
 }
 
 function resetCache() {
-  permissionsCache = {}
+  permissionsCache = Array(PERMISSIONS_CACHE_NUMBER_OF_SHARDS)
 }
 
 function log(method, text) {
