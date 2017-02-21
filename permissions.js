@@ -13,8 +13,12 @@ const INCOGNITO = 'http://apigee.com/users#incognito'
 const TEAMS = '/teams/'
 
 const PERMISSIONS_CACHE_NUMBER_OF_SHARDS = process.env.PERMISSIONS_CACHE_NUMBER_OF_SHARDS || 10
+const PERMISSIONS_CACHE_TTL = process.env.PERMISSIONS_CACHE_TTL || 60*60*1000
+const PERMISSIONS_CACHE_SWEEP_INTERVAL = process.env.PERMISSIONS_CACHE_SWEEP_INTERVAL || 10
+const SPEEDUP = process.env.SPEEDUP || 1
 
 var permissionsCache = Array(PERMISSIONS_CACHE_NUMBER_OF_SHARDS) // key is permissions subject URL, value is permissions object
+var nextPermissionsCacheShard = 0
 var actorsForUserCache = {} // key is User's URL, value is array of URLS
 var teamsCache = {} // key is team URL, value is roles object whose keys are 'base URLs'
 
@@ -36,13 +40,17 @@ function addToCache(resource, permissions, etag) {
     if (etag)
       permissions._Etag = etag
     permissions._metadata = null
+    permissions.lastAccess = Date.now()
     permissionsCache[shard][resource] = permissions
   }
 }
 
 function retrieveFromCache(resource) {
   var shard = hash(resource) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
-  return permissionsCache[shard] === undefined ? undefined : permissionsCache[shard][resource]
+  var permissions = permissionsCache[shard] === undefined ? undefined : permissionsCache[shard][resource]
+  if (permissions)
+    permissions.lastAccess = Date.now()
+  return permissions
 }
 
 function deleteFromCache(resource) {
@@ -58,6 +66,21 @@ function resetCache() {
 function log(method, text) {
   console.log(Date.now(), process.env.COMPONENT_NAME, method, text)
 }
+
+function scanNextShard() {
+  var shard = permissionsCache[nextPermissionsCacheShard]
+  nextPermissionsCacheShard = (nextPermissionsCacheShard + 1) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
+  var ageLimit = Date.now() - PERMISSIONS_CACHE_TTL / SPEEDUP
+  if (shard)
+    for (var resource in shard) {
+      var permissions = shard[resource]
+      if (permissions)
+        if (ageLimit > permissions.lastAccess)
+          delete shard[resource]
+    }
+}
+
+setInterval(scanNextShard, PERMISSIONS_CACHE_SWEEP_INTERVAL / PERMISSIONS_CACHE_NUMBER_OF_SHARDS / SPEEDUP)
 
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
