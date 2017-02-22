@@ -13,10 +13,12 @@ const INCOGNITO = 'http://apigee.com/users#incognito'
 const TEAMS = '/teams/'
 
 const PERMISSIONS_CACHE_NUMBER_OF_SHARDS = process.env.PERMISSIONS_CACHE_NUMBER_OF_SHARDS || 10
-const PERMISSIONS_CACHE_TTL = process.env.PERMISSIONS_CACHE_TTL || 60*60*1000
-const PERMISSIONS_CACHE_SWEEP_INTERVAL = process.env.PERMISSIONS_CACHE_SWEEP_INTERVAL || 10
+const CACHE_ENTRY_TTL = process.env.CACHE_ENTRY_TTL || 60*60*1000
+const CACHE_SWEEP_INTERVAL = process.env.CACHE_SWEEP_INTERVAL || 10
 const SPEEDUP = process.env.SPEEDUP || 1
 
+// The permissions cache is sharded, which allows individual shards to be scavenged independently when implementing TTL. 
+// This might be overkill, but it's oly a few lines of code. Take them out if you don't like it.
 var permissionsCache = Array(PERMISSIONS_CACHE_NUMBER_OF_SHARDS) // key is permissions subject URL, value is permissions object
 var nextPermissionsCacheShard = 0
 var actorsForUserCache = {} // key is User's URL, value is array of URLS
@@ -63,14 +65,50 @@ function resetPermissionsCache() {
   permissionsCache = Array(PERMISSIONS_CACHE_NUMBER_OF_SHARDS)
 }
 
+function invalidateCachedUsers(teamURL, team) {
+  // We cache both teams and the list of teams for a user. These caches must be coherent. If an old cached entry is invalidated, then all the cache
+  // entries for its member users are also invalid.
+  var existingTeam = retrieveFromTeamsCache(teamURL)
+  var beforeMembers = existingTeam !== undefined ? existingTeam.members : []
+  var afterMembers = team !== undefined ? team.members : []
+  for (let i = 0; i < beforeMembers.length; i++)
+    if (afterMembers.indexOf(beforeMembers[i]) == -1)
+      delete actorsForUserCache[beforeMembers[i]]
+  for (let i = 0; i < afterMembers.length; i++)
+    if (beforeMembers.indexOf(afterMembers[i]) == -1)
+      delete actorsForUserCache[afterMembers[i]]    
+}
+
+function addToTeamsCache(teamURL, team) {
+  invalidateCachedUsers(teamURL, team)
+  team.lastAccess = Date.now()
+  teamsCache[teamURL] = team
+}
+
+function retrieveFromTeamsCache(teamURL) {
+  var team = teamsCache[teamURL]
+  if (team)
+    team.lastAccess = Date.now()
+  return team
+}
+
+function deleteFromTeamsCache(teamURL) {
+  invalidateCachedUsers(teamURL)
+  delete teamsCache[teamURL]
+}
+
+function resetTeamsCache() {
+  actorsForUserCache = {}
+  teamsCache = {}
+}
+
 function log(method, text) {
   console.log(Date.now(), process.env.COMPONENT_NAME, method, text)
 }
 
-function scanNextShard() {
+function scanNextPermissionsCacheShard(ageLimit) {
   var shard = permissionsCache[nextPermissionsCacheShard]
   nextPermissionsCacheShard = (nextPermissionsCacheShard + 1) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
-  var ageLimit = Date.now() - PERMISSIONS_CACHE_TTL / SPEEDUP
   if (shard)
     for (var resource in shard) {
       var permissions = shard[resource]
@@ -80,7 +118,24 @@ function scanNextShard() {
     }
 }
 
-setInterval(scanNextShard, PERMISSIONS_CACHE_SWEEP_INTERVAL / PERMISSIONS_CACHE_NUMBER_OF_SHARDS / SPEEDUP)
+function scanTeamsCache(ageLimit) {
+  console.log('scanning teams cache')
+  for (var teamURL in teamsCache) {
+    var team = teamsCache[teamURL]
+    if (team)
+      if (ageLimit > team.lastAccess)
+        deleteFromTeamsCache(teamURL)
+  }
+}
+
+function implementTTL() {
+  var ageLimit = Date.now() - CACHE_ENTRY_TTL / SPEEDUP
+  if (nextPermissionsCacheShard % PERMISSIONS_CACHE_NUMBER_OF_SHARDS == 0)
+    scanTeamsCache(ageLimit)
+  scanNextPermissionsCacheShard(ageLimit)
+}
+
+setInterval(implementTTL, CACHE_SWEEP_INTERVAL / PERMISSIONS_CACHE_NUMBER_OF_SHARDS / SPEEDUP)
 
 function getAllowedActions(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
@@ -230,24 +285,6 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
   ancestors(subject, finalCallback)
 }
 
-function invalidateCachedUsers(teamURL, team) {
-  // We cache both teams and the list of teams for a user. These caches must be coherent. If an old cached entry is invalidated, then all the cache
-  // entries for its member users are also invalid.
-  var existingTeam = teamsCache[teamURL]
-  var beforeMembers = existingTeam !== undefined ? existingTeam.members : []
-  var afterMembers = team !== undefined ? team.members : []
-  for (let i = 0; i < beforeMembers.length; i++)
-    if (afterMembers.indexOf(beforeMembers[i]) == -1)
-      delete actorsForUserCache[beforeMembers[i]]
-  for (let i = 0; i < afterMembers.length; i++)
-    if (beforeMembers.indexOf(afterMembers[i]) == -1)
-      delete actorsForUserCache[afterMembers[i]]    
-  if (team === undefined)
-    delete teamsCache[teamURL]
-  else 
-    teamsCache[teamURL] = team
-}
-
 function sortAndSplitRoles(roles) {
   function roleSortFunction(path1, path2) {
     var result = path2.length - path1.length
@@ -281,7 +318,7 @@ function withActorsForUserDo(req, res, user, callback) {
             team.self = teamURL
             team.etag = rows[i].etag 
             sortAndSplitRoles(team.roles)
-            invalidateCachedUsers(teamURL, team)
+            addToTeamsCache(teamURL, team)
             actors.push(teamURL)
           }
           actorsForUserCache[user] = actors  
@@ -317,7 +354,7 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, w
     function checkRoles(answer, scopes) {
       if (answer === null && base != null && path != null & actors.length > 1)
         for (let i = 1; i < actors.length && answer === null ; i++) {
-          var roles = teamsCache[actors[i]].roles // should never happen that a team is not in the cache
+          var roles = retrieveFromTeamsCache(actors[i]).roles // should never happen that a team is not in the cache
           var actions = calculateRoleActions(roles, base, path.split('/'))
           if (actions !== null && actions.indexOf(action) > -1)
             answer = true
@@ -395,7 +432,7 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
       if (base && path) {
         var pathParts = path.split('/')
         for (let i=1; i<actors.length; i++) {
-          var roles = teamsCache[actors[i]].roles
+          var roles = retrieveFromTeamsCache(actors[i]).roles
           if (roles != null) {
             var roleActions = calculateRoleActions(roles, base, pathParts)
             if (roleActions !== null)
@@ -609,8 +646,7 @@ function processEvent(event) {
   if (event.topic == 'eventGapDetected') {
     log('processEvent', 'event.topic: eventGapDetected')
     resetPermissionsCache()
-    actorsForUserCache = {}
-    teamsCache = {}
+    resetTeamsCache()
   } else if (event.topic == 'permissions')
     if (event.data.action == 'deleteAll') {
       log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`)
@@ -624,17 +660,16 @@ function processEvent(event) {
     if (event.data.action == 'update') {
       var team = event.data.after
       sortAndSplitRoles(team.roles) 
-      invalidateCachedUsers(event.data.url, team)    
+      addToTeamsCache(event.data.url, team)    
     } else if (event.data.action == 'delete')
-      invalidateCachedUsers(event.data.url)
+      deleteFromTeamsCache(event.data.url)
     else if (event.data.action == 'create') {
       var members = event.data.team.members
       if (members !== undefined)
         for (let i=0; i<members.length; i++)
           delete actorsForUserCache[members[i]]
     } else if (event.data.action == 'deleteAll') {
-      teamsCache = {}
-      actorsForUserCache = {}
+      resetTeamsCache()
     }
   }    
 }
