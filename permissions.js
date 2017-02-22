@@ -30,7 +30,7 @@ function hash(str) {
   return hash >>> 0
 }
 
-function addToCache(resource, permissions, etag) {
+function addToPermissionsCache(resource, permissions, etag) {
   var shard = hash(resource) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
   if (permissionsCache[shard] === undefined)
     permissionsCache[shard] = {}
@@ -45,7 +45,7 @@ function addToCache(resource, permissions, etag) {
   }
 }
 
-function retrieveFromCache(resource) {
+function retrieveFromPermissionsCache(resource) {
   var shard = hash(resource) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
   var permissions = permissionsCache[shard] === undefined ? undefined : permissionsCache[shard][resource]
   if (permissions)
@@ -53,13 +53,13 @@ function retrieveFromCache(resource) {
   return permissions
 }
 
-function deleteFromCache(resource) {
+function deleteFromPermissionsCache(resource) {
   var shard = hash(resource) % PERMISSIONS_CACHE_NUMBER_OF_SHARDS
   if (permissionsCache[shard] !== undefined)
     delete permissionsCache[shard][resource]
 }
 
-function resetCache() {
+function resetPermissionsCache() {
   permissionsCache = Array(PERMISSIONS_CACHE_NUMBER_OF_SHARDS)
 }
 
@@ -157,13 +157,13 @@ function isActionAllowed(permissionsObject, property, actors, action) {
 }
 
 function withPermissionsDo(req, res, resource, callback, errorCallback) {
-  var permissions = retrieveFromCache(resource)
+  var permissions = retrieveFromPermissionsCache(resource)
   if (permissions != undefined && permissions !== null) {
     callback(permissions)
   } else {
     function checkResult(err, permissions, etag) {
       if (err == 404)
-        addToCache(resource, null)
+        addToPermissionsCache(resource, null)
       if (err)
         if (errorCallback !== undefined)
           errorCallback(err)
@@ -173,7 +173,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
           else
             rLib.internalError(res, err)          
       else {
-        addToCache(resource, permissions, etag)
+        addToPermissionsCache(resource, permissions, etag)
         callback(permissions, etag)
       }      
     }
@@ -608,15 +608,16 @@ function isAllowedToInheritFrom(req, res, queryString) {
 function processEvent(event) {
   if (event.topic == 'eventGapDetected') {
     log('processEvent', 'event.topic: eventGapDetected')
-    resetCache()
+    resetPermissionsCache()
     actorsForUserCache = {}
+    teamsCache = {}
   } else if (event.topic == 'permissions')
     if (event.data.action == 'deleteAll') {
       log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: deleteAll`)
-      resetCache
+      resetPermissionsCache()
     } else {
       log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} subject: ${event.data.subject}`)
-      deleteFromCache(event.data.subject)
+      deleteFromPermissionsCache(event.data.subject)
     }
   else if (event.topic == 'teams') {
     log('processEvent', `event.index: ${event.index} event.topic: ${event.topic} event.data.action: ${event.data.action} event.data.url: ${event.data.url}`)
