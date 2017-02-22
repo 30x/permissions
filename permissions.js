@@ -352,13 +352,14 @@ function calculateRoleActions(roles, base, pathParts) {
 function withPermissionFlagDo(req, res, subject, property, action, base, path, withScopes, callback) {
   function calculateFlagForActors (actors) {  
     function checkRoles(answer, scopes) {
-      if (answer === null && base != null && path != null & actors.length > 1)
-        for (let i = 1; i < actors.length && answer === null ; i++) {
-          var roles = retrieveFromTeamsCache(actors[i]).roles // should never happen that a team is not in the cache
+      for (let i = 1; i < actors.length && answer === null ; i++) {
+        var roles = retrieveFromTeamsCache(actors[i]).roles // touching the teamsCache will keep entry alive
+        if (answer === null && base != null && path != null) {
           var actions = calculateRoleActions(roles, base, path.split('/'))
           if (actions !== null && actions.indexOf(action) > -1)
             answer = true
-        }  
+        }
+      }  
       callback(answer, scopes)
     }
     var allowed = null
