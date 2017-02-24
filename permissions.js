@@ -313,7 +313,7 @@ function withActorsForUserDo(req, res, user, callback) {
           // We cache both teams and the list of teams for a user. These caches must be coherent.
           var actors = [user]
           for (let i = 0; i < rows.length; i++) {
-            var teamURL = `scheme://authority${TEAMS}${rows[i].id}`
+            var teamURL = `${TEAMS}${rows[i].id}`
             var team = rows[i].data
             team.self = teamURL
             team.etag = rows[i].etag 

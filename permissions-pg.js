@@ -80,7 +80,7 @@ function init(callback) {
         } else {
           console.log('permissions-db: connected to PG: ', config)
           var permissions = {
-            "_subject": "scheme://authority/", 
+            "_subject": "/", 
             "permissions":  {"read": [ANYONE], "create": [ANYONE]}, 
             "teams":        {"read": [ANYONE], "create": [ANYONE]}, 
             "folders":      {"read": [ANYONE], "create": [ANYONE]}, 
