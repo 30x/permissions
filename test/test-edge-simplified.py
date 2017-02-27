@@ -133,6 +133,7 @@ def main():
             print 'correctly retrieved is-allowed for %s to delete %s' % (USER1, org_url)
         else:
             print 'incorrect response to is-allowed for %s to delete %s' % (USER1, org_url)
+            return
     else:
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
@@ -143,10 +144,11 @@ def main():
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER2_E)) 
     r = requests.get(url, headers=headers)
     if r.status_code == 200:
-        if (r.json() == False):
+        if (r.json() == None):
             print 'correctly retrieved is-allowed for %s to delete %s' % (USER2, org_url)
         else:
             print 'incorrect response to is-allowed for %s to delete %s' % (USER2, org_url)
+            return
     else:
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
         return
