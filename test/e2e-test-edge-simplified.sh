@@ -7,5 +7,5 @@ export EXTERNAL_SCHEME="https"
 
 source ../../aws-export-pg-variables.sh
 node delete-test-data.js
-source renew-tokens.sh
+source ../../renew-tokens.sh
 python test-edge-simplified.py

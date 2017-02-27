@@ -14,7 +14,7 @@ const TEAMS = '/teams/'
 
 const PERMISSIONS_CACHE_NUMBER_OF_SHARDS = process.env.PERMISSIONS_CACHE_NUMBER_OF_SHARDS || 10
 const CACHE_ENTRY_TTL = process.env.CACHE_ENTRY_TTL || 60*60*1000
-const CACHE_SWEEP_INTERVAL = process.env.CACHE_SWEEP_INTERVAL || 10
+const CACHE_SWEEP_INTERVAL = process.env.CACHE_SWEEP_INTERVAL || 10*60*1000
 const SPEEDUP = process.env.SPEEDUP || 1
 
 // The permissions cache is sharded, which allows individual shards to be scavenged independently when implementing TTL. 
