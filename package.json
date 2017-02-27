@@ -7,10 +7,10 @@
     "test": "test"
   },
   "dependencies": {
-    "http-helper-functions": "^0.0.89",
+    "http-helper-functions": "^0.0.90",
     "pg": "^6.0.3",
     "pg-event-consumer": "^0.0.21",
-    "response-helper-functions": "0.0.9"
+    "response-helper-functions": "0.0.10"
   },
   "devDependencies": {
     "d3-random": "^1.0.2",
