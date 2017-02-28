@@ -500,39 +500,49 @@ function isAllowed(req, res, queryString) {
   var path = queryParts.path
   var base = queryParts.base
   var withScopes = queryParts.withScopes == '' || queryParts.withScopes
+  var withIndividualAnswers = queryParts.withIndividualAnswers == '' || queryParts.withIndividualAnswers
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
   log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path} withScopes: ${withScopes}`)
-  var allScopes
-  function response(answer) {
-    return withScopes ? {allowed: answer, scopes: Array.from(new Set(allScopes))} : answer
-  }
+  var allScopes = withScopes ? {} : null
+  var allAnswers = withIndividualAnswers ? {} : null
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
     else {
       var count = 0
+      var finalAnswer
       var responded = false
-      for (var i = 0; i< resources.length; i++) { // multiple resources is interpreted to mean that the user must have access to all of them. A different API that answers "any of them" might be useful.
-        if (!responded)
-          withPermissionFlagDo(req, res, resources[i], property, action, base, path, withScopes, function(answer, scopes) {
+      for (let i = 0; i< resources.length; i++) { // multiple resources is interpreted to mean that the user must have access to all of them. A different API that answers "any of them" might be useful.
+        withPermissionFlagDo(req, res, resources[i], property, action, base, path, withScopes, function(answer, scopes) {
+          if (!responded) {
+            finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
             if (withScopes)
-              allScopes = allScopes ? allScopes.concat(scopes) : scopes
-            if (!responded) {
-              if (++count == resources.length) {
-                rLib.found(res, response(answer), req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
-                responded = true
-                var hrend = process.hrtime(hrstart)
-                log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
-              } else if (answer != true) {
-                rLib.found(res, response(answer), req.headers.accept, req.url)
-                responded = true
-                var hrend = process.hrtime(hrstart)
-                log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
-              }
+              allScopes[resources[i]] = Array.from(new Set(scopes))
+            if (withIndividualAnswers)
+              allAnswers[resources[i]] = answer
+            if (answer !== null && !withScopes && !withIndividualAnswers) {
+              rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+              responded = true
+              var hrend = process.hrtime(hrstart)
+              log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
+            } else if (++count == resources.length) {
+              var result
+              if (withScopes || withIndividualAnswers) {
+                result = {allowed: finalAnswer}
+                if (withScopes)
+                  result.scopes = allScopes
+                if (withIndividualAnswers)
+                  result.allAnswers = allAnswers
+              } else
+                result = finalAnswer
+              rLib.found(res, result, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+              var hrend = process.hrtime(hrstart)
+              log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
             }
-          })
+          }
+        })
       }
     } 
   else  

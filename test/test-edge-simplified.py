@@ -132,7 +132,7 @@ def main():
         if (r.json() == True):
             print 'correctly retrieved is-allowed for %s to delete %s' % (USER1, org_url)
         else:
-            print 'incorrect response to is-allowed for %s to delete %s' % (USER1, org_url)
+            print 'incorrect response to is-allowed for %s to delete %s %s' % (USER1, org_url, r.json())
             return
     else:
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
@@ -147,7 +147,7 @@ def main():
         if (r.json() == None):
             print 'correctly retrieved is-allowed for %s to delete %s' % (USER2, org_url)
         else:
-            print 'incorrect response to is-allowed for %s to delete %s' % (USER2, org_url)
+            print 'incorrect response to is-allowed for %s to delete %s %s' % (USER2, org_url, r.json())
             return
     else:
         print 'failed to retrieve %s for user %s status_code %s text %s' % (url, USER1, r.status_code, r.text)
