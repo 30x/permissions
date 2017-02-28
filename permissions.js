@@ -243,7 +243,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
                 checkResult(err, permissions, etag)
               })
             else
-            rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
+              rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
           })
         else 
           checkResult(err, permissions, etag)
@@ -546,7 +546,7 @@ function isAllowed(req, res, queryString) {
       }
     } 
   else  
-    rLib.forbidden(res)
+    rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
 }
 
 function isAllowedToInheritFrom(req, res, queryString) {
