@@ -213,7 +213,7 @@ function isActionAllowed(permissionsObject, property, actors, action) {
 
 function withPermissionsDo(req, res, resource, callback, errorCallback) {
   var permissions = retrieveFromPermissionsCache(resource)
-  if (permissions != undefined && permissions !== null) {
+  if (permissions !== undefined && permissions !== null) {
     callback(permissions)
   } else {
     function checkResult(err, permissions, etag) {
@@ -503,7 +503,7 @@ function isAllowed(req, res, queryParts, callback) {
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-  log('getIsAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
+  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
@@ -545,7 +545,10 @@ function isAllowed(req, res, queryParts, callback) {
           })
     }
   else  
-    rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
+    if (req.headers.authorization)
+      rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
+    else
+      rLib.unauthorized(res, 'bearer token missing or expired')
 }
 
 function areAnyAllowed(req, res, queryParts) {
