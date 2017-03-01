@@ -656,6 +656,43 @@ def main():
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme/environments/test for USER2 status_code: %s text: %s' % (r.status_code, r.text)
 
+    # Retrieve are-any-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+
+    url = urljoin(BASE_URL, '/are-any-allowed?resource=http://apigee.com/o/acme/environments/test&resource=http://apigee.com/o/acme&user=%s&action=read' % (USER3_E))
+    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
+    start = timer()
+    r = requests.get(url, headers=headers)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned are-any-allowed (%s) of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned are-any-allowed of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 %s' % answer
+    else:
+        print 'failed to return are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+
+    # POST are-any-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+
+    body = {
+        'resource': ['http://apigee.com/o/acme/environments/test', 'http://apigee.com/o/acme'],
+        'user': USER3,
+        'action': 'read' 
+    }
+    url = urljoin(BASE_URL, '/are-any-allowed')
+    headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
+    start = timer()
+    r = requests.post(url, headers=headers, json=body)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer == True:
+            print 'correctly POSTed are-any-allowed (%s) of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned from POST to are-any-allowed of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 %s' % answer
+    else:
+        print 'failed to return POST to are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))

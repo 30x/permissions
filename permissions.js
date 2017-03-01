@@ -491,9 +491,8 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
   }
 }
 
-function isAllowed(req, res, queryString) {
+function isAllowed(req, res, queryParts, callback) {
   var hrstart = process.hrtime()
-  var queryParts = querystring.parse(queryString)
   var user = queryParts.user
   var action = queryParts.action
   var property = queryParts.property || '_self'
@@ -504,49 +503,83 @@ function isAllowed(req, res, queryString) {
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path} withScopes: ${withScopes}`)
-  var allScopes = withScopes ? {} : null
-  var allAnswers = withIndividualAnswers ? {} : null
+  log('getIsAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
     else {
+      var allScopes = withScopes ? {} : null
+      var allAnswers = withIndividualAnswers ? {} : null
       var count = 0
       var finalAnswer
       var responded = false
-      for (let i = 0; i< resources.length; i++) { // multiple resources is interpreted to mean that the user must have access to all of them. A different API that answers "any of them" might be useful.
-        withPermissionFlagDo(req, res, resources[i], property, action, base, path, withScopes, function(answer, scopes) {
-          if (!responded) {
-            finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
-            if (withScopes)
-              allScopes[resources[i]] = Array.from(new Set(scopes))
-            if (withIndividualAnswers)
-              allAnswers[resources[i]] = answer
-            if (answer !== null && !withScopes && !withIndividualAnswers) {
-              rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
-              responded = true
-              var hrend = process.hrtime(hrstart)
-              log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
-            } else if (++count == resources.length) {
-              var result
-              if (withScopes || withIndividualAnswers) {
-                result = {allowed: finalAnswer}
-                if (withScopes)
-                  result.scopes = allScopes
-                if (withIndividualAnswers)
-                  result.allAnswers = allAnswers
-              } else
-                result = finalAnswer
-              rLib.found(res, result, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
-              var hrend = process.hrtime(hrstart)
-              log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)
+      for (let i = 0; i< resources.length; i++) // multiple resources is interpreted to mean that the user must have access to all of them. A different API that answers "any of them" might be useful.
+        if (!responded)
+          withPermissionFlagDo(req, res, resources[i], property, action, base, path, withScopes, function(answer, scopes) {
+            if (!responded) {
+              finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
+              if (withScopes)
+                allScopes[resources[i]] = Array.from(new Set(scopes))
+              if (withIndividualAnswers)
+                allAnswers[resources[i]] = answer
+              if (!finalAnswer && !withScopes && !withIndividualAnswers) {
+                rLib.found(res, finalAnswer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                responded = true
+                var hrend = process.hrtime(hrstart)
+                log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
+              } else if (++count == resources.length) {
+                var result
+                if (withScopes || withIndividualAnswers) {
+                  result = {allowed: finalAnswer}
+                  if (withScopes)
+                    result.scopes = allScopes
+                  if (withIndividualAnswers)
+                    result.allAnswers = allAnswers
+                } else
+                  result = finalAnswer
+                rLib.found(res, result, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)        
+                var hrend = process.hrtime(hrstart)
+                log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${typeof result == 'string' ? result : JSON.stringify(result)} resources: ${resources}`)
+              }
             }
-          }
-        })
-      }
-    } 
+          })
+    }
   else  
     rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
+}
+
+function areAnyAllowed(req, res, queryParts) {
+  var hrstart = process.hrtime()
+  var user = queryParts.user
+  var action = queryParts.action
+  var property = queryParts.property || '_self'
+  var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
+  log('areAnyAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources}`)
+  if (user == null || user == lib.getUser(req.headers.authorization))
+    if (action === undefined)
+      rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
+    else
+      if (queryParts.resource === undefined)
+        rLib.badRequest(res, 'must provide at least one resource')
+      else {
+        resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
+        var count = 0
+        var responded = false
+        for (let i = 0; i< resources.length; i++)
+          if (!responded)
+            withPermissionFlagDo(req, res, resources[i], property, action, null, null, null, function(answer) {
+              if (!responded) {
+                if (answer || ++count == resources.length) {
+                  rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
+                  responded = true
+                  var hrend = process.hrtime(hrstart)
+                  log('areAnyAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
+                }
+              }
+            })
+      }
+    else  
+      rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
 }
 
 function isAllowedToInheritFrom(req, res, queryString) {
@@ -706,9 +739,24 @@ function requestHandler(req, res) {
         getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
       else
         rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/is-allowed' && req_url.search == null)
+      if (req.method == 'POST')
+        lib.getServerPostObject(req, res, (body) => postIsAllowed(req, res, body))
+      else
+        rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/is-allowed' && req_url.search !== null)
       if (req.method == 'GET')
-        isAllowed(req, res, req_url.search.substring(1))
+        isAllowed(req, res, querystring.parse(req_url.search.substring(1)))
+      else
+        rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/are-any-allowed' && req_url.search == null)
+      if (req.method == 'POST')
+        lib.getServerPostObject(req, res, (body) => areAnyAllowed(req, res, body))
+      else
+        rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/are-any-allowed' && req_url.search !== null)
+      if (req.method == 'GET')
+        areAnyAllowed(req, res, querystring.parse(req_url.search.substring(1)))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/is-allowed-to-inherit-from' && req_url.search !== null)
