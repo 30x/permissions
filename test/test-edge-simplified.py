@@ -414,6 +414,7 @@ def main():
             print 'correctly returned users-who-can-access of http://apigee.com/o/acme/keyvaluemaps for USER1 after update of permissions to use team' 
         else:
             print 'incorrect returned users-who-can-access of http://apigee.com/o/acme/keyvaluemaps for USER1 %s' % actions
+            return
     else:
         print 'failed to return users-who-can-access of http://apigee.com/o/acme/keyvaluemaps for USER1 %s %s' % (r.status_code, r.text)
 
@@ -465,6 +466,7 @@ def main():
             print 'correctly returned is-allowed of http://apigee.com/o/acme for USER1 after update of permissions to use team. Elapsed time = %sms' % ((end-start) * 1000) 
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme for USER1 %s' % answer
+            return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
 
@@ -481,6 +483,7 @@ def main():
             print 'correctly returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER1 after update of permissions to use team. Elapsed time = %sms' % ((end-start) * 1000) 
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER1 %s' % answer
+            return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme/keyvaluemaps for USER1 %s %s' % (r.status_code, r.text)
 
@@ -511,6 +514,7 @@ def main():
             print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER2 after update of permissions to use property. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s' % answer
+            return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s %s' % (r.status_code, r.text)
 
@@ -527,6 +531,7 @@ def main():
             print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER2 after update of permissions to use property. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s' % answer
+            return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s %s' % (r.status_code, r.text)
 
@@ -543,6 +548,7 @@ def main():
             print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of permissions to use property. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
+            return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
 
@@ -574,6 +580,7 @@ def main():
             print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
+            return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
 
@@ -590,6 +597,7 @@ def main():
             print 'correctly returned allowed-actions (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
             print 'incorrect returned allowed-action of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
+            return
     else:
         print 'failed to return allowed-actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
 

@@ -295,7 +295,7 @@ function sortAndSplitRoles(roles) {
   if (roles !== undefined)
     for (var base in roles) {
       var sortedSplitPaths = Object.keys(roles[base]).map(x => x.split('/')).sort(roleSortFunction)
-      roles[base] = sortedSplitPaths.map(splitPath => {return {path: splitPath, actions: roles[base][splitPath.join('/')]}})
+      roles[base] = sortedSplitPaths.map(splitPath => ({path: splitPath, actions: roles[base][splitPath.join('/')]}))
     }
 }
 
@@ -772,15 +772,30 @@ function requestHandler(req, res) {
   }
 }
 
-function start() {
+function init(callback) {
   db.init(function () {
     var port = process.env.PORT
-    permissionsEventConsumer.init(function() {
-      http.createServer(requestHandler).listen(port, function() {
-        log('start', `server is listening on ${port}`)
-      })
+    permissionsEventConsumer.init(callback)
+  })
+}
+
+function run() {
+  init(function() {
+    http.createServer(requestHandler).listen(port, function() {
+      log('start', `server is listening on ${port}`)
     })
   })
+}
+
+function start() {
+  if (require.main === module) 
+    run()
+  else
+    module.exports = {
+      requestHandler:requestHandler,
+      paths: ['/events', '/allowed-actions' , '/is-allowed', '/are-any-allowed', '/is-allowed-to-inherit-from'],
+      init: init
+    }
 }
 
 if (process.env.INTERNAL_SY_ROUTER_HOST == 'kubernetes_host_ip') 
