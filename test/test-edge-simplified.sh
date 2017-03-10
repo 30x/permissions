@@ -8,7 +8,7 @@ export INTERNAL_SY_ROUTER_HOST="localhost"
 export INTERNAL_SY_ROUTER_PORT="8080"
 export EXTERNAL_SCHEME="http"
 
-source local-export-pg-connection-variables.sh
+source ../../local-export-pg-connection-variables.sh
 node delete-test-data.js
 #source renew-tokens.sh
 python test-edge-simplified.py
