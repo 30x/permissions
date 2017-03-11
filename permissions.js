@@ -774,13 +774,13 @@ function requestHandler(req, res) {
 
 function init(callback) {
   db.init(function () {
-    var port = process.env.PORT
     permissionsEventConsumer.init(callback)
   })
 }
 
 function run() {
   init(function() {
+    var port = process.env.PORT
     http.createServer(requestHandler).listen(port, function() {
       log('start', `server is listening on ${port}`)
     })
