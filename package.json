@@ -7,7 +7,7 @@
     "test": "test"
   },
   "dependencies": {
-    "http-helper-functions": "^0.0.90",
+    "http-helper-functions": "^0.0.97",
     "pg": "^6.0.3",
     "pg-event-consumer": "^0.0.21",
     "response-helper-functions": "0.0.12"
