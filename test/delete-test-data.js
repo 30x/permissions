@@ -18,7 +18,7 @@ function deleteTestDataThen(eventTopic, table, callback) {
   function eventData(pgResult) {
     return {subject: null, action: 'deleteAll'}
   }
-  eventProducer.queryAndStoreEvent({headers:{}}, query, eventTopic, eventData, function(pgResult, pgEventResult) {
+  eventProducer.queryAndStoreEvent({headers:{}}, query, [], eventTopic, eventData, function(pgResult, pgEventResult) {
     callback()
   })
 }

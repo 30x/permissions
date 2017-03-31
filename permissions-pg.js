@@ -20,9 +20,9 @@ function withPermissionsDo(req, subject, callback) {
   var hrstart = process.hrtime()
   // fetch the permissions resource for `subject`.
   subject = lib.internalizeURL(subject, req.headers.host)
-  var query = `SELECT etag, data FROM permissions WHERE subject = '${subject}'`
+  var query = `SELECT etag, data FROM permissions WHERE subject = $1`
   //console.log(`permissions-db:withPermissionsDo: query: ${query}`)
-  pool.query(query, function (err, pgResult) {
+  pool.query(query, [subject], function (err, pgResult) {
     if (err) 
       callback(err)
     else
@@ -55,9 +55,8 @@ function withTeamDo(req, id, callback) {
 }
 
 function withTeamsForUserDo(req, user, callback) {
-  //var query = "SELECT id FROM teams, jsonb_array_elements(teams.data->'members') AS member WHERE member = $1"
-  var query = `SELECT id, etag, data FROM teams WHERE data->'members' ? '${user}'`
-  pool.query(query, function (err, pg_res) {
+  var query = `SELECT id, etag, data FROM teams WHERE data->'members' ? $1`
+  pool.query(query, [user], function (err, pg_res) {
     if (err) {
       callback(err)
     }
@@ -86,8 +85,8 @@ function init(callback) {
             "folders":      {"read": [ANYONE], "create": [ANYONE]}, 
             "_self":        {"read": [ANYONE], "update": [ANYONE], "admin": [ANYONE], "govern": [ANYONE]}
           }
-          query = `INSERT INTO permissions (subject, etag, data) values('${permissions._subject}', 1, '${JSON.stringify(permissions)}') RETURNING etag`
-          client.query(query, function(err, pgResult) {
+          query = `INSERT INTO permissions (subject, etag, data) values($1, 1, $2) RETURNING etag`
+          client.query(query, [permissions._subject, JSON.stringify(permissions)], function(err, pgResult) {
             release()
             if(err)
               if (err.code == 23505) {
