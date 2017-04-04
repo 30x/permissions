@@ -35,6 +35,7 @@ else:
 USER2_CLAIMS = json.loads(b64_decode(TOKEN2.split('.')[1]))      
 USER2 = '%s#%s' % (USER2_CLAIMS['iss'], USER2_CLAIMS['sub'])
 USER2_E = USER2.replace('#', '%23')
+API_KEY = env.get('API_KEY')
 
 if 'APIGEE_TOKEN3' in env:
     TOKEN3 = env['APIGEE_TOKEN3']
@@ -44,6 +45,25 @@ else:
 USER3_CLAIMS = json.loads(b64_decode(TOKEN3.split('.')[1]))      
 USER3 = '%s#%s' % (USER3_CLAIMS['iss'], USER3_CLAIMS['sub'])
 USER3_E = USER3.replace('#', '%23')
+
+def get_headers(token):
+    rslt = {'Accept': 'application/json'}
+    if API_KEY:
+        rslt['x-routing-api-key'] = API_KEY
+    if token:
+        rslt['Authorization'] = 'Bearer %s' % token
+    return rslt
+
+def post_headers(token):
+    rslt = get_headers(token)
+    rslt['Content-Type'] = 'application/json'
+    return rslt
+
+def patch_headers(token, if_match):
+    rslt = get_headers(token)
+    rslt['Content-Type'] = 'application/merge-patch+json'
+    rslt['If-Match'] = if_match
+    return rslt
 
 def main():
     
@@ -70,8 +90,8 @@ def main():
     
     # Create permissions for Acme org with USER1 (succeed)
 
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.post(permissions_url, headers=headers, json=permissions)
+    get_headers1 = get_headers(TOKEN1)
+    r = requests.post(permissions_url, headers=get_headers1, json=permissions)
     if r.status_code == 201:
         org_permissions = urljoin(BASE_URL, r.headers['Location'])
         org_permissions_etag = r.headers['Etag'] 
@@ -82,9 +102,8 @@ def main():
     
     # Get allowed-actions for USER1 on org
 
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER1_E)) 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     if r.status_code == 200:
         actions = r.json()
         if set(actions) == {'read', 'admin', 'delete', 'govern', 'update'}:
@@ -98,9 +117,9 @@ def main():
     
     # Get allowed-actions for USER2 on org
 
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
+    get_headers2 = get_headers(TOKEN2)
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER2_E)) 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers2)
     if r.status_code == 200:
         actions = r.json()
         if actions == []:
@@ -114,9 +133,8 @@ def main():
     
     # Have USER2 ask for allowed-actions for USER1 on org
 
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER1_E)) 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers2)
     if r.status_code == 403:
         print 'correctly refused to let %s retrieve allowed-actions for %s on %s' % (USER2, USER1, org_url)
     else:
@@ -125,9 +143,8 @@ def main():
     
     # Ask if USER1 can delete acme org
     
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER1_E)) 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     if r.status_code == 200:
         if (r.json() == True):
             print 'correctly retrieved is-allowed for %s to delete %s' % (USER1, org_url)
@@ -140,9 +157,8 @@ def main():
     
     # Ask if USER2 can delete acme org
     
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=delete' % (org_url ,USER2_E)) 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers2)
     if r.status_code == 200:
         if (r.json() == None):
             print 'correctly retrieved is-allowed for %s to delete %s' % (USER2, org_url)
@@ -155,9 +171,8 @@ def main():
     
     # get resources shared with USER1
 
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1_E) 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     if r.status_code == 200:
         resources = r.json()
         if resources == ['http://apigee.com/o/acme']:
@@ -179,8 +194,8 @@ def main():
         'test-data': True
         }
     url = urljoin(BASE_URL, '/teams') 
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.post(url, headers=headers, json=team)
+    post_headers1 = post_headers(TOKEN1)
+    r = requests.post(url, headers=post_headers1, json=team)
     if r.status_code == 201:
         ORG_ADMINS = r.headers['location']
         print 'correctly created ORG_ADMINS team %s etag: %s' % (ORG_ADMINS, r.headers['Etag'])
@@ -197,8 +212,8 @@ def main():
         'members': [USER2],
         'test-data': True
         }
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.post(url, headers=headers, json=team)
+
+    r = requests.post(url, headers=post_headers1, json=team)
     if r.status_code == 201:
         print 'correctly created team %s etag: %s' % (r.headers['location'], r.headers['Etag'])
         BUSINESS_USERS = r.headers['location']
@@ -214,8 +229,7 @@ def main():
         'members': [USER3],
         'test-data': True 
         }
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.post(url, headers=headers, json=team)
+    r = requests.post(url, headers=post_headers1, json=team)
     if r.status_code == 201:
         print 'correctly created team %s etag: %s' % (r.headers['location'], r.headers['Etag'])
         ORDINARY_USERS = r.headers['location']
@@ -225,8 +239,7 @@ def main():
 
     # Retrieve permissions for Acme org
 
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(org_permissions, headers=headers)
+    r = requests.get(org_permissions, headers=get_headers1)
     if r.status_code == 200:
         server_permissions = r.json()
         for key, value in permissions.iteritems():
@@ -264,7 +277,7 @@ def main():
 
     # patch http://acme.org/o/acme permissions (fail)
 
-    r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
+    r = requests.patch(org_permissions, headers=get_headers1, json=permissions_patch)
     if r.status_code == 400:
         print 'correctly refused to patch permissions without If-Match header' 
     else:
@@ -273,8 +286,8 @@ def main():
     
     # patch http://acme.org/o/acme permissions to use teams instead of USER1 (succeed)
 
-    headers = {'Content-Type': 'application/merge-patch+json', 'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
-    r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
+    patch_headers1 = patch_headers(TOKEN1, ACME_ORG_IF_MATCH)
+    r = requests.patch(org_permissions, headers=patch_headers1, json=permissions_patch)
     if r.status_code == 200:
         ACME_ORG_IF_MATCH = r.headers['Etag']
         print 'correctly patched permissions %s etag: %s' %(org_permissions, ACME_ORG_IF_MATCH)
@@ -284,8 +297,7 @@ def main():
     
     # Retrieve Acme org permissions
 
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(org_permissions, headers=headers)
+    r = requests.get(org_permissions, headers=get_headers1)
     if r.status_code == 200:
         server_permissions = r.json()
         for key, value in permissions_patch.iteritems():
@@ -300,8 +312,7 @@ def main():
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
         return
     
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN2}
-    r = requests.get(org_permissions, headers=headers)
+    r = requests.get(org_permissions, headers=get_headers2)
     if r.status_code == 403:
         server_permissions = r.json()
         print 'correctly refused to retrieve permissions for USER2'
@@ -312,8 +323,7 @@ def main():
     # Retrieve Acme org heirs
 
     url = urljoin(BASE_URL, '/permissions-heirs?%s' % 'http://apigee.com/o/acme')
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     if r.status_code == 200:
         heirs = r.json()
         if set(heirs['contents']) == {ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS}:
@@ -327,8 +337,7 @@ def main():
     # Retrieve allowed actions
 
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % ('http://apigee.com/o/acme', USER1_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     if r.status_code == 200:
         actions = r.json()
         if all([item in actions for item in ['read', 'update', 'delete']]):
@@ -340,9 +349,8 @@ def main():
 
     # Retrieve resources shared with USER1
 
-    headers = {'Accept': 'application/json','Authorization': 'Bearer %s' % TOKEN1}
     url = urljoin(BASE_URL, '/resources-shared-with?%s' % USER1_E) 
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     if r.status_code == 200:
         resources = r.json()
         if resources == ['http://apigee.com/o/acme']:
@@ -354,7 +362,6 @@ def main():
         print 'failed to retrieve resources-shared-with for %s %s %s' % (USER1, r.status_code, r.text)
         return
     
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     sharingSets = ['/appkeys', '/applications', '/deployments', 'devConnectUser', '/devPortalButton',]    
     for item in sharingSets:
         permissions = {
@@ -362,7 +369,7 @@ def main():
             '_inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'test-data': True
             }
-        r = requests.post(permissions_url, headers=headers, json=permissions)
+        r = requests.post(permissions_url, headers=post_headers1, json=permissions)
         if r.status_code == 201:
             print 'correctly created permissions %s' % r.headers['Location'] 
         else:
@@ -379,7 +386,7 @@ def main():
                 },
             'test-data': True
             }
-        r = requests.post(permissions_url, headers=headers, json=permissions)
+        r = requests.post(permissions_url, headers=post_headers1, json=permissions)
         if r.status_code == 201:
             print 'correctly created permissions %s' % r.headers['Location']
         else:
@@ -395,7 +402,7 @@ def main():
         'test-data': True
         }
 
-    r = requests.post(permissions_url, headers=headers, json=permissions)
+    r = requests.post(permissions_url, headers=post_headers1, json=permissions)
     if r.status_code == 201:
         print 'correctly created permissions %s' % r.headers['Location'] 
         etag = r.headers['Etag']
@@ -406,8 +413,7 @@ def main():
     # Retrieve allowed actions
 
     url = urljoin(BASE_URL, '/users-who-can-access?%s' % 'http://apigee.com/o/acme/keyvaluemaps')
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     if r.status_code == 200:
         users = r.json()
         if all([item in users for item in [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS]]):
@@ -420,10 +426,8 @@ def main():
 
     permissions_patch = {'_inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']}
 
-    patch_headers = {'If-Match': etag}
-    patch_headers.update(headers)
-    patch_headers['Content-Type'] = 'application/merge-patch+json'
-    r = requests.patch(keyvaluemaps_url, headers=patch_headers, json=permissions_patch)
+    patch_headers1 = patch_headers(TOKEN1, etag)
+    r = requests.patch(keyvaluemaps_url, headers=patch_headers1, json=permissions_patch)
     if r.status_code == 200:
         print 'correctly patched permissions of %s' % keyvaluemaps_url
     else:
@@ -434,8 +438,8 @@ def main():
 
     # patch http://acme.org/o/acme permissions (fail)
 
-    headers = {'Accept': 'application/json', 'Content-type': 'application/merge-patch+json', 'Authorization': 'Bearer %s' % TOKEN1, 'If-Match': ACME_ORG_IF_MATCH}
-    r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
+    patch_headers1['If-Match'] = ACME_ORG_IF_MATCH
+    r = requests.patch(org_permissions, headers=patch_headers1, json=permissions_patch)
     if r.status_code == 400:
         print 'correctly refused to patch permissions that inherit from self %s' % r.text 
     else:
@@ -446,7 +450,7 @@ def main():
 
     # patch http://acme.org/o/acme permissions (fail)
 
-    r = requests.patch(org_permissions, headers=headers, json=permissions_patch)
+    r = requests.patch(org_permissions, headers=patch_headers1, json=permissions_patch)
     if r.status_code == 400:
         print 'correctly refused to patch permissions with inheritance cycle %s' % r.text 
     else:
@@ -456,9 +460,8 @@ def main():
     # Retrieve is-allowed for USER1 on http://apigee.com/o/acme
 
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -473,9 +476,8 @@ def main():
     # Retrieve is-allowed for USER1 on http://apigee.com/o/acme/keyvaluemaps
 
     url = urljoin(BASE_URL, '/is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme/keyvaluemaps', USER1_E, 'read'))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN1}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers1)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -490,10 +492,8 @@ def main():
     # Patch permissions for http://apigee.com/o/acme to add keyvaluemaps property
 
     patch = {'keyvaluemaps': {'read': [USER2], 'update': [USER1]}}
-    patch_headers = {'If-Match': ACME_ORG_IF_MATCH}
-    patch_headers.update(headers)
-    patch_headers['Content-Type'] = 'application/merge-patch+json'
-    r = requests.patch(org_permissions, headers=patch_headers, json=patch)
+    patch_headers1['If-Match'] = ACME_ORG_IF_MATCH
+    r = requests.patch(org_permissions, headers=patch_headers1, json=patch)
     if r.status_code == 200:
         org_permissions_etag = r.headers['Etag'] 
         print 'correctly patched permissions of %s' % keyvaluemaps_url
@@ -504,9 +504,8 @@ def main():
     # Retrieve is-allowed for USER1 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER2_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN2}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers2)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -521,9 +520,8 @@ def main():
     # Retrieve is-allowed for USER1 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER2_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN2}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers2)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -538,9 +536,9 @@ def main():
     # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps' % (USER3_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
+    get_headers3 = get_headers(TOKEN3)
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -555,11 +553,8 @@ def main():
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
 
     patch = {'roles': {'http://apigee.com/o/acme': {'/keyvaluemaps': ['read']}}}
-    patch_headers = {'If-Match': ORDINARY_USERS_ETAG}
-    patch_headers.update(headers)
-    patch_headers['Content-Type'] = 'application/merge-patch+json'
-    patch_headers['Authorization'] = 'Bearer %s' % TOKEN1
-    r = requests.patch(urljoin(BASE_URL, ORDINARY_USERS), headers=patch_headers, json=patch)
+    patch_headers1['If-Match'] = ORDINARY_USERS_ETAG
+    r = requests.patch(urljoin(BASE_URL, ORDINARY_USERS), headers=patch_headers1, json=patch)
     if r.status_code == 200:
         ORDINARY_USERS_ETAG = r.headers['Etag'] 
         print 'correctly patched Ordinary Users team to add role'
@@ -570,9 +565,8 @@ def main():
     # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -587,9 +581,8 @@ def main():
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -604,9 +597,8 @@ def main():
     # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/is-allowed?user=%s&action=read&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -620,9 +612,8 @@ def main():
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/allowed-actions?user=%s&action=read&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -636,11 +627,8 @@ def main():
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
 
     patch = {'roles': {'http://apigee.com/o/acme': {'/environments/*': ['read']}}}
-    patch_headers = {'If-Match': ORDINARY_USERS_ETAG}
-    patch_headers.update(headers)
-    patch_headers['Content-Type'] = 'application/merge-patch+json'
-    patch_headers['Authorization'] = 'Bearer %s' % TOKEN1
-    r = requests.patch(urljoin(BASE_URL, ORDINARY_USERS), headers=patch_headers, json=patch)
+    patch_headers1['If-Match'] = ORDINARY_USERS_ETAG
+    r = requests.patch(urljoin(BASE_URL, ORDINARY_USERS), headers=patch_headers1, json=patch)
     if r.status_code == 200:
         ORDINARY_USERS_ETAG = r.headers['Etag'] 
         print 'correctly patched Ordinary Users team %s' % ORDINARY_USERS
@@ -651,9 +639,8 @@ def main():
     # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -667,9 +654,8 @@ def main():
     # Retrieve are-any-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/are-any-allowed?resource=http://apigee.com/o/acme/environments/test&resource=http://apigee.com/o/acme&user=%s&action=read' % (USER3_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -688,9 +674,9 @@ def main():
         'action': 'read' 
     }
     url = urljoin(BASE_URL, '/are-any-allowed')
-    headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
+    post_headers3 = post_headers(TOKEN3)
     start = timer()
-    r = requests.post(url, headers=headers, json=body)
+    r = requests.post(url, headers=post_headers3, json=body)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -704,9 +690,8 @@ def main():
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
     url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
-    headers = {'Accept': 'application/json', 'Authorization': 'Bearer %s' % TOKEN3}
     start = timer()
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()

@@ -7,8 +7,9 @@ export EXTERNAL_SY_ROUTER_PORT="30555"
 export INTERNAL_SY_ROUTER_HOST="minikube"
 export INTERNAL_SY_ROUTER_PORT="30556"
 export EXTERNAL_SCHEME="http"
+export API_KEY="b3BlbnNlc2FtZQ=="
 
-source local-export-pg-connection-variables.sh
+source ../../local-export-pg-connection-variables.sh
 node delete-test-data.js
 echo "deleted test data"
 source ../../renew-tokens.sh
