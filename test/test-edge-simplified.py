@@ -64,7 +64,12 @@ def get_headers(token):
         rslt['Authorization'] = 'Bearer %s' % token
     return rslt
 
-def post_headers(token):
+def post_team_headers(token):
+    rslt = get_headers(token)
+    rslt['Content-Type'] = 'application/json'
+    return rslt
+
+def post_permissions_headers(token):
     rslt = get_headers(token)
     rslt['Content-Type'] = 'application/json'
     rslt['X-Client-Authorization'] = 'Bearer %s' % CLIENT_TOKEN
@@ -92,7 +97,6 @@ def main():
     r = requests.patch(urljoin(BASE_URL, '/permissions?/'), headers=patch_headers1, json=permissions_patch)
     if r.status_code == 200:
         print 'correctly patched /permissions?/ ' 
-        print json.dumps(r.json(), indent = 2)
     else:
         print 'failed to patch /permissions?/ %s %s' % (r.status_code, r.text)
         return
@@ -120,8 +124,8 @@ def main():
     
     # Create permissions for Acme org with USER1 (succeed)
 
-    post_headers1 = post_headers(TOKEN1)
-    r = requests.post(permissions_url, headers=post_headers1, json=permissions)
+    post_permissions_headers1 = post_permissions_headers(TOKEN1)
+    r = requests.post(permissions_url, headers=post_permissions_headers1, json=permissions)
     if r.status_code == 201:
         org_permissions = urljoin(BASE_URL, r.headers['Location'])
         org_permissions_etag = r.headers['Etag'] 
@@ -225,8 +229,8 @@ def main():
         'test-data': True
         }
     url = urljoin(BASE_URL, '/teams') 
-    post_headers1 = post_headers(TOKEN1)
-    r = requests.post(url, headers=post_headers1, json=team)
+    post_team_headers1 = post_team_headers(TOKEN1)
+    r = requests.post(url, headers=post_team_headers1, json=team)
     if r.status_code == 201:
         ORG_ADMINS = r.headers['location']
         print 'correctly created ORG_ADMINS team %s etag: %s' % (ORG_ADMINS, r.headers['Etag'])
@@ -244,7 +248,7 @@ def main():
         'test-data': True
         }
 
-    r = requests.post(url, headers=post_headers1, json=team)
+    r = requests.post(url, headers=post_team_headers1, json=team)
     if r.status_code == 201:
         print 'correctly created team %s etag: %s' % (r.headers['location'], r.headers['Etag'])
         BUSINESS_USERS = r.headers['location']
@@ -260,7 +264,7 @@ def main():
         'members': [USER3],
         'test-data': True 
         }
-    r = requests.post(url, headers=post_headers1, json=team)
+    r = requests.post(url, headers=post_team_headers1, json=team)
     if r.status_code == 201:
         print 'correctly created team %s etag: %s' % (r.headers['location'], r.headers['Etag'])
         ORDINARY_USERS = r.headers['location']
@@ -400,7 +404,7 @@ def main():
             '_inheritsPermissionsOf': ['http://apigee.com/o/acme'],
             'test-data': True
             }
-        r = requests.post(permissions_url, headers=post_headers1, json=permissions)
+        r = requests.post(permissions_url, headers=post_permissions_headers1, json=permissions)
         if r.status_code == 201:
             print 'correctly created permissions %s' % r.headers['Location'] 
         else:
@@ -417,7 +421,7 @@ def main():
                 },
             'test-data': True
             }
-        r = requests.post(permissions_url, headers=post_headers1, json=permissions)
+        r = requests.post(permissions_url, headers=post_permissions_headers1, json=permissions)
         if r.status_code == 201:
             print 'correctly created permissions %s' % r.headers['Location']
         else:
@@ -433,13 +437,14 @@ def main():
         'test-data': True
         }
 
-    r = requests.post(permissions_url, headers=post_headers1, json=permissions)
+    r = requests.post(permissions_url, headers=post_permissions_headers1, json=permissions)
     if r.status_code == 201:
         print 'correctly created permissions %s' % r.headers['Location'] 
         etag = r.headers['Etag']
         keyvaluemaps_url = urljoin(BASE_URL, r.headers['Location'])
     else:
         print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
+        return
 
     # Retrieve allowed actions
 
@@ -705,9 +710,9 @@ def main():
         'action': 'read' 
     }
     url = urljoin(BASE_URL, '/are-any-allowed')
-    post_headers3 = post_headers(TOKEN3)
+    post_team_headers3 = post_team_headers(TOKEN3)
     start = timer()
-    r = requests.post(url, headers=post_headers3, json=body)
+    r = requests.post(url, headers=post_team_headers3, json=body)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
