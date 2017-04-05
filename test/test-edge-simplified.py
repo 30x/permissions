@@ -46,6 +46,16 @@ USER3_CLAIMS = json.loads(b64_decode(TOKEN3.split('.')[1]))
 USER3 = '%s#%s' % (USER3_CLAIMS['iss'], USER3_CLAIMS['sub'])
 USER3_E = USER3.replace('#', '%23')
 
+if 'CLIENT_TOKEN' in env:
+    CLIENT_TOKEN = env['CLIENT_TOKEN']
+else:
+    with open('client-token.txt') as f:
+        CLIENT_TOKEN = f.read()
+CLIENT_TOKEN_CLAIMS = json.loads(b64_decode(CLIENT_TOKEN.split('.')[1]))      
+CLIENT_ID = '%s#%s' % (CLIENT_TOKEN_CLAIMS['iss'], CLIENT_TOKEN_CLAIMS['sub'])
+CLIENT_ID_E = CLIENT_TOKEN.replace('#', '%23')
+print CLIENT_TOKEN, CLIENT_ID
+
 def get_headers(token):
     rslt = {'Accept': 'application/json'}
     if API_KEY:
@@ -57,6 +67,7 @@ def get_headers(token):
 def post_headers(token):
     rslt = get_headers(token)
     rslt['Content-Type'] = 'application/json'
+    rslt['X-Client-Authorization'] = 'Bearer %s' % CLIENT_TOKEN
     return rslt
 
 def patch_headers(token, if_match):
@@ -66,7 +77,26 @@ def patch_headers(token, if_match):
     return rslt
 
 def main():
-    
+
+    get_headers1 = get_headers(TOKEN1)
+    r = requests.get(urljoin(BASE_URL, '/permissions?/') , headers=get_headers1)
+    if r.status_code == 200:
+        print 'correctly retrieved /permissions?/ etg: %s' % r.headers['Etag'] 
+        slash_etag = r.headers['Etag'] 
+    else:
+        print 'failed to retrieve /permissions?/ %s %s' % (r.status_code, r.text)
+        return
+
+    permissions_patch = {"permissions":  {"read": [CLIENT_ID], "create": [CLIENT_ID]}}
+    patch_headers1 = patch_headers(TOKEN1, slash_etag)
+    r = requests.patch(urljoin(BASE_URL, '/permissions?/'), headers=patch_headers1, json=permissions_patch)
+    if r.status_code == 200:
+        print 'correctly patched /permissions?/ ' 
+        print json.dumps(r.json(), indent = 2)
+    else:
+        print 'failed to patch /permissions?/ %s %s' % (r.status_code, r.text)
+        return
+        
     org_url = 'http://apigee.com/o/acme'
     permissions = {
         '_subject': org_url,
@@ -90,8 +120,8 @@ def main():
     
     # Create permissions for Acme org with USER1 (succeed)
 
-    get_headers1 = get_headers(TOKEN1)
-    r = requests.post(permissions_url, headers=get_headers1, json=permissions)
+    post_headers1 = post_headers(TOKEN1)
+    r = requests.post(permissions_url, headers=post_headers1, json=permissions)
     if r.status_code == 201:
         org_permissions = urljoin(BASE_URL, r.headers['Location'])
         org_permissions_etag = r.headers['Etag'] 
@@ -102,6 +132,7 @@ def main():
     
     # Get allowed-actions for USER1 on org
 
+    get_headers1 = get_headers(TOKEN1)
     url = urljoin(BASE_URL, '/allowed-actions?resource=%s&user=%s' % (org_url ,USER1_E)) 
     r = requests.get(url, headers=get_headers1)
     if r.status_code == 200:
