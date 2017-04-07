@@ -36,4 +36,4 @@ USER3_CLAIMS = json.loads(b64_decode(TOKEN3.split('.')[1]))
 USER3 = '%s#%s' % (USER3_CLAIMS['iss'], USER3_CLAIMS['sub'])
 USER3_E = USER3.replace('#', '%23')
 
-print json.dumps([USER1, USER2, USER3])
+print json.dumps([x.split('#')[1] for x in [USER1, USER2, USER3]])
