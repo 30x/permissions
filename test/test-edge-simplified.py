@@ -54,7 +54,6 @@ else:
 CLIENT_TOKEN_CLAIMS = json.loads(b64_decode(CLIENT_TOKEN.split('.')[1]))      
 CLIENT_ID = '%s#%s' % (CLIENT_TOKEN_CLAIMS['iss'], CLIENT_TOKEN_CLAIMS['sub'])
 CLIENT_ID_E = CLIENT_TOKEN.replace('#', '%23')
-print CLIENT_TOKEN, CLIENT_ID
 
 def get_headers(token):
     rslt = {'Accept': 'application/json'}
@@ -299,8 +298,7 @@ def main():
             'read': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
             'delete': [ORG_ADMINS],
             'admin': [ORG_ADMINS],
-            'govern': [ORG_ADMINS]
-            
+            'govern': [ORG_ADMINS]            
             },
         '_permissionsHeirs': {
             'add': [ORG_ADMINS, BUSINESS_USERS, ORDINARY_USERS],
