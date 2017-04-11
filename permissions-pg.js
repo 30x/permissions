@@ -80,6 +80,10 @@ function init(callback) {
           console.log('permissions-db: connected to PG: ', config)
           var permissions = {
             "_subject": "/", 
+            "_permissionsHeirs": {
+              "add": [ANYONE]
+              },
+            "permissions":  {"create": [ANYONE]}, 
             "teams":        {"read": [ANYONE], "create": [ANYONE]}, 
             "folders":      {"read": [ANYONE], "create": [ANYONE]}, 
             "_self":        {"read": [ANYONE], "update": [ANYONE], "admin": [ANYONE], "govern": [ANYONE]}

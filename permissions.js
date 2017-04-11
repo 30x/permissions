@@ -119,7 +119,7 @@ function scanNextPermissionsCacheShard(ageLimit) {
 }
 
 function scanTeamsCache(ageLimit) {
-  console.log('scanning teams cache')
+  log('scanTeamsCache', 'scanning teams cache')
   for (var teamURL in teamsCache) {
     var team = teamsCache[teamURL]
     if (team)
@@ -372,7 +372,7 @@ function withPermissionFlagDo(req, res, subject, property, action, base, path, w
           scopes.push(permissions._subject)
         var opinion = isActionAllowed(permissions, property, actors, action)
         if (opinion == true) { // someone says its OK, but there may be  a veto later
-          allowed = allowed == null && true
+          allowed = allowed == null || allowed == true
           return false // keep going
         } else if (opinion == false) {
           allowed = false
