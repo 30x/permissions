@@ -15,7 +15,7 @@
   "devDependencies": {
     "d3-random": "^1.0.2",
     "fast-stats": "0.0.3",
-    "pg-event-producer": "0.0.33"
+    "pg-event-producer": "0.0.38"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

@@ -2,3 +2,4 @@ node_modules
 ttx.txt
 *.dat
 .vscode
+test/local-export-pg-connection-variables.sh

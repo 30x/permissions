@@ -143,12 +143,10 @@ function getAllowedActions(req, res, queryString) {
   if (resource !==undefined)
     resource = lib.internalizeURL(resource, req.headers.host)
   var user = queryParts.user
-  var path = queryParts.path
-  var base = queryParts.base
   var property = queryParts.property || '_self'
-  log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property} base: ${base} path: ${path}`)
+  log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property}`)
   if (user == lib.getUser(req.headers.authorization)) 
-    withAllowedActionsDo(req, res, resource, property, user, base, path, function(allowedActions) {
+    withAllowedActionsDo(req, res, resource, property, user, function(allowedActions) {
       rLib.found(res, allowedActions, req.headers.accept, req.url)
     })
   else
@@ -216,7 +214,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
   if (permissions !== undefined && permissions !== null) {
     callback(permissions)
   } else {
-    function checkResult(err, permissions, etag) {
+    let checkResult = function checkResult(err, permissions, etag) {
       if (err == 404)
         addToPermissionsCache(resource, null)
       if (err)
@@ -331,31 +329,40 @@ function withActorsForUserDo(req, res, user, callback) {
 }
 
 function pathPatternMatch(pathPatternParts, pathParts) {
-  for (var j=0; j < pathPatternParts.length && j < pathParts.length; j++) {
-    var patternSegement = pathPatternParts[j]
+  for (let j=0; j < pathParts.length; j++) {
+    let patternSegement = pathPatternParts[j]
     if (patternSegement != '*' && patternSegement != pathParts[j])
       return false
   }
-  return true
+  // return false if the permission's path is more granular than resource path provided
+  return pathPatternParts.length <= pathParts.length;
 }
 
-function calculateRoleActions(roles, base, pathParts) {
-  if (roles != null && base in roles) {
-    var role = roles[base]
-    for (var i=0; i<role.length; i++)
-      if (pathPatternMatch(role[i].path, pathParts))
-        return role[i].actions
+function calculateRoleActions(roles, resource) {
+  if (roles != null){
+    let bases = Object.keys(roles)
+    for(let i=0; i < bases.length; i++){
+      if (resource.startsWith(bases[i])) {
+        let pathParts = resource.substring(bases[i].length, resource.length).split('/')
+        let rolePermissions = roles[bases[i]]
+        for (let j=0; j<rolePermissions.length; j++){
+          if (pathPatternMatch(rolePermissions[j].path, pathParts)){
+            return rolePermissions[j].actions
+          }
+        }
+      }
+    }
   }
   return null
 }
 
-function withPermissionFlagDo(req, res, subject, property, action, base, path, withScopes, callback) {
+function withPermissionFlagDo(req, res, subject, property, action, withScopes, callback) {
   function calculateFlagForActors (actors) {  
     function checkRoles(answer, scopes) {
       for (let i = 1; i < actors.length && answer === null ; i++) {
-        var roles = retrieveFromTeamsCache(actors[i]).roles // touching the teamsCache will keep entry alive
-        if (answer === null && base != null && path != null) {
-          var actions = calculateRoleActions(roles, base, path.split('/'))
+        let roles = retrieveFromTeamsCache(actors[i]).roles // touching the teamsCache will keep entry alive
+        if (answer === null && subject != null) {
+          let actions = calculateRoleActions(roles, subject)
           if (actions !== null && actions.indexOf(action) > -1)
             answer = true
         }
@@ -427,15 +434,14 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback, errorCallbac
   withAncestorPermissionsSubtreeDo(subject, tree, callback, errorCallback)
 }
 
-function withAllowedActionsDo(req, res, resource, property, user, base, path, callback) {
+function withAllowedActionsDo(req, res, resource, property, user, callback) {
   withActorsForUserDo(req, res, user, function(actors) {
     function calculateAllRoleActions(actions) {
-      if (base && path) {
-        var pathParts = path.split('/')
+      if (resource) {
         for (let i=1; i<actors.length; i++) {
-          var roles = retrieveFromTeamsCache(actors[i]).roles
+          let roles = retrieveFromTeamsCache(actors[i]).roles
           if (roles != null) {
-            var roleActions = calculateRoleActions(roles, base, pathParts)
+            let roleActions = calculateRoleActions(roles, resource)
             if (roleActions !== null)
               for (let i = 0; i < roleActions.length; i++)
                 actions[roleActions[i]] = true
@@ -449,10 +455,10 @@ function withAllowedActionsDo(req, res, resource, property, user, base, path, ca
     else
       withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
         var entityCalculations = calculateEntityActions(tree, actors)
-        var entityActions = Object.keys(entityCalculations[0])
+        var entityActions = entityCalculations[0]
         var wideningForbidden = entityCalculations[1]
-        if (wideningForbidden || actors.length <=1 || path === undefined || base === undefined)
-          callback(entityActions)
+        if (wideningForbidden || actors.length <=1)
+          callback(Object.keys(entityActions))
         else 
           calculateAllRoleActions(entityActions)
       }, function(err) {
@@ -496,14 +502,12 @@ function isAllowed(req, res, queryParts, callback) {
   var user = queryParts.user
   var action = queryParts.action
   var property = queryParts.property || '_self'
-  var path = queryParts.path
-  var base = queryParts.base
   var withScopes = queryParts.withScopes == '' || queryParts.withScopes
   var withIndividualAnswers = queryParts.withIndividualAnswers == '' || queryParts.withIndividualAnswers
   var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} base: ${base} path: ${path} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
+  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
@@ -515,7 +519,7 @@ function isAllowed(req, res, queryParts, callback) {
       var responded = false
       for (let i = 0; i< resources.length; i++) // multiple resources is interpreted to mean that the user must have access to all of them. A different API that answers "any of them" might be useful.
         if (!responded)
-          withPermissionFlagDo(req, res, resources[i], property, action, base, path, withScopes, function(answer, scopes) {
+          withPermissionFlagDo(req, res, resources[i], property, action, withScopes, function(answer, scopes) {
             if (!responded) {
               finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
               if (withScopes)
@@ -570,7 +574,7 @@ function areAnyAllowed(req, res, queryParts) {
         var responded = false
         for (let i = 0; i< resources.length; i++)
           if (!responded)
-            withPermissionFlagDo(req, res, resources[i], property, action, null, null, null, function(answer) {
+            withPermissionFlagDo(req, res, resources[i], property, action, null, function(answer) {
               if (!responded) {
                 if (answer || ++count == resources.length) {
                   rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
@@ -631,7 +635,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         if (removedAncestors.length > 0) {
           let count = 0
           for (let i=0; i < removedAncestors.length; i++)
-            withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', null, null, false, function(answer) {
+            withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', false, function(answer) {
               if (!responded) 
                 if (!answer) {
                   responded = true
@@ -649,7 +653,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         if (addedAncestors.length > 0) {
           let count = 0
           for (let i=0; i < addedAncestors.length; i++) 
-            withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', null, null, false, function(answer) {
+            withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', false, function(answer) {
               if (!responded)
                 if (!answer) {
                   responded = true
@@ -678,7 +682,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
     checkPotentialAncestors([], sharingSets)
   else {
     subject = lib.internalizeURL(subject, req.headers.host)
-    withPermissionFlagDo(req, res, subject, '_self', 'admin', null, null, false, function(answer) {
+    withPermissionFlagDo(req, res, subject, '_self', 'admin', false, function(answer) {
       if (answer)
         withExistingAncestorsDo(subject, function(existingAncestors) {
           checkPotentialAncestors(existingAncestors, sharingSets)

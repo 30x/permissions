@@ -582,7 +582,7 @@ def main():
             print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
             return
     else:
-        print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
 
@@ -596,67 +596,37 @@ def main():
         print 'failed to patch Ordinary Users team %s %s' % (r.status_code, r.text)
         return
 
-    # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+    # Retrieve is-allowed for USER3 on http://apigee.com/o/acme/keyvaluemaps
 
-    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
+    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme/keyvaluemaps&user=%s&action=read' % (USER3_E))
     start = timer()
     r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
         if answer:
-            print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+            print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme/keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
-            print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
+            print 'incorrect returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER3 %s' % answer
             return
     else:
-        print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme/keyvaluemaps for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
-    url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme&user=%s&action=read&property=keyvaluemaps&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
+    url = urljoin(BASE_URL, '/allowed-actions?resource=http://apigee.com/o/acme/keyvaluemaps&user=%s&action=read' % (USER3_E))
     start = timer()
     r = requests.get(url, headers=get_headers3)
     end = timer()
     if r.status_code == 200:
         answer = r.json()
         if 'read' in answer:
-            print 'correctly returned allowed-actions (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+            print 'correctly returned allowed-actions (%s) of http://apigee.com/o/acme/keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
-            print 'incorrect returned allowed-action of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
+            print 'incorrect returned allowed-action of http://apigee.com/o/acme/keyvaluemaps for USER3 %s' % answer
             return
     else:
-        print 'failed to return allowed-actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
-
-    # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
-
-    url = urljoin(BASE_URL, '/is-allowed?user=%s&action=read&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
-    start = timer()
-    r = requests.get(url, headers=get_headers3)
-    end = timer()
-    if r.status_code == 200:
-        answer = r.json()
-        if answer:
-            print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
-        else:
-            print 'incorrect returned is-allowed of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
-    else:
-        print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
-
-    # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
-
-    url = urljoin(BASE_URL, '/allowed-actions?user=%s&action=read&base=http://apigee.com/o/acme&path=/keyvaluemaps' % (USER3_E))
-    start = timer()
-    r = requests.get(url, headers=get_headers3)
-    end = timer()
-    if r.status_code == 200:
-        answer = r.json()
-        if 'read' in answer:
-            print 'correctly returned allowed-actions (%s) of http://apigee.com/o/acme property: keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
-        else:
-            print 'incorrect returned allowed-action of http://apigee.com/o/acme property: keyvaluemaps for USER3 %s' % answer
-    else:
-        print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+        print 'failed to return allowed-actions of http://apigee.com/o/acme/keyvaluemaps for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
 
@@ -672,7 +642,7 @@ def main():
 
     # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
-    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
+    url = urljoin(BASE_URL, '/is-allowed?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read' % (USER3_E))
     start = timer()
     r = requests.get(url, headers=get_headers3)
     end = timer()
@@ -683,7 +653,7 @@ def main():
         else:
             print 'incorrect returned is-allowed of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
     else:
-        print 'failed to return is-allowed actions of http://apigee.com/o/acme/environments/test for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
     # Retrieve are-any-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
@@ -698,7 +668,7 @@ def main():
         else:
             print 'incorrect returned are-any-allowed of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 %s' % answer
     else:
-        print 'failed to return are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+        print 'failed to return are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
     # POST are-any-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
@@ -719,7 +689,7 @@ def main():
         else:
             print 'incorrect returned from POST to are-any-allowed of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 %s' % answer
     else:
-        print 'failed to return POST to are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+        print 'failed to return POST to are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
@@ -734,7 +704,8 @@ def main():
         else:
             print 'incorrect returned allowed-actions of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
     else:
-        print 'failed to return allowed-actions of http://apigee.com/o/acme/environments/test for USER2 status_code: %s text: %s' % (r.status_code, r.text)
+        print 'failed to return allowed-actions of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
+    print 'finished test suite'
 if __name__ == '__main__':
     main()
