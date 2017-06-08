@@ -1,6 +1,6 @@
 'use strict'
 const Pool = require('pg').Pool
-const rLib = require('response-helper-functions')
+const rLib = require('@apigee/response-helper-functions')
 const db = require('./teams-pg.js')
 
 function withErrorHandling(req, res, callback) {

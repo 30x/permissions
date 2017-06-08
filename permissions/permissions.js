@@ -1,11 +1,11 @@
 'use strict'
 const http = require('http')
-const lib = require('http-helper-functions')
-const rLib = require('response-helper-functions')
+const lib = require('@apigee/http-helper-functions')
+const rLib = require('@apigee/response-helper-functions')
 const db = require('./permissions-pg.js')
 const querystring = require('querystring')
 const url = require('url')
-const pge = require('pg-event-consumer')
+const pge = require('@apigee/pg-event-consumer')
 
 const ANYONE = 'http://apigee.com/users#anyone'
 const INCOGNITO = 'http://apigee.com/users#incognito'

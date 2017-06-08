@@ -20,21 +20,21 @@ MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo "cd into ${MYDIR}/.."
 cd "${MYDIR}/.."
 
-PG_VAR_FILE="${MYDIR}/../../local-export-pg-connection-variables.sh"
+PG_VAR_FILE="${MYDIR}/../local-export-pg-connection-variables.sh"
 if [[ -f "$PG_VAR_FILE" ]]; then
     echo "Sourcing in ${PG_VAR_FILE}"
     source "$PG_VAR_FILE" || exit 1
 else
-    echo "Please create a file called local-export-pg-connection-variables.sh in parent dir of permissions (../../${MYDIR})"
+    echo "Please create a file called local-export-pg-connection-variables.sh in parent dir of permissions (${MYDIR}/../)"
 	exit 1
 fi
 
-EXPORT_VAR_FILE="${MYDIR}/../../export-e2e-variables.sh"
+EXPORT_VAR_FILE="${MYDIR}/../export-e2e-variables.sh"
 if [[ -f "$EXPORT_VAR_FILE" ]]; then
 	echo "Sourcing in file $EXPORT_VAR_FILE"
 	source $EXPORT_VAR_FILE || exit 1
 else
-    echo "Please create a file called export-e2e-variables.sh in parent dir of permissions (../../${MYDIR})"
+    echo "Please create a file called export-e2e-variables.sh in parent dir of permissions (${MYDIR}/../)"
 	exit 1
 fi
 

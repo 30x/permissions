@@ -9,9 +9,9 @@ and is warranted by the difficulty of the problem being solved.
 const http = require('http')
 const url = require('url')
 const querystring = require('querystring')
-const lib = require('http-helper-functions')
-const pLib = require('permissions-helper-functions')
-const rLib = require('response-helper-functions')
+const lib = require('@apigee/http-helper-functions')
+const pLib = require('@apigee/permissions-helper-functions')
+const rLib = require('@apigee/response-helper-functions')
 const db = require('./permissions-maintenance-db.js')
 
 const INTERNAL_SCHEME = process.env.INTERNAL_SCHEME || 'http'

@@ -1,6 +1,6 @@
 'use strict'
 var Pool = require('pg').Pool
-var rLib = require('response-helper-functions')
+var rLib = require('@apigee/response-helper-functions')
 const db = require('./folders-pg.js')
 
 function withErrorHandling(res, callback) {

@@ -1,10 +1,10 @@
 'use strict'
 const http = require('http')
 const url = require('url')
-const lib = require('http-helper-functions')
+const lib = require('@apigee/http-helper-functions')
 const db = require('./audit-pg.js')
-const pLib = require('permissions-helper-functions')
-const rLib = require('response-helper-functions')
+const pLib = require('@apigee/permissions-helper-functions')
+const rLib = require('@apigee/response-helper-functions')
 const querystring = require('querystring')
 
 function getAuditEventsForScope(req, res, scope) {

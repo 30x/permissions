@@ -1,6 +1,6 @@
 'use strict'
-const lib = require('http-helper-functions')
-const rLib = require('response-helper-functions')
+const lib = require('@apigee/http-helper-functions')
+const rLib = require('@apigee/response-helper-functions')
 const db = require('./permissions-maintenance-pg.js')
 
 function withErrorHandling(req, res, callback) {

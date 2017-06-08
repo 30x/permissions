@@ -1,7 +1,7 @@
 'use strict';
 const Pool = require('pg').Pool;
-const lib = require('http-helper-functions');
-const pge = require('pg-event-producer');
+const lib = require('@apigee/http-helper-functions');
+const pge = require('@apigee/pg-event-producer');
 const randomBytes = require('crypto').randomBytes
 
 const ANYONE = 'http://apigee.com/users/anyone';

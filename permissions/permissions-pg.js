@@ -1,6 +1,6 @@
 'use strict'
 var Pool = require('pg').Pool
-var lib = require('http-helper-functions')
+var lib = require('@apigee/http-helper-functions')
 const ANYONE = 'http://apigee.com/users#anyone'
 
 var config = {

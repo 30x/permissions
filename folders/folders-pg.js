@@ -1,6 +1,6 @@
 'use strict'
 var Pool = require('pg').Pool
-var lib = require('http-helper-functions')
+var lib = require('@apigee/http-helper-functions')
 
 var config = {
   host: process.env.PG_HOST,

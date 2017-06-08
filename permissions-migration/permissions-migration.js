@@ -2,10 +2,10 @@
 const http = require('http')
 const https = require('https')
 const url = require('url')
-const lib = require('http-helper-functions')
-const rLib = require('response-helper-functions')
+const lib = require('@apigee/http-helper-functions')
+const rLib = require('@apigee/response-helper-functions')
 const templates = require('./templates.js')
-const pLib = require('permissions-helper-functions')
+const pLib = require('@apigee/permissions-helper-functions')
 const db = require('./permissions-migration-pg.js')
 
 const CONFIGURED_EDGE_ADDRESS = process.env.EDGE_ADDRESS // something of the form https://api.e2e.apigee.net or https://api.enterprise.apigee.net

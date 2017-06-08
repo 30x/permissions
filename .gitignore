@@ -4,3 +4,4 @@ ttx.txt
 .vscode
 .DS_Store
 local-export-pg-connection-variables.sh
+export-e2e-variables.sh

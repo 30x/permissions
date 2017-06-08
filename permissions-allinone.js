@@ -1,7 +1,7 @@
 'use strict'
 const http = require('http')
 const url = require('url')
-const rLib = require('response-helper-functions')
+const rLib = require('@apigee/response-helper-functions')
 const Pool = require('pg').Pool;
 const microServices = [
   require('./permissions/permissions.js'),
