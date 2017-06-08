@@ -1,0 +1,1 @@
+curl -i -X POST  -H "Authorization: Bearer ${APIGEE_TOKEN}" localhost:8080/az-teams -d@team-apigee.json

@@ -1,0 +1,17 @@
+{
+  "name": "permissions-migration",
+  "version": "0.0.1",
+  "description": "migrate edge roles into the permissions service",
+  "main": "permissions-migration.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Michael Russo",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@apigee/http-helper-functions": "*",
+    "@apigee/permissions-helper-functions": "*",
+    "pg": "^6.0.3",
+    "@apigee/response-helper-functions": "*"
+  }
+}

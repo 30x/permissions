@@ -1,0 +1,13 @@
+{"isA": "Permissions",
+ "governs": {
+  "self": "http://localhost:8080/az-teams",
+  "creators": ["http://apigee.com/users/anyone"],
+  "readers": ["http://apigee.com/users/anyone"],
+  "updaters": ["http://apigee.com/users/anyone"],
+  "deleters": ["http://apigee.com/users/anyone"]
+ },
+"creators": ["http://apigee.com/users/anyone"],
+"readers": ["http://apigee.com/users/anyone"],
+"updaters": ["http://apigee.com/users/anyone"],
+"deleters": ["http://apigee.com/users/anyone"]
+}

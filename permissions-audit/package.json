@@ -1,0 +1,19 @@
+{
+  "name": "audits",
+  "version": "0.0.15",
+  "description": "",
+  "main": "audits.js",
+  "dependencies": {
+    "@apigee/http-helper-functions": "*",
+    "@apigee/permissions-helper-functions": "*",
+    "pg": "^6.0.3",
+    "@apigee/pg-event-producer": "*",
+    "@apigee/response-helper-functions": "*"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Martin Nally",
+  "license": "Apache-2.0"
+}

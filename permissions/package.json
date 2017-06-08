@@ -1,0 +1,23 @@
+{
+  "name": "permissions",
+  "version": "0.0.1",
+  "description": "Service that checks permissions",
+  "main": "permissions.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "@apigee/http-helper-functions": "*",
+    "pg": "^6.0.3",
+    "@apigee/pg-event-consumer": "*",
+    "@apigee/response-helper-functions": "*"
+  },
+  "devDependencies": {
+    "d3-random": "^1.0.2",
+    "fast-stats": "0.0.3",
+    "@apigee/pg-event-producer": "*"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

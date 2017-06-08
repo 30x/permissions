@@ -1,0 +1,1 @@
+docker push thirtyx/folders:0.0.24

@@ -1,0 +1,69 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: folders
+  labels:
+    name: folders
+  namespace: apigee
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: folders
+  template:
+    metadata:
+      labels:
+        component: folders
+        routable: "true"
+      annotations:
+        privateHosts: sso.k8s.dev
+        privatePaths: 3000:/folders
+    spec:
+      containers:
+      - name: folders
+        image: folders
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: PORT
+            value: "3000"
+          - name: PG_HOST
+            valueFrom:
+              secretKeyRef:
+                name: permissions
+                key: pghost
+          - name: PG_USER
+            valueFrom:
+              secretKeyRef:
+                name: permissions
+                key: pguser
+          - name: PG_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: permissions
+                key: pgpassword
+          - name: PG_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: permissions
+                key: pgdatabase
+          - name: SHIPYARD_PRIVATE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: routing
+                key: private-api-key
+          - name: SPEEDUP
+            value: "10" 
+          - name: INTERNAL_SY_ROUTER_HOST
+            value: "kubernetes_host_ip"
+          - name: INTERNAL_SY_ROUTER_PORT
+            value: "30556"
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name            
+          - name: IPADDRESS
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP          
+        ports:
+          - containerPort: 3000

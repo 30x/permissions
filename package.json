@@ -1,0 +1,27 @@
+{
+  "name": "allinone",
+  "version": "0.0.1",
+  "description": "",
+  "main": "permissions-allinone.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Martin Nally",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "pg": "^6.0.3",
+    "@apigee/http-helper-functions": "*",
+    "@apigee/pg-event-consumer": "*",
+    "@apigee/pg-event-producer": "*",
+    "@apigee/response-helper-functions": "*",
+    "@apigee/permissions-helper-functions": "*"
+  },
+  "devDependencies": {
+    "d3-random": "^1.0.2",
+    "fast-stats": "0.0.3",
+    "@apigee/pg-event-producer": "*"
+  }
+}
