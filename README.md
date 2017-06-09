@@ -1,3 +1,32 @@
+# Setup
+create a file local-export-pg-connection-variables.sh
+``` #!/bin/bash
+
+export PG_HOST=127.0.0.1
+export PG_USER=
+export PG_PASSWORD=
+export PG_DATABASE=permissions
+```
+
+create a file local-export-system-variables.sh
+```#!/bin/bash
+
+export IPADDRESS="127.0.0.1"
+export PORT=3200
+export COMPONENT_NAME="permissions"
+export SPEEDUP=10
+export EXTERNAL_SY_ROUTER_HOST="localhost"
+export EXTERNAL_SY_ROUTER_PORT="3200"
+export INTERNAL_SY_ROUTER_HOST="localhost"
+export INTERNAL_SY_ROUTER_PORT="3200"
+export EXTERNAL_SCHEME="http"
+export PERMISSIONS_CLIENTID=""
+export PERMISSIONS_CLIENTSECRET=""
+```
+
+Run `./test/run-permissions-allinone.sh`
+Run `cd test && test-edge-simplified.sh`
+
 # Permissions Service
 
 The overall "Permissions Capability" is made up of 4 microservices that work together

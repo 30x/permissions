@@ -127,7 +127,7 @@ mfa_validation() {
 
 get_sso_server() {
 	if [ -z "$SSO_LOGIN_URL" ]; then
-		export SSO_LOGIN_URL=https://login.apigee.com
+		export SSO_LOGIN_URL=https://login.e2e.apigee.net
 	fi
     	if [ -z "$mfa_token" ]; then
 		SSO_URL=$SSO_LOGIN_URL/oauth/token

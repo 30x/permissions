@@ -4,4 +4,6 @@ ttx.txt
 .vscode
 .DS_Store
 local-export-pg-connection-variables.sh
-export-e2e-variables.sh
+local-export-system-variables.sh
+test/generate_jordan_tokens.sh
+test/token*.txt

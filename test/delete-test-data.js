@@ -1,6 +1,6 @@
 'use strict'
 var Pool = require('pg').Pool
-var pge = require('pg-event-producer')
+var pge = require('@apigee/pg-event-producer')
 
 var config = {
   host: process.env.PG_HOST,
