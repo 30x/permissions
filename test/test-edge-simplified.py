@@ -237,6 +237,17 @@ def main():
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
         return
     
+
+    # Get Acme Org Admins accessible resources
+
+    tmp_url = urljoin(BASE_URL, '/az-resources-accessible-by-team-members?%s' % (ORG_ADMINS)) 
+    r = requests.get(tmp_url, headers=get_headers(TOKEN1))
+    if r.status_code == 200:
+        print 'correctly retrieved /az-resources-accessible-by-team-members ORG_ADMINS team %s' % (ORG_ADMINS)
+    else:
+        print 'failed to retrieve /az-resources-accessible-by-team-members team %s %s - cannot continue' % (r.status_code, r.text)
+        return
+
     # Create Acme Business Users team
 
     team = {
@@ -290,7 +301,7 @@ def main():
     else:
         print 'failed to retrieve permissions %s %s' % (r.status_code, r.text)
         return
-
+    
     permissions_patch = {
         '_subject': 'http://apigee.com/o/acme',
         '_self': { 

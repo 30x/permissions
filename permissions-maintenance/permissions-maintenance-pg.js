@@ -124,7 +124,7 @@ function withHeirsDo(req, securedObject, callback) {
   var query, args
   if (Array.isArray(securedObject)) {
     const delim = generateDelimiter()
-    query = `SELECT DISTINCT subject, data FROM permissions WHERE data->'_inheritsPermissionsOf' ?| array[${actors.map(x => `$${delim}$${x}$${delim}$`).join(',')}]`
+    query = `SELECT DISTINCT subject, data FROM permissions WHERE data->'_inheritsPermissionsOf' ?| array[${securedObject.map(x => `$${delim}$${x}$${delim}$`).join(',')}]`
   } else {
     query = "SELECT subject, data FROM permissions WHERE data->'_inheritsPermissionsOf' ? $1"
     args = [securedObject]

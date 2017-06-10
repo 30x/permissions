@@ -150,6 +150,16 @@ def main():
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
     
+    # Get Org Admins Team Resource list
+    
+    url = 'http://localhost:8080' + '/az-resources-accessible-by-team-members?' + TEAM1 
+    headers = {'Accept': 'application/json', 'Authorization': 'BEARER %s' % TOKEN1}
+    r = requests.post(url, headers=headers, json=team)
+    if r.status_code == 200:
+        print 'correctly retrieved team resources'
+    else:
+        print 'failed to retrieve team resources %s %s - cannot continue' % (r.status_code, r.text)
+
     # Patch Acme org permissions to use team
 
     permissions_patch = {

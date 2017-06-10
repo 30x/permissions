@@ -415,17 +415,19 @@ function getResourcesSharedWithTeamTransitively(req, res, team) {
   var hrstart = process.hrtime()
   log('getResourcesSharedWithTeamTransitively', `start team: ${team}`)
   function withHeirsRecursive(req, res, resources, result, callback) {
-    db.withHeirsDo(req, res, resources, function(heirs) {
-      if (heirs.length > 0) {
+      db.withHeirsDo(req, res, resources, function(heirs) {
+        // result is a list heirs that will be returns back to the query'er
         heirs = heirs.filter(heir => result.indexOf(heir) == -1)
-        for (let i = 0; i < heirs.length; i++) 
-          result.push(heirs[i])
-        withHeirsRecursive(req, res, heirs, result, function(){
-          callback(result)                
-        })
-      } else
-        callback(result)
-    })
+        // Need to do a length check here to hop out on an empty array
+        if (heirs.length > 0) {
+          for (let i = 0; i < heirs.length; i++) 
+            result.push(heirs[i])
+          withHeirsRecursive(req, res, heirs, result, function(){
+            callback(result)                
+          })
+        } else
+          callback(result)
+      })
   }
   pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, team, '_self', 'update', function() {
     db.withResourcesSharedWithActorsDo(req, res, [team], function(resources) {
@@ -437,13 +439,13 @@ function getResourcesSharedWithTeamTransitively(req, res, team) {
         var result = resources.slice()
         withHeirsRecursive(req, res, resources, result, function(){
           envelope.contents = result
-          lrLibib.found(res, envelope, req.headers.accept, req.url)
+          rLib.found(res, envelope, req.headers.accept, req.url)
           var hrend = process.hrtime(hrstart)
           log('getResourcesSharedWithTeamTransitively', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
         })
       } else {
         envelope.contents = resources
-        lirLibb.found(res, envelope, req.headers.accept, req.url)
+        rLib.found(res, envelope, req.headers.accept, req.url)
         var hrend = process.hrtime(hrstart)
         log('getResourcesSharedWithTeamTransitively', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
       }        
