@@ -1,0 +1,14 @@
+#!/bin/bash
+# SYNOPSIS: setup [-f CONFIG]
+#
+# FLAGS: -f CONFIG (optional) apply settings from given CONFIG file.
+#
+# ARGUMENTS: none
+#
+# EXIT_STATUS:
+# 0 - success
+# 1 - failure
+#
+
+
+exit 0

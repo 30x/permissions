@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Load the env variables that the application requires
+if [ -f "$COMPONENT_ROOT/bin/config.sh" ]; then
+    source "$COMPONENT_ROOT/bin/config.sh"
+fi
+
+APPLICATION_EXE="node"
+EXTRA_ARGS="${COMPONENT_ROOT}/app/permissions-allinone.js"

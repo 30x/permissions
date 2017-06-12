@@ -7,3 +7,6 @@ local-export-pg-connection-variables.sh
 local-export-system-variables.sh
 test/generate_jordan_tokens.sh
 test/token*.txt
+.idea
+apigee-permissions-allinone.tar.gz
+build/rpm/app/

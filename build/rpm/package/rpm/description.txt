@@ -1,0 +1,1 @@
+Apigee Permissions service provides a entity based access control permissions API.
