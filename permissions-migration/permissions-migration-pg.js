@@ -53,7 +53,7 @@ function getMigrationsOlderThan(time, callback) {
 
 function setMigratingFlag(orgURL, newRecord, callback) {
   var time = Date.now()
-  var query = 'INSERT INTO migrations (orgURL, startTime, endTime, data) values ($1, ${time}, 0, $2) ON CONFLICT (orgURL) DO UPDATE SET startTime = EXCLUDED.startTime WHERE migrations.endTime > migrations.startTime OR (migrations.startTime > migrations.endTime AND migrations.startTime <  ${time - 30000}) RETURNING data'
+  var query = `INSERT INTO migrations (orgURL, startTime, endTime, data) values ($1, ${time}, 0, $2) ON CONFLICT (orgURL) DO UPDATE SET startTime = EXCLUDED.startTime WHERE migrations.endTime > migrations.startTime OR (migrations.startTime > migrations.endTime AND migrations.startTime <  ${time - 30000}) RETURNING data`
   var args = [orgURL, JSON.stringify(newRecord)]
   pool.query(query, args, function (err, pgResult) {
     if (err) {

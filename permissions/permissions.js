@@ -329,6 +329,9 @@ function withActorsForUserDo(req, res, user, callback) {
 }
 
 function pathPatternMatch(pathPatternParts, pathParts) {
+  // the "/" permission path is a wildcard for all resources, and results in patternParts as ['','']
+  if(pathPatternParts.length === 2 && pathPatternParts[0] === '' && pathPatternParts[1] ===  '')
+    return true
   for (let j=0; j < pathParts.length; j++) {
     let patternSegement = pathPatternParts[j]
     if (patternSegement != '*' && patternSegement != pathParts[j])
