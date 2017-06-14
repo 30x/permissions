@@ -17,6 +17,7 @@ const COMPONENT_NAME = 'permissions-migration'
 const REMIGRATION_CHECK_INTERVAL = 60 * 1000  // every minute
 const REMIGRATION_INTERVAL = 5 * 60 * 1000    // every 5 minutes 
 const SPEEDUP = process.env.SPEEDUP || 1
+const clientTokens = {}
 
 function log(functionName, text) {
   console.log(Date.now(), COMPONENT_NAME, functionName, text)
@@ -24,12 +25,16 @@ function log(functionName, text) {
 
 function handleMigrationRequest(req, res, body){
   log('handleMigrationRequest', `resource: ${body.resource}`)
-  var requestUser = lib.getUser(req.headers.authorization)
+  let requestUser = lib.getUser(req.headers.authorization)
   if (requestUser === null)
     rLib.unauthorized(res, `bearer token missing or expired`)
   else {
-    var issuer = requestUser.split('#')[0]
-    withClientCredentialsDo(res, issuer, function (clientToken) {
+    let issuer = requestUser.split('#')[0]
+    lib.withValidClientToken(res, clientTokens[issuer], CLIENT_ID, CLIENT_SECRET, issuer + '/oauth/token', function (clientToken) {
+      if(clientToken)
+        clientTokens[issuer] = clientToken
+      else
+        clientToken = clientTokens[issuer]
       verifyMigrationRequest(res, body, function (orgName, orgURL) {
         attemptMigration(res, clientToken, orgName, orgURL, issuer, clientToken, function (param) {
           rLib.ok(res)
