@@ -138,7 +138,6 @@ function verifyPrincipals(req, res, principals, callback) {
     for (let iss in ids) {
       let idsArray = [...ids[iss]]
       convertIDsToEmails(res, iss, idsArray, function(issEmails) {
-        console.log(iss, idsArray, issEmails)
         if (idsArray.length != issEmails.length)
           return rLib.badRequest(res, {msg: 'invalid principal IDs', ids: idsArray.filter(id => issEmails.filter(entry => entry.id == id).length == 0)})
         if (++count == total)
