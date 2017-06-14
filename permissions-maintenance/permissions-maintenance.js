@@ -21,6 +21,8 @@ const SHIPYARD_PRIVATE_SECRET = process.env.SHIPYARD_PRIVATE_SECRET === undefine
 const CLIENT_ID = process.env.PERMISSIONS_CLIENTID
 const CLIENT_SECRET = process.env.PERMISSIONS_CLIENTSECRET
 const clientTokens = {}
+const principalCache = {}
+const principalCacheTTL = 300
 
 if (CLIENT_ID == null || CLIENT_SECRET == null)
   log('loading', 'misconfiguration — PERMISSIONS_CLIENTID and PERMISSIONS_CLIENTSECRET must be set')
@@ -91,14 +93,14 @@ function convertEmailsToIDs(errorHandler, iss, emailArray, callback) {
 }
 
 function verifyPrincipals(req, res, principals, callback) {
-  var emails = {}
-  var ids = {}
+  let emails = {}
+  let ids = {}
   for (let i = 0; i< principals.length; i++) {
     let principal = principals[i]
     if (!principal.startsWith('/az-tm-')) {
       let parts = principal.split('#')
-      if (parts[0] != 'http://apigee.com/users')
-        if (parts.length == 2 && parts[0].match(issuerRegex)) {
+      if (parts[0] !== 'http://apigee.com/users')
+        if (parts.length === 2 && parts[0].match(issuerRegex)) {
           let iss = parts[0]
           let id = parts[1]
           if (id.match(emailRegex))
@@ -117,30 +119,38 @@ function verifyPrincipals(req, res, principals, callback) {
           return rLib.badRequest(res, {msg: `users and clients must be of the form {issuer}#{id} where id is an email address or a UUID. Examples are https://login.apigee.com#6ff95057-7b80-4f57-bfec-c23ec5609c77 and https://login.apigee.com#mnally@apigee.com. Value is ${principal}`})      
     }
   }
-  var total = Object.keys(emails).length + Object.keys(ids).length
-  if (total == 0)
+  let total = Object.keys(emails).length + Object.keys(ids).length
+  if (total === 0)
     callback({})
   else {
-    var count = 0
-    var principalMap = {}
+    let count = 0
+    let principalMap = {}
     for (let iss in emails) {
       let emailArray = [...emails[iss]]
       convertEmailsToIDs(res, iss, emailArray, function(issIds) {
-        if (emailArray.length == issIds.length)
-          for (let i = 0; i< issIds.length; i++)
+        if (emailArray.length === issIds.length)
+          for (let i = 0; i < issIds.length; i++) {
+            let principal = iss + '#' + issIds[i].id
+            principalCache[principal] = Date.now() + (principalCacheTTL * 1000)
             principalMap[iss + '#' + issIds[i].email] = iss + '#' + issIds[i].id
+          }
         else
           return rLib.badRequest(res, {msg: 'invalid email IDs', ids: emailArray.filter(email => issIds.filter(entry => entry.email == email).length == 0)})
-        if (++count == total)
+        if (++count === total)
           callback(principalMap) 
       })
     }
     for (let iss in ids) {
       let idsArray = [...ids[iss]]
       convertIDsToEmails(res, iss, idsArray, function(issEmails) {
-        if (idsArray.length != issEmails.length)
+        if (idsArray.length !== issEmails.length)
           return rLib.badRequest(res, {msg: 'invalid principal IDs', ids: idsArray.filter(id => issEmails.filter(entry => entry.id == id).length == 0)})
-        if (++count == total)
+        for (let i = 0; i < issEmails.length; i++) {
+          let principal = iss + '#' + issEmails[i].id
+          principalCache[principal] = Date.now() + (principalCacheTTL * 1000)
+          principalMap[iss + '#' + issEmails[i].email] = iss + '#' + issEmails[i].id
+        }
+        if (++count === total)
           callback(principalMap)      
       })
     }
@@ -161,18 +171,19 @@ function verifyPropertyPrincipals(req, res, permissions, callback) {
           }
       }    
   }
-  var allPrincipals = []
+  let allPrincipals = []
   iteratePrincipals(function(principals, i) {
-    allPrincipals.push(principals[i])
+    if (!principalCache[principals[i]])
+      allPrincipals.push(principals[i])
+    if (Date.now() > principalCache[principals[i]]) {
+      delete principalCache[principals[i]]
+      allPrincipals.push(principals[i])
+    }
   })
-  if (allPrincipals.length == 0)
+  if (allPrincipals.length === 0)
     callback()
   else 
     verifyPrincipals(req, res, allPrincipals, function(principalMap) {
-      iteratePrincipals(function (principals, i) {
-        if (principals[i] in principalMap)
-          principals[i] = principalMap[principals[i]]        
-      })
       callback()
     })
 }
