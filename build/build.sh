@@ -10,7 +10,7 @@ fi
 
 if [ "${BUILD_TYPE}" = "rpm" ];then
     # do stuff here
-    sh ${DIR}/rpm/package.sh
+    ${DIR}/rpm/package.sh
     exit 0
 fi
 
