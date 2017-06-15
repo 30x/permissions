@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 ROOTDIR="${KOKORO_ARTIFACTS_DIR}/git/permissions"
 
