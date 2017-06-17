@@ -90,21 +90,6 @@ function updateFolder(req, res, id, patch) {
   })
 }
 
-function getFoldersForUser(req, res, user) {
-  var requestingUser = lib.getUser(req.headers.authorization)
-  user = lib.internalizeURL(user, req.headers.host)
-  if (user == requestingUser) {
-    db.withFoldersForUserDo(res, user, function (folderIDs) {
-      var rslt = {
-        self: req.url,
-        contents: folderIDs.map(id => `//${req.headers.host}${FOLDERS}${id}`)
-      }
-      rLib.found(res, rslt, req.headers.accept, rslt.self)
-    })
-  } else
-    rLib.forbidden(res, `One user may not request another's folders. Requesting user: ${requestingUser} target user: ${user}`)
-}
-
 function requestHandler(req, res) {
   if (req.url == '/folders') 
     if (req.method == 'POST') 

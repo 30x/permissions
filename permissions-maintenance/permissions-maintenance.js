@@ -250,8 +250,8 @@ function createPermissions(req, res, permissions) {
   }
   var headers = lib.flowThroughHeaders(req)
   if (req.headers['x-client-authorization']) {
-    headers.authorization = req.headers['x-client-authorization']
-    pLib.ifAllowedThen(headers, res, '/', 'permissions', 'create', function() {
+    var clientHeaders = Object.assign(lib.flowThroughHeaders(req),{authorization: req.headers['x-client-authorization']})
+    pLib.ifAllowedThen(clientHeaders, res, '/', 'permissions', 'create', function() {
       verifyPermissions(req, res, permissions, () => {
         var ancestors = permissions._inheritsPermissionsOf
         if (ancestors)
