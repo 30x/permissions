@@ -17,6 +17,9 @@ const CACHE_ENTRY_TTL = process.env.CACHE_ENTRY_TTL || 60*60*1000
 const CACHE_SWEEP_INTERVAL = process.env.CACHE_SWEEP_INTERVAL || 10*60*1000
 const SPEEDUP = process.env.SPEEDUP || 1
 
+const SCOPE_READ = 'az.read'
+const SCOPE_WRITE = 'az.write'
+
 // The permissions cache is sharded, which allows individual shards to be scavenged independently when implementing TTL. 
 // This might be overkill, but it's oly a few lines of code. Take them out if you don't like it.
 var permissionsCache = Array(PERMISSIONS_CACHE_NUMBER_OF_SHARDS) // key is permissions subject URL, value is permissions object
@@ -359,7 +362,7 @@ function calculateRoleActions(roles, resource) {
   return null
 }
 
-function withPermissionFlagDo(req, res, subject, property, action, withScopes, callback) {
+function withPermissionFlagDo(req, res, queryUser, subject, property, action, withScopes, callback) {
   function calculateFlagForActors (actors) {  
     function checkRoles(answer, scopes) {
       for (let i = 1; i < actors.length && answer === null ; i++) {
@@ -398,9 +401,10 @@ function withPermissionFlagDo(req, res, subject, property, action, withScopes, c
           lib.internalError(res, err)              
       })
   }
-  var actors
-  var user = lib.getUser(req.headers.authorization)
-  if (user == null)
+  let user = lib.getUser(req.headers.authorization)
+  if(user === null && queryUser !== null && req.headers['x-client-authorization'])
+    user = queryUser
+  if (user === null)
     calculateFlagForActors([])
   else {
     withActorsForUserDo(req, res, user, function(actors) {
@@ -511,7 +515,7 @@ function isAllowed(req, res, queryParts, callback) {
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
   log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
-  if (user == null || user == lib.getUser(req.headers.authorization))
+  if (user === null || user === lib.getUser(req.headers.authorization) || lib.getScopes(req.headers['x-client-authorization']).indexOf(SCOPE_READ) !== -1)
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
     else {
@@ -522,7 +526,7 @@ function isAllowed(req, res, queryParts, callback) {
       var responded = false
       for (let i = 0; i< resources.length; i++) // multiple resources is interpreted to mean that the user must have access to all of them. A different API that answers "any of them" might be useful.
         if (!responded)
-          withPermissionFlagDo(req, res, resources[i], property, action, withScopes, function(answer, scopes) {
+          withPermissionFlagDo(req, res, user, resources[i], property, action, withScopes, function(answer, scopes) {
             if (!responded) {
               finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
               if (withScopes)
@@ -530,7 +534,7 @@ function isAllowed(req, res, queryParts, callback) {
               if (withIndividualAnswers)
                 allAnswers[resources[i]] = answer
               if (!finalAnswer && !withScopes && !withIndividualAnswers) {
-                rLib.found(res, finalAnswer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)
+                rLib.found(res, finalAnswer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no information, which means no)
                 responded = true
                 var hrend = process.hrtime(hrstart)
                 log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
@@ -577,7 +581,7 @@ function areAnyAllowed(req, res, queryParts) {
         var responded = false
         for (let i = 0; i< resources.length; i++)
           if (!responded)
-            withPermissionFlagDo(req, res, resources[i], property, action, null, function(answer) {
+            withPermissionFlagDo(req, res, user, resources[i], property, action, null, function(answer) {
               if (!responded) {
                 if (answer || ++count == resources.length) {
                   rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
@@ -638,7 +642,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         if (removedAncestors.length > 0) {
           let count = 0
           for (let i=0; i < removedAncestors.length; i++)
-            withPermissionFlagDo(req, res, removedAncestors[i], '_permissionsHeirs', 'remove', false, function(answer) {
+            withPermissionFlagDo(req, res, null, removedAncestors[i], '_permissionsHeirs', 'remove', false, function(answer) {
               if (!responded) 
                 if (!answer) {
                   responded = true
@@ -656,7 +660,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         if (addedAncestors.length > 0) {
           let count = 0
           for (let i=0; i < addedAncestors.length; i++) 
-            withPermissionFlagDo(req, res, addedAncestors[i], '_permissionsHeirs', 'add', false, function(answer) {
+            withPermissionFlagDo(req, res, null, addedAncestors[i], '_permissionsHeirs', 'add', false, function(answer) {
               if (!responded)
                 if (!answer) {
                   responded = true
@@ -685,7 +689,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
     checkPotentialAncestors([], sharingSets)
   else {
     subject = lib.internalizeURL(subject, req.headers.host)
-    withPermissionFlagDo(req, res, subject, '_self', 'admin', false, function(answer) {
+    withPermissionFlagDo(req, res, null, subject, '_self', 'admin', false, function(answer) {
       if (answer)
         withExistingAncestorsDo(subject, function(existingAncestors) {
           checkPotentialAncestors(existingAncestors, sharingSets)

@@ -55,12 +55,23 @@ CLIENT_TOKEN_CLAIMS = json.loads(b64_decode(CLIENT_TOKEN.split('.')[1]))
 CLIENT_ID = '%s#%s' % (CLIENT_TOKEN_CLAIMS['iss'], CLIENT_TOKEN_CLAIMS['sub'])
 CLIENT_ID_E = CLIENT_TOKEN.replace('#', '%23')
 
+with open('client-token-scope-azread.txt') as f:
+    CLIENT_TOKEN_SCOPE_AZREAD = f.read()
+
 def get_headers(token):
     rslt = {'Accept': 'application/json'}
     if API_KEY:
         rslt['x-routing-api-key'] = API_KEY
     if token:
         rslt['Authorization'] = 'Bearer %s' % token
+    return rslt
+
+def get_headers_for_client(token):
+    rslt = {'Accept': 'application/json'}
+    if API_KEY:
+        rslt['x-routing-api-key'] = API_KEY
+    if token:
+        rslt['X-Client-Authorization'] = 'Bearer %s' % token
     return rslt
 
 def post_team_headers(token):
@@ -517,6 +528,22 @@ def main():
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
+
+    # Retrieve is-allowed for CLIENT_TOKEN_SCOPE_AZREAD on http://apigee.com/o/acme FOR USER1
+
+    url = urljoin(BASE_URL, '/az-is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
+    start = timer()
+    r = requests.get(url, headers=get_headers_for_client(CLIENT_TOKEN_SCOPE_AZREAD))
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned is-allowed of http://apigee.com/o/acme for USER1 using client token with az.read scope. Elapsed time = %sms' % ((end-start) * 1000)
+        else:
+            print 'incorrect returned is-allowed of http://apigee.com/o/acme for USER1 using client token with az.read scope %s' % answer
+            return
+    else:
+        print 'failed to return is-allowed actions of http://apigee.com/o/acme for USER1 using client token with az.read scope %s %s' % (r.status_code, r.text)
 
     # Retrieve is-allowed for USER1 on http://apigee.com/o/acme/keyvaluemaps
 

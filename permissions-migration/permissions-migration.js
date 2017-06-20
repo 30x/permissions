@@ -170,7 +170,7 @@ function withEdgeUserUUIDsDo(res, issuer, clientToken, edgeRolesAndPermissions, 
 }
 
 function buildTeam(orgName, orgURL, edgeRoleName, edgeRole, emailToPermissionsUserMapping) {
-  var permissionsUsers = edgeRole.users.map(user => emailToPermissionsUserMapping[user])
+  var permissionsUsers = edgeRole.users.map(user => emailToPermissionsUserMapping[user]).filter(user => user)
   var team = templates.team(orgName, orgURL, edgeRoleName, permissionsUsers)
   team.roles = {}
   var teamRole = {}
@@ -594,7 +594,11 @@ function requestHandler(req, res) {
 }
 
 function init(callback, aPool) {
-  db.init(callback, aPool)
+  db.init(function(){
+    log('start', `starting remigration on schedule of ${REMIGRATION_CHECK_INTERVAL/SPEEDUP} seconds`)
+    setInterval(remigrateOnSchedule, REMIGRATION_CHECK_INTERVAL / SPEEDUP)
+    callback()
+  }, aPool)
 }
 
 var port = process.env.PORT
@@ -603,7 +607,6 @@ function run() {
     http.createServer(requestHandler).listen(port, function () {
       log('start', `server is listening on ${port}`)
     })
-    setInterval(remigrateOnSchedule, REMIGRATION_CHECK_INTERVAL / SPEEDUP)
   })
 }
 
