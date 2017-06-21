@@ -8,7 +8,7 @@ function withErrorHandling(res, callback) {
     if (err == 404) 
       rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
     else if (err)
-      rLib.internalError(res, err)
+      rLib.internalError(res, {msg: 'CRUD error on folder', err: err})
     else 
       callback.apply(this, Array.prototype.slice.call(arguments, 1))
   }

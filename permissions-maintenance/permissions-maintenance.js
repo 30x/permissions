@@ -240,6 +240,7 @@ function createPermissions(req, res, permissions) {
   var hrstart = process.hrtime()
   log('createPermissions', `start subject: ${permissions._subject}`)
   function primCreate(req, res, permissions, scopes) {
+    scopes.push(permissions._subject)
     db.createPermissionsThen(req, res, permissions, scopes, function(etag) {
       var permissionsURL =  `${rLib.INTERNAL_URL_PREFIX}/az-permissions?${permissions._subject}`
       permissions.scopes = scopes
@@ -329,11 +330,15 @@ function updatePermissions(req, res, subject, patch) {
   var hrstart = process.hrtime()
   log('updatePermissions', `start subject: ${subject}`)
   db.withPermissionsDo(req, res, subject, function(permissions, etag) {
-    pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'govern', function() {
+    pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'govern', function(allowed) {
+      var scopes = allowed.scopes[subject]
       lib.applyPatch(req.headers, res, permissions, patch, function(patchedPermissions) {
         if (req.headers['if-match'] == etag) { 
           var new_permissions = '_inheritsPermissionsOf' in patchedPermissions ? patchedPermissions._inheritsPermissionsOf : []
-          ifAllowedToInheritFromThen(req, res, subject, new_permissions, function(scopes) {
+          ifAllowedToInheritFromThen(req, res, subject, new_permissions, function(newScopes) {
+            for (let i=0; i<newScopes.length; i++)
+              if (scopes.indexOf(newScopes[i]) == -1)
+                scopes.push(newScopes[i])
             verifyPermissions(req, res, patchedPermissions, function() {
               patchedPermissions._metadata.modifier = lib.getUser(req.headers.authorization)
               patchedPermissions._metadata.modified = new Date().toISOString()
@@ -349,7 +354,7 @@ function updatePermissions(req, res, subject, patch) {
           rLib.preconditionFailed(res, err)
         }
       })
-    })
+    }, true)
   })
 }
 

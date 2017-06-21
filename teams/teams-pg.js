@@ -19,7 +19,7 @@ var eventProducer
 function createTeamThen(req, id, selfURL, team, scopes, callback) {
   var query = 'INSERT INTO teams (id, etag, data) values($1, $2, $3) RETURNING etag'
   function eventData(pgResult) {
-    return {url: selfURL, action: 'create', etag: pgResult.rows[0].etag, team: team, scopes: scopes}
+    return {subject: selfURL, action: 'create', etag: pgResult.rows[0].etag, team: team, scopes: scopes}
   }
   eventProducer.queryAndStoreEvent(req, query, [id, lib.uuid4(), JSON.stringify(team)], 'teams', eventData, function(err, pgResult, pgEventResult) {
     callback(err, pgResult.rows[0].etag)
@@ -59,7 +59,7 @@ function withTeamsForUserDo(req, user, callback) {
 function deleteTeamThen(req, id, selfURL, scopes, callback) {
   var query = 'DELETE FROM teams WHERE id = $1 RETURNING *'
   function eventData(pgResult) {
-    return {url: TEAMS + id, action: 'delete', etag: pgResult.rows[0].etag, team: pgResult.rows[0].data, scopes: scopes}
+    return {subject: TEAMS + id, action: 'delete', etag: pgResult.rows[0].etag, team: pgResult.rows[0].data, scopes: scopes}
   }
   eventProducer.queryAndStoreEvent(req, query, [id], 'teams', eventData, function(err, pgResult, pgEventResult) {
     if (err)
@@ -80,7 +80,7 @@ function updateTeamThen(req, id, selfURL, patchedTeam, scopes, etag, callback) {
     args = [lib.uuid4(), JSON.stringify(patchedTeam), key]
   }
   function eventData(pgResult) {
-    return {url: selfURL, action: 'update', etag: pgResult.rows[0].etag, after: patchedTeam, scopes, scopes}
+    return {subject: selfURL, action: 'update', etag: pgResult.rows[0].etag, after: patchedTeam, scopes: scopes}
   }
   eventProducer.queryAndStoreEvent(req, query, args, 'teams', eventData, function(err, pgResult, pgEventResult) {
     if (err)

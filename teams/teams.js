@@ -82,6 +82,7 @@ function createTeam(req, res, team) {
             // Create permissions first. If we fail after creating the permissions resource but before creating the main resource, 
             // there will be a useless but harmless permissions document.
             // If we do things the other way around, a team without matching permissions could cause problems.
+            permissions.scopes.push(selfURL)
             db.createTeamThen(req, res, id, selfURL, team, permissions.scopes, function(etag) {
               team.self = selfURL 
               addCalculatedProperties(team)
@@ -137,7 +138,7 @@ function patchTeam(req, res, id, patch) {
             if (err)
               rLib.badRequest(res, err)
             else
-              db.updateTeamThen(req, res, id, makeSelfURL(req, id), patchedTeam, allowed.scopes, etag, function (etag) {
+              db.updateTeamThen(req, res, id, selfURL, patchedTeam, allowed.scopes[selfURL], etag, function (etag) {
                 patchedTeam.self = selfURL 
                 addCalculatedProperties(patchedTeam)
                 rLib.found(res, patchedTeam, req.headers.accept, patchedTeam.self, etag)
