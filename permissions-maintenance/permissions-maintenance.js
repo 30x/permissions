@@ -54,7 +54,7 @@ function verifySharingSets(req, res, permissions, callback) {
               if (allowedByAll)
                 callback()
               else
-                rLib.forbidden(res, {msg: `user ${user} is not allowed to inherit permissions from ${sharingSets}`})
+                rLib.forbidden(res, {msg: `user ${lib.getUser(lib.flowThroughHeaders(req))} is not allowed to inherit permissions from ${sharingSets}`})
           })
         }
       } else

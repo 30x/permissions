@@ -260,7 +260,7 @@ function migrateOrgPermissionsFromEdge(res, orgName, orgURL, issuer, clientToken
           if (clientRes.statusCode == 201 || clientRes.statusCode == 200) {
             teams[edgeRoleName] = clientRes.statusCode == 201 ? clientRes.headers.location : clientRes.headers['content-location']
             body = JSON.parse(body)
-            var teamLocation = clientRes.headers['location']
+            let teamLocation = clientRes.headers['content-location']
             updateOrgPermissons(orgPermission, body.name, teamLocation)
           } else
             log('addRoleToOrg', `unable to ${replacedWithPut ? 'update' : 'create'} team. orgName: ${orgName} role: ${edgeRoleName} stauts: ${clientRes.statusCode} body ${body}`)
