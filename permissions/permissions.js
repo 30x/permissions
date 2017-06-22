@@ -237,12 +237,13 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
       checkResult(404)
     else
       db.withPermissionsDo(req, resource, function(err, permissions, etag) {
-        if (err == 404)
+        if (!req.headers['x-from-migration'] && err === 404)
           lib.sendInternalRequestThen(res, 'POST', '/az-permissions-migration/migration-request', lib.flowThroughHeaders(req), JSON.stringify({resource: resource}), function(clientResponse) {
-            if (clientResponse.statusCode = 200)
-              db.withPermissionsDo(req, resource, function(err, permissions, etag) {
-                checkResult(err, permissions, etag)
-              })
+            if (clientResponse.statusCode = 200){
+              log('withPermissionsDo', 'Finished migration, resending original request')
+              req.headers['x-from-migration'] = 'yes'
+              requestHandler(req,res)
+            }
             else
               rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
           })
