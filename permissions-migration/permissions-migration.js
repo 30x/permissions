@@ -479,17 +479,23 @@ function getRoleDetailsFromEdge(res, callHeaders, orgName, callback) {
 
 function getRoleUsersFromEdge(res, callHeaders, orgName, role, callback) {
   sendExternalRequestThen(res, callHeaders, CONFIGURED_EDGE_ADDRESS, '/v1/o/' + orgName + '/userroles/' + role + '/users', 'GET', null, function (response) {
-    lib.getClientResponseBody(response, function (body) {
-      callback(JSON.parse(body))
-    })
+    if(response.statusCode === 200)
+      lib.getClientResponseBody(response, function (body) {
+        callback(JSON.parse(body))
+      })
+    else
+      rLib.internalError(res, {msg: 'Unable to fetch role users from Edge', status: response.statusCode, body: response.body})
   })
 }
 
 function getRolePermissionsFromEdge(res, callHeaders, orgName, role, callback) {
   sendExternalRequestThen(res, callHeaders, CONFIGURED_EDGE_ADDRESS, '/v1/o/' + orgName + '/userroles/' + role + '/permissions', 'GET', null, function (response) {
-    lib.getClientResponseBody(response, function (body) {
-      callback(JSON.parse(body))
-    })
+    if(response.statusCode === 200)
+      lib.getClientResponseBody(response, function (body) {
+        callback(JSON.parse(body))
+      })
+    else
+      rLib.internalError(res, {msg: 'Unable to fetch role permissions from Edge', status: response.statusCode, body: response.body})
   })
 }
 

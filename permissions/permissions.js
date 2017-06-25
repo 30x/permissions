@@ -239,7 +239,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
       db.withPermissionsDo(req, resource, function(err, permissions, etag) {
         if (!req.headers['x-from-migration'] && err === 404)
           lib.sendInternalRequestThen(res, 'POST', '/az-permissions-migration/migration-request', lib.flowThroughHeaders(req), JSON.stringify({resource: resource}), function(clientResponse) {
-            if (clientResponse.statusCode = 200){
+            if (clientResponse.statusCode === 200){
               log('withPermissionsDo', 'Finished migration, resending original request')
               req.headers['x-from-migration'] = 'yes'
               requestHandler(req,res)
