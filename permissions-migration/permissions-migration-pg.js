@@ -17,8 +17,8 @@ function log(functionName, text) {
 
 function writeMigrationRecord(orgURL, data) {
   var time = Date.now()
-  var query = 'UPDATE migrations SET (endtime, data) = ($1, $2)'
-  var args = [time, JSON.stringify(data)]
+  var query = 'UPDATE migrations SET (endtime, data) = ($1, $2) WHERE orgURL = $3'
+  var args = [time, JSON.stringify(data), orgURL]
   pool.query(query, args, function (err, pgResult) {
     if (err) 
       log('writeMigrationRecord', `unable to write migration record for ${orgURL} err: ${err}`)
