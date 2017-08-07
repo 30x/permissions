@@ -132,7 +132,7 @@ function withClientCredentialsDo(res, issuer, callback) {
   var tokenHeaders = {}
   tokenHeaders['authorization'] = 'Basic ' + clientAuthEncoded
   tokenHeaders['Accept'] = 'application/json'
-  tokenHeaders['Content-Type'] = 'application/x-www-form-urlencoded'
+  tokenHeaders['content-type'] = 'application/x-www-form-urlencoded'
   // get client credentials token with scim.ids read scope so we can translate emails to user UUIDs
   sendExternalRequestThen(res, tokenHeaders, issuer, '/oauth/token', 'POST', 'grant_type=client_credentials', function (clientRes) {
     lib.getClientResponseBody(clientRes, function (body) {
@@ -151,7 +151,7 @@ function withClientCredentialsDo(res, issuer, callback) {
 function withEdgeUserUUIDsDo(res, issuer, clientToken, edgeRolesAndPermissions, callback) {
   var clientHeaders = {}
   clientHeaders['Accept'] = 'application/json'
-  clientHeaders['Content-Type'] = 'application/json'
+  clientHeaders['content-type'] = 'application/json'
   clientHeaders.authorization = 'Bearer ' + clientToken
   // translate the user emails to their SSO UUIDs
   var allUsers = []
@@ -508,8 +508,8 @@ function sendExternalRequestThen(res, flowThroughHeaders, address, path, method,
     'Accept': 'application/json',
   }
   if (body) {
-    headers['Content-Type'] = flowThroughHeaders['Content-Type'] || 'application/json'
-    headers['Content-Length'] = Buffer.byteLength(body)
+    headers['content-type'] = flowThroughHeaders['content-type'] || 'application/json'
+    headers['content-length'] = Buffer.byteLength(body)
   }
   if (flowThroughHeaders.authorization !== undefined)
     headers.authorization = flowThroughHeaders.authorization
@@ -542,7 +542,7 @@ function ifAuditShowsChange(res, clientToken, orgName, orgURL, lastMigrationTime
   var auditPath = `/v1/audits/organizations/${orgName}/userroles?expand=true&endTime=${lastMigrationTime}`
   var clientHeaders = {}
   clientHeaders['Accept'] = 'application/json'
-  clientHeaders['Content-Type'] = 'application/json'
+  clientHeaders['content-type'] = 'application/json'
   clientHeaders.authorization = 'Bearer ' + clientToken
   sendExternalRequestThen(res, clientHeaders, address, auditPath, 'GET', null, function(clientRes) {
     lib.getClientResponseBody(clientRes, function(body) {

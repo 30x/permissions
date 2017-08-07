@@ -131,7 +131,7 @@ function patchOrg(orgIndex) {
   }
   var headers = {
     Authorization: `Bearer ${orgAdminTokens[orgIndex]}`, 
-    'Content-Type': 'application/merge-patch+json',
+    'content-type': 'application/merge-patch+json',
     'If-Match': orgEtags[orgIndex]
   }
   schedule(function(callback) {

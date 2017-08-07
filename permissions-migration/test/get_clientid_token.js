@@ -6,11 +6,11 @@ const clientSecret = process.env.PERMISSIONS_CLIENTSECRET || 'permissionsecret'
 var clientAuthEncoded = new Buffer(clientId + ':' + clientSecret).toString('base64')
 var headers = {
   Accept: 'application/json',
-  'Content-Type': 'application/x-www-form-urlencoded',
+  'content-type': 'application/x-www-form-urlencoded',
   authorization: 'Basic ' + clientAuthEncoded
 }
 body = 'grant_type=client_credentials'
-headers['Content-Length'] = Buffer.byteLength(body)
+headers['content-length'] = Buffer.byteLength(body)
 var options = {
   hostname: process.env.hostname || 'login.e2e.apigee.net',
   path: '/oauth/token',
