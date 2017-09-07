@@ -16,27 +16,65 @@ Here are the steps I went through to get this going on my new Google machine:
 * createuser -P martinnally (when prompted for password, use martinnally). Alternatively create the user of your choice and modify the test script local-export-pg-connection-variables.sh to use it. 
 * createdb permissions
 
-### Clone and initialize the 4 components of the permissions service
-* Follow the instructions at go/github to get connected to github
-* git clone git@github.com:30x/permissions.git
-* git clone git@github.com:30x/permissions-maintenance.git
-* git clone git@github.com:30x/permissions-migration.git
-* git clone git@github.com:30x/teams.git
-* execute `npm install` in each of these directories
-* optionally clone 30x/http-helper-functions, execute `npm link` in that directory, and execute `npm link http-helper-functions` where it is used. Repeat for 30x/permissions-helper-functions, 30x/pg-event-producer and 30x/pg-event-consumer 
+### Clone and initialize the permissions service
+* git clone sso://edge-internal/permissions
+* execute `npm install` in the root directory of the repository
+* optionally clone 30x/http-helper-functions, execute `npm link` in that directory, and execute `npm link http-helper-functions` where it is used. Repeat for 30x/response-helper-functions, 30x/permissions-helper-functions, 30x/pg-event-producer and 30x/pg-event-consumer 
 * source local-export-pg-connection-variables.sh will set up environment variables for PG
-* execute ./test/run-... in each of these directories, each in a different shell window
+* execute ./test/run-permissions-allinone.sh in the root directory
 
-### install and configure nginx
-* brew install nginx
-* nginx (starts in the background)
-* cp nginx.conf /Users/mnally/homebrew/etc/nginx/nginx.conf (executed from this test directory. nginx -V will show the location from which nginx is loading nginx.conf)
-* nginx -s reload
+An example local-export-pg-connection-variables.sh looks loime this:
+```bash
+export PG_HOST="127.0.0.1"
+export PG_USER="martinnally"
+export PG_PASSWORD="martinnally"
+export PG_DATABASE="permissions" 
+```
 
 ### install prereqs and run the tests
 * sudo easy_install requests (this python egg is used by the test script)
-* source renew-tokens.sh
+* create local-export-system-variables.sh
 * in the test subdirectory, enter ./test-edge-simplified.sh
+
+An example local-export-system-variables.sh looks loime this:
+```bash
+export IPADDRESS="127.0.0.1"
+export PORT=3200
+export COMPONENT_NAME="permissions"
+export SPEEDUP=10
+export EXTERNAL_SY_ROUTER_HOST="localhost"
+export EXTERNAL_SY_ROUTER_PORT="3200"
+export INTERNAL_SY_ROUTER_HOST="localhost"
+export INTERNAL_SY_ROUTER_PORT="3200"
+export EXTERNAL_SCHEME="http"
+
+export AUTH_URL="https://login.e2e.apigee.net/oauth/token"
+export ISSUER="https://login.e2e.apigee.net"
+
+export PERMISSIONS_CLIENTID="permissions-client"
+export PERMISSIONS_CLIENTSECRET="*****"
+export PERMISSIONS_CLIENT_GRANT_TYPE="client_credentials"
+
+export USER1_ID="mnally@apigee.com"
+export USER1_SECRET="*****"
+export USER1_GRANT_TYPE="password"
+
+export USER2_ID="mnally+1@apigee.com"
+export USER2_SECRET="*****"
+export USER2_GRANT_TYPE="password"
+
+export USER3_ID="mnally+2@apigee.com"
+export USER3_SECRET="*****"
+export USER3_GRANT_TYPE="password"
+
+export USER4_ID="mnally@google.com"
+export USER4_SECRET="*****"
+export USER4_GRANT_TYPE="password"
+
+export AZ_READ_CLIENT_ID="notifications-client"
+export AZ_READ_CLIENT_SECRET="*****"
+export AZ_READ_CLIENT_GRANT_TYPE="client_credentials"
+```
 
 ### install prereqs and run the demo
 * brew install gettext

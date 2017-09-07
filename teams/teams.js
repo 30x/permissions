@@ -5,6 +5,7 @@ const lib = require('@apigee/http-helper-functions')
 const db = require('./teams-db.js')
 const pLib = require('@apigee/permissions-helper-functions')
 const rLib = require('@apigee/response-helper-functions')
+const idpLib = require('../idp-helper-functions/index.js')
 
 const TEAM_PREFIX = '/az-tm-'
 const TEAMS = '/az-teams/'
@@ -45,17 +46,28 @@ function verifyBases(req, res, team, callback) {
     calback(null)
 }
 
+function verifyMembers(req, res, team, callback) {
+  let members = team.members
+  if (Array.isArray(members))
+    idpLib.verifyPrincipals(req, res, members, emailToIdMap => {
+      for (let i = 0; i< members.length; i++) {
+        let member = emailToIdMap[members[i]]
+        if (member)
+          members[i] = member
+      }
+      callback()
+    })  
+  else
+    callback({msg: 'team must have an array of members'})
+}
 function verifyTeam(req, res, team, callback) {
-  var user = lib.getUser(req.headers.authorization)
-  var rslt = lib.setStandardCreationProperties(req, team, user)
   if (team.isA == 'Team')
-    if (Array.isArray(team.members))
+    verifyMembers(req, res, team, emailToIdMap => {
       if (team.role !== undefined) 
         verifyBases(req, res, team, callback)
       else
-        callback(null)
-    else
-      callback({msg: 'team must have an array of members'})
+        callback(null)  
+    })
   else
     callback({msg: 'invalid JSON: "isA" property not set to "Team"', body: team})
 }
@@ -66,30 +78,36 @@ function createTeam(req, res, team) {
       if (err !== null) 
         rLib.badRequest(res, err)
       else {
-        var id = rLib.uuidw()
-        var selfURL = makeSelfURL(req, id)
-        var permissions = team._permissions
-        if (permissions !== undefined) {
-          delete team._permissions; // unusual case where ; is necessary
-          (new pLib.Permissions(permissions)).resolveRelativeURLs(selfURL)
-        }
-        var headers = lib.flowThroughHeaders(req)
-        lib.withValidClientToken(res, PERMISSIONS_CLIENT_TOKEN, PERMISSIONS_CLIENTID, PERMISSIONS_CLIENTSECRET, AUTH_URL, function(newToken) {
-          if (newToken)
-            PERMISSIONS_CLIENT_TOKEN = newToken
-          headers['x-client-authorization'] = `Bearer ${PERMISSIONS_CLIENT_TOKEN}`
-          pLib.createPermissionsThen(headers, res, selfURL, permissions, function(err, permissionsURL, permissions, responseHeaders){
-            // Create permissions first. If we fail after creating the permissions resource but before creating the main resource, 
-            // there will be a useless but harmless permissions document.
-            // If we do things the other way around, a team without matching permissions could cause problems.
-            permissions.scopes.push(selfURL)
-            db.createTeamThen(req, res, id, selfURL, team, permissions.scopes, function(etag) {
-              team.self = selfURL 
-              addCalculatedProperties(team)
-              rLib.created(res, team, req.headers.accept, team.self, etag)
+        var user = lib.getUser(req.headers.authorization)
+        var rslt = lib.setStandardCreationProperties(req, team, user)
+        if (rslt)
+          rLib.badRequest(res, {msg: rslt})
+        else {
+          var id = rLib.uuidw()
+          var selfURL = makeSelfURL(req, id)
+          var permissions = team._permissions
+          if (permissions !== undefined) {
+            delete team._permissions; // unusual case where ; is necessary
+            (new pLib.Permissions(permissions)).resolveRelativeURLs(selfURL)
+          }
+          var headers = lib.flowThroughHeaders(req)
+          lib.withValidClientToken(res, PERMISSIONS_CLIENT_TOKEN, PERMISSIONS_CLIENTID, PERMISSIONS_CLIENTSECRET, AUTH_URL, function(newToken) {
+            if (newToken)
+              PERMISSIONS_CLIENT_TOKEN = newToken
+            headers['x-client-authorization'] = `Bearer ${PERMISSIONS_CLIENT_TOKEN}`
+            pLib.createPermissionsThen(headers, res, selfURL, permissions, function(err, permissionsURL, permissions, responseHeaders){
+              // Create permissions first. If we fail after creating the permissions resource but before creating the main resource, 
+              // there will be a useless but harmless permissions document.
+              // If we do things the other way around, a team without matching permissions could cause problems.
+              permissions.scopes.push(selfURL)
+              db.createTeamThen(req, res, id, selfURL, team, permissions.scopes, function(etag) {
+                team.self = selfURL 
+                addCalculatedProperties(team)
+                rLib.created(res, team, req.headers.accept, team.self, etag)
+              })
             })
           })
-        })
+        }
       }
     })
   })
@@ -170,7 +188,7 @@ function putTeam(req, res, id, team) {
 
 function getTeamsForUser(req, res, user) {
   var requestingUser = lib.getUser(req.headers.authorization)
-  user = lib.internalizeURL(user, req.headers.host)
+  user = decodeURIComponent(user)
   if (user == requestingUser) {
     db.withTeamsForUserDo(req, res, user, function (teamIDs) {
       var rslt = {
@@ -242,7 +260,7 @@ function requestHandler(req, res) {
       else
         rLib.methodNotAllowed(res, ['GET', 'DELETE', 'PATCH', 'PUT'])
     } else if (req_url.pathname == '/az-teams' && req_url.search !== null)
-      getTeamsForUser(req, res, req_url.search.substring(1))
+      getTeamsForUser(req, res, req_url.query)
     else
       rLib.notFound(res, {msg: `//${req.headers.host}${req.url} not found`, component: 'teams'})
   }

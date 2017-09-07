@@ -4,6 +4,11 @@ import json
 from os import environ as env
 from urlparse import urljoin
 from timeit import default_timer as timer
+from urlparse import urlsplit
+import httplib
+import urllib
+from pprint import pprint
+import time
 
 PG_HOST = env['PG_HOST']
 PG_USER = env['PG_USER']
@@ -18,45 +23,118 @@ def b64_decode(data):
         data += b'='* missing_padding
     return base64.decodestring(data)
 
-if 'APIGEE_TOKEN1' in env:
-    TOKEN1 = env['APIGEE_TOKEN1']
-else:
-    with open('token.txt') as f:
-        TOKEN1 = f.read()
+TOKENS = {}
+USER1_ID = env.get('USER1_ID')
+USER1_SECRET = env.get('USER1_SECRET')
+USER1_GRANT_TYPE = env.get('USER1_GRANT_TYPE')
+USER2_ID = env.get('USER2_ID')
+USER2_SECRET = env.get('USER2_SECRET')
+USER2_GRANT_TYPE = env.get('USER2_GRANT_TYPE')
+USER3_ID = env.get('USER3_ID')
+USER3_SECRET = env.get('USER3_SECRET')
+USER3_GRANT_TYPE = env.get('USER3_GRANT_TYPE')
+USER4_ID = env.get('USER4_ID')
+USER4_SECRET = env.get('USER4_SECRET')
+USER4_GRANT_TYPE = env.get('USER4_GRANT_TYPE')
+PERMISSIONS_CLIENT_ID = env.get('PERMISSIONS_CLIENTID')
+PERMISSIONS_CLIENT_SECRET = env.get('PERMISSIONS_CLIENTSECRET')
+PERMISSIONS_CLIENT_GRANT_TYPE = env.get('PERMISSIONS_CLIENT_GRANT_TYPE')
+AZ_READ_CLIENT_ID = env.get('AZ_READ_CLIENT_ID')
+AZ_READ_CLIENT_SECRET = env.get('AZ_READ_CLIENT_SECRET')
+AZ_READ_CLIENT_GRANT_TYPE = env.get('AZ_READ_CLIENT_GRANT_TYPE')
+AUTH_URL = env.get('AUTH_URL')
+ISSUER = env.get('ISSUER')
+AUTH_BASIC_CREDENTIALS = base64.b64encode('desiredcli:desiredclisecret')
+
+# return true if the given http response code represents success
+def status_ok(code):
+    return 200 <= code and code < 300
+
+#
+# check if the given httplib.response object is from a
+# successful request.  if so, just return True.
+# otherwise, print some diagnostic info, and return False.
+#
+def check_response(response):
+    if status_ok(response.status):
+        return True
+    print 'error: response.status=%s' % response.status
+    pprint(vars(response))
+    return False
+
+def get_valid_token(token_name, auth_url, id, secret, grant_type):
+    """Return a valid token, which may require refreshing the token that is currently stored.
+
+    Args:
+        token_name (str): The name of the token. Used as a key to locate the previously created token
+        auth_url (url):   The URL provided by the IDP that will authenticate the credentials and issue a token
+        id (str):         The unsername or client_id of the credentials
+        secret (str):     The password or cline tsecret of the credentials
+        grant_type(str):  The OAuth grant_type ('password' or 'client_credentials')
+
+    Returns:
+        str:              A valid OAuth token that will not expire in the next 5 seconds
+    """
+    token_info = TOKENS.get(token_name)
+    # If we have a stored token, and it doesn't expire in the next 5 seconds, use it, otherwise get a new one.
+    if not token_info or int(time.time()) + 5 > token_info[1]:
+        if token_info: print token_info[1]
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+            }
+        url_parts = urlsplit(auth_url)
+        conn_class = httplib.HTTPSConnection if url_parts.scheme == 'https' else httplib.HTTPConnection
+        conn = conn_class(url_parts.netloc)
+        if grant_type == 'password':
+            headers['authorization'] = 'Basic %s' % AUTH_BASIC_CREDENTIALS
+            body = {'grant_type': 'password', 'username': id, 'password': secret}
+        else:
+            body = {'grant_type': 'client_credentials', 'client_id': id, 'client_secret': secret}
+        conn.request('POST', url_parts.path, urllib.urlencode(body), headers)
+        response = conn.getresponse()
+        if not check_response(response):
+            if grant_type == 'password':
+                print 'error: get_valid_token: url=%s response.status=%s AUTH_BASIC_CREDENTIALS:%s id: %s password: %s grant_type:%s' % (url_parts.path, response.status, AUTH_BASIC_CREDENTIALS, id, secret, grant_type)
+            else:
+                print 'error: get_valid_token: url=%s response.status=%s client_id: %s client_secret: %s grant_type:%s' % (url_parts.path, response.status, id, secret, grant_type)
+            raise RuntimeError('get_valid_token conn.request failed')
+        js = json.load(response)
+        token = js['access_token']
+        token_info = TOKENS[token_name] = (token, json.loads(b64_decode(token.split('.')[1]))['exp'])
+        print 'retrieved %s token for %s' % (grant_type, id)
+    return token_info[0]
+
+TOKEN1 = get_valid_token('USER1', AUTH_URL, USER1_ID, USER1_SECRET, USER1_GRANT_TYPE)
+TOKEN2 = get_valid_token('USER2', AUTH_URL, USER2_ID, USER2_SECRET, USER2_GRANT_TYPE)
+TOKEN3 = get_valid_token('USER3', AUTH_URL, USER3_ID, USER3_SECRET, USER3_GRANT_TYPE)
+TOKEN4 = get_valid_token('USER4', AUTH_URL, USER4_ID, USER4_SECRET, USER4_GRANT_TYPE)
+PERMISSIONS_CLIENT_TOKEN = get_valid_token('PERMISSIONS_CLIENT', AUTH_URL, PERMISSIONS_CLIENT_ID, PERMISSIONS_CLIENT_SECRET, PERMISSIONS_CLIENT_GRANT_TYPE)
+AZ_READ_CLIENT_TOKEN = get_valid_token('AZ_READ_CLIENT', AUTH_URL, AZ_READ_CLIENT_ID, AZ_READ_CLIENT_SECRET, AZ_READ_CLIENT_GRANT_TYPE)
+
 USER1_CLAIMS = json.loads(b64_decode(TOKEN1.split('.')[1]))      
 USER1 = '%s#%s' % (USER1_CLAIMS['iss'], USER1_CLAIMS['sub'])
 USER1_E = USER1.replace('#', '%23')
 
-if 'APIGEE_TOKEN2' in env:
-    TOKEN2 = env['APIGEE_TOKEN2']
-else:
-    with open('token2.txt') as f:
-        TOKEN2 = f.read()
 USER2_CLAIMS = json.loads(b64_decode(TOKEN2.split('.')[1]))      
 USER2 = '%s#%s' % (USER2_CLAIMS['iss'], USER2_CLAIMS['sub'])
 USER2_E = USER2.replace('#', '%23')
 API_KEY = env.get('API_KEY')
 
-if 'APIGEE_TOKEN3' in env:
-    TOKEN3 = env['APIGEE_TOKEN3']
-else:
-    with open('token3.txt') as f:
-        TOKEN3 = f.read()
 USER3_CLAIMS = json.loads(b64_decode(TOKEN3.split('.')[1]))      
 USER3 = '%s#%s' % (USER3_CLAIMS['iss'], USER3_CLAIMS['sub'])
 USER3_E = USER3.replace('#', '%23')
 
-if 'CLIENT_TOKEN' in env:
-    CLIENT_TOKEN = env['CLIENT_TOKEN']
-else:
-    with open('client-token.txt') as f:
-        CLIENT_TOKEN = f.read()
-CLIENT_TOKEN_CLAIMS = json.loads(b64_decode(CLIENT_TOKEN.split('.')[1]))      
-CLIENT_ID = '%s#%s' % (CLIENT_TOKEN_CLAIMS['iss'], CLIENT_TOKEN_CLAIMS['sub'])
-CLIENT_ID_E = CLIENT_TOKEN.replace('#', '%23')
+USER4_CLAIMS = json.loads(b64_decode(TOKEN4.split('.')[1]))      
+USER4 = '%s#%s' % (USER4_CLAIMS['iss'], USER4_CLAIMS['sub'])
 
-with open('client-token-scope-azread.txt') as f:
-    CLIENT_TOKEN_SCOPE_AZREAD = f.read()
+PERMISSIONS_CLIENT_TOKEN_CLAIMS = json.loads(b64_decode(PERMISSIONS_CLIENT_TOKEN.split('.')[1]))      
+PERMISSIONS_CLIENT_FULL_ID = '%s#%s' % (PERMISSIONS_CLIENT_TOKEN_CLAIMS['iss'], PERMISSIONS_CLIENT_TOKEN_CLAIMS['sub'])
+PERMISSIONS_CLIENT_FULL_ID_E = PERMISSIONS_CLIENT_TOKEN.replace('#', '%23')
+
+AZ_READ_CLIENT_TOKEN_CLAIMS = json.loads(b64_decode(AZ_READ_CLIENT_TOKEN.split('.')[1]))      
+AZ_READ_CLIENT_FULL_ID = '%s#%s' % (AZ_READ_CLIENT_TOKEN_CLAIMS['iss'], AZ_READ_CLIENT_TOKEN_CLAIMS['sub'])
+AZ_READ_CLIENT_FULL_ID_E = AZ_READ_CLIENT_TOKEN.replace('#', '%23')
 
 def get_headers(token):
     rslt = {'Accept': 'application/json'}
@@ -82,7 +160,7 @@ def post_team_headers(token):
 def post_permissions_headers(token):
     rslt = get_headers(token)
     rslt['Content-Type'] = 'application/json'
-    rslt['X-Client-Authorization'] = 'Bearer %s' % CLIENT_TOKEN
+    rslt['X-Client-Authorization'] = 'Bearer %s' % PERMISSIONS_CLIENT_TOKEN
     return rslt
 
 def patch_headers(token, if_match):
@@ -102,7 +180,7 @@ def main():
         print 'failed to retrieve /az-permissions?/ %s %s' % (r.status_code, r.text)
         return
 
-    permissions_patch = {"permissions":  {"read": [CLIENT_ID], "create": [CLIENT_ID]}}
+    permissions_patch = {"permissions":  {"read": [PERMISSIONS_CLIENT_FULL_ID], "create": [PERMISSIONS_CLIENT_FULL_ID]}}
     patch_headers1 = patch_headers(TOKEN1, slash_etag)
     r = requests.patch(urljoin(BASE_URL, '/az-permissions?/'), headers=patch_headers1, json=permissions_patch)
     if r.status_code == 200:
@@ -245,7 +323,7 @@ def main():
         ORG_ADMINS = r.headers['location']
         print 'correctly created ORG_ADMINS team %s etag: %s' % (ORG_ADMINS, r.headers['Etag'])
     else:
-        print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
+        print 'failed to create team status_code: %s text: %s USER1: %s - cannot continue' % (r.status_code, r.text, USER1)
         return
     
 
@@ -533,7 +611,7 @@ def main():
 
     url = urljoin(BASE_URL, '/az-is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
     start = timer()
-    r = requests.get(url, headers=get_headers_for_client(CLIENT_TOKEN_SCOPE_AZREAD))
+    r = requests.get(url, headers=get_headers_for_client(get_valid_token('AZ_READ_CLIENT', AUTH_URL, AZ_READ_CLIENT_ID, AZ_READ_CLIENT_SECRET, AZ_READ_CLIENT_GRANT_TYPE)))
     end = timer()
     if r.status_code == 200:
         answer = r.json()
@@ -621,6 +699,7 @@ def main():
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
 
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
 
@@ -645,7 +724,9 @@ def main():
         if answer:
             print 'correctly returned is-allowed (%s) of http://apigee.com/o/acme/keyvaluemaps for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
-            print 'incorrect returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER3 %s' % answer
+            print 'incorrect returned is-allowed of http://apigee.com/o/acme/keyvaluemaps for USER3 (%s)  after update of role for oridinary users team %s' % (USER3, answer)
+            print get_headers3
+            print TOKEN3
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme/keyvaluemaps for USER3 status_code: %s text: %s' % (r.status_code, r.text)
@@ -666,7 +747,7 @@ def main():
     else:
         print 'failed to return allowed-actions of http://apigee.com/o/acme/keyvaluemaps for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
-    # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/keyvaluemaps
+    # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/environments/*
 
     patch = {'roles': {'http://apigee.com/o/acme': {'/environments/*': ['read']}}}
     patch_headers1['If-Match'] = ORDINARY_USERS_ETAG
@@ -692,8 +773,9 @@ def main():
             print 'incorrect returned is-allowed of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
 
-    # Retrieve are-any-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+    # Retrieve are-any-allowed for USER3 on http://apigee.com/o/acme for property environments/test
 
     url = urljoin(BASE_URL, '/az-are-any-allowed?resource=http://apigee.com/o/acme/environments/test&resource=http://apigee.com/o/acme&user=%s&action=read' % (USER3_E))
     start = timer()
@@ -729,7 +811,7 @@ def main():
     else:
         print 'failed to return POST to are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 status_code: %s text: %s' % (r.status_code, r.text)
 
-    # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
+    # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property /environments/test
 
     url = urljoin(BASE_URL, '/az-allowed-actions?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
     start = timer()
@@ -743,6 +825,49 @@ def main():
             print 'incorrect returned allowed-actions of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
     else:
         print 'failed to return allowed-actions of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+
+    # Create a team using emails instead of UUIDS
+
+    team = {
+        'isA': 'Team',
+        'name': 'email team',
+        '_permissions': {'_inheritsPermissionsOf': ['http://apigee.com/o/acme'],'test-data': True},
+        'members': [ISSUER + '#' + USER1_ID, ISSUER + '#' + USER4_ID],
+        'test-data': True
+        }
+    url = urljoin(BASE_URL, '/az-teams') 
+    r = requests.post(url, headers=post_team_headers1, json=team)
+    if r.status_code == 201:
+        team = r.json()
+        if set(team['members']) == set([USER1, USER4]):
+            print 'correctly created team %s etag: %s' % (r.headers['location'], r.headers['Etag'])
+            EMAIL_TEAM = r.headers['location']
+            EMAIL_TEAM_ETAG = r.headers['etag']
+        else:
+            print 'members not correctly calculated from emails'
+            print json.dumps(team, indent=2)
+            return
+    else:
+        print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
+
+    # patch team to add new user by email
+
+    patch = [{'op': 'add', 'path': '/members/-', 'value': ISSUER + '#' + USER2_ID}]
+    headers = patch_headers(TOKEN1, EMAIL_TEAM_ETAG)
+    headers['Content-Type'] = 'application/json-patch+json'
+    r = requests.patch(urljoin(BASE_URL, EMAIL_TEAM), headers=headers, json=patch)
+    if r.status_code == 200:
+        EMAIL_TEAM_ETAG = r.headers['Etag']
+        team = r.json()
+        if (USER1 in team['members']):
+            print 'correctly patched Email Team team to add user2'
+        else:
+            print 'incorrectly patched Email Team team to add user2', team
+            return
+    else:
+        print 'failed to patch Ordinary Users team %s %s' % (r.status_code, r.text)
+        return
+
 
     print 'finished test suite'
 if __name__ == '__main__':

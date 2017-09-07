@@ -6,6 +6,7 @@ const db = require('./permissions-pg.js')
 const querystring = require('querystring')
 const url = require('url')
 const pge = require('@apigee/pg-event-consumer')
+const util = require('util')
 
 const ANYONE = 'http://apigee.com/users#anyone'
 const INCOGNITO = 'http://apigee.com/users#incognito'
@@ -214,25 +215,25 @@ function isActionAllowed(permissionsObject, property, actors, action) {
 
 function withPermissionsDo(req, res, resource, callback, errorCallback) {
   var permissions = retrieveFromPermissionsCache(resource)
+  function checkResult(err, permissions, etag) {
+    if (err == 404)
+      addToPermissionsCache(resource, null)
+    if (err)
+      if (errorCallback !== undefined)
+        errorCallback(err)
+      else
+        if (err == 404)
+          rLib.notFound(res, {msg: 'permissions document not found', subject: resource})
+        else
+          rLib.internalError(res, err)          
+    else {
+      addToPermissionsCache(resource, permissions, etag)
+      callback(permissions, etag)
+    }      
+  }
   if (permissions !== undefined && permissions !== null) {
     callback(permissions)
   } else {
-    let checkResult = function checkResult(err, permissions, etag) {
-      if (err == 404)
-        addToPermissionsCache(resource, null)
-      if (err)
-        if (errorCallback !== undefined)
-          errorCallback(err)
-        else
-          if (err == 404)
-            rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
-          else
-            rLib.internalError(res, err)          
-      else {
-        addToPermissionsCache(resource, permissions, etag)
-        callback(permissions, etag)
-      }      
-    }
     if (permissions === null) // we checked before — it's not there
       checkResult(404)
     else
@@ -243,9 +244,14 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
               log('withPermissionsDo', 'Finished migration check, resending original request')
               req.headers['x-from-migration'] = 'yes'
               requestHandler(req,res)
-            }
-            else
-              rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
+            } else
+              if (clientResponse.statusCode === 404)
+                if (errorCallback !== undefined)
+                  errorCallback(404)
+                else
+                  rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
+              else
+                rLib.internalError(res, {msg: 'unexpected migration status code', status_code: clientResponse.statusCode})
           })
         else 
           checkResult(err, permissions, etag)
@@ -560,7 +566,10 @@ function isAllowed(req, res, queryParts, callback) {
     if (req.headers.authorization)
       rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
     else
-      rLib.unauthorized(res, 'bearer token missing or expired')
+      if (req.headers['x-client-authorization'])
+        rLib.unauthorized(res, {msg: `x-client-authorization token does not include ${SCOPE_READ}`, scopes: lib.getScopes(req.headers['x-client-authorization'])})
+      else
+        rLib.unauthorized(res, {msg: 'bearer token missing or expired'})
 }
 
 function areAnyAllowed(req, res, queryParts) {
@@ -718,7 +727,7 @@ function processEvent(event) {
     if (event.data.action == 'update') {
       var team = event.data.after
       sortAndSplitRoles(team.roles) 
-      addToTeamsCache(event.data.url, team)    
+      addToTeamsCache(event.data.subject, team)    
     } else if (event.data.action == 'delete')
       deleteFromTeamsCache(event.data.url)
     else if (event.data.action == 'create') {
@@ -750,7 +759,7 @@ function requestHandler(req, res) {
     var req_url = url.parse(req.url)
     if (req_url.pathname == '/az-allowed-actions' && req_url.search !== null)
       if (req.method == 'GET')
-        getAllowedActions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
+        getAllowedActions(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-is-allowed' && req_url.search == null)
@@ -760,7 +769,7 @@ function requestHandler(req, res) {
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-is-allowed' && req_url.search !== null)
       if (req.method == 'GET')
-        isAllowed(req, res, querystring.parse(req_url.search.substring(1)))
+        isAllowed(req, res, querystring.parse(req_url.query))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-are-any-allowed' && req_url.search == null)
@@ -770,12 +779,12 @@ function requestHandler(req, res) {
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-are-any-allowed' && req_url.search !== null)
       if (req.method == 'GET')
-        areAnyAllowed(req, res, querystring.parse(req_url.search.substring(1)))
+        areAnyAllowed(req, res, querystring.parse(req_url.query))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-is-allowed-to-inherit-from' && req_url.search !== null)
       if (req.method == 'GET')
-        isAllowedToInheritFrom(req, res, req_url.search.substring(1))
+        isAllowedToInheritFrom(req, res, req_url.query)
       else
         rLib.methodNotAllowed(res, ['GET'])
     else

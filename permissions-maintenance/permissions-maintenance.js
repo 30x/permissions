@@ -13,20 +13,12 @@ const lib = require('@apigee/http-helper-functions')
 const pLib = require('@apigee/permissions-helper-functions')
 const rLib = require('@apigee/response-helper-functions')
 const db = require('./permissions-maintenance-db.js')
+const idpLib = require('../idp-helper-functions/index.js')
 
 const INTERNAL_SCHEME = process.env.INTERNAL_SCHEME || 'http'
 const ANYONE = 'http://apigee.com/users/anyone'
 const INCOGNITO = 'http://apigee.com/users/incognito'
 const SHIPYARD_PRIVATE_SECRET = process.env.SHIPYARD_PRIVATE_SECRET === undefined ? undefined : new Buffer(process.env.SHIPYARD_PRIVATE_SECRET).toString('base64')
-const CLIENT_ID = process.env.PERMISSIONS_CLIENTID
-const CLIENT_SECRET = process.env.PERMISSIONS_CLIENTSECRET
-const clientTokens = {}
-const principalCache = {}
-const principalCacheTTL = 300
-
-if (CLIENT_ID == null || CLIENT_SECRET == null)
-  log('loading', 'misconfiguration — PERMISSIONS_CLIENTID and PERMISSIONS_CLIENTSECRET must be set')
-
 function log(method, text) {
   console.log(Date.now(), process.env.COMPONENT_NAME, method, text)
 }
@@ -63,100 +55,6 @@ function verifySharingSets(req, res, permissions, callback) {
   }
 }
 
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-const clientIDRegex = /[a-z][a-z\-]*/
-const emailRegex = /[a-zA-Z0-9._%'+\\-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/
-const issuerRegex =  /^https:\/\/(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/
-
-function convertUsers(errorHandler, iss, path, inputArray, callback) {
-  lib.withValidClientToken(errorHandler, clientTokens[iss], CLIENT_ID, CLIENT_SECRET, iss+ '/oauth/token', function(token) {
-    if (token)
-      clientTokens[iss] = token
-    else
-      token = clientTokens[iss]
-    var headers = {authorization: `Bearer ${token}`, 'content-type': 'application/json'}
-    lib.sendExternalRequestThen(errorHandler, 'POST', iss + path, headers, inputArray, function(clientRes) {
-      lib.getClientResponseBody(clientRes, function(body) {
-        if (clientRes.statusCode == 200) {
-          callback(JSON.parse(body))
-        } else 
-          rLib.internalError(errorHandler, `unable to convert User ids/emails. statusCode: ${clientRes.statusCode} body: ${body}`)
-      })
-    })
-  })
-}
-function convertIDsToEmails(errorHandler, iss, idArray, callback) {
-  convertUsers(errorHandler, iss, '/v2/ids/Users/ids/', idArray, callback)
-}
-function convertEmailsToIDs(errorHandler, iss, emailArray, callback) {
-  convertUsers(errorHandler, iss, '/v2/ids/Users/emails/', emailArray, callback)
-}
-
-function verifyPrincipals(req, res, principals, callback) {
-  let emails = {}
-  let ids = {}
-  for (let i = 0; i< principals.length; i++) {
-    let principal = principals[i]
-    if (!principal.startsWith('/az-tm-')) {
-      let parts = principal.split('#')
-      if (parts[0] !== 'http://apigee.com/users')
-        if (parts.length === 2 && parts[0].match(issuerRegex)) {
-          let iss = parts[0]
-          let id = parts[1]
-          if (id.match(emailRegex))
-            if (iss in emails)
-              emails[iss].add(id)
-            else
-              emails[iss] = new Set([id])
-          else if (id.match(uuidRegex))
-            if (iss in ids)
-              ids[iss].add(id)
-            else
-              ids[iss] = new Set([id])
-          else if (!parts[0].match(clientIDRegex))
-            return rLib.badRequest(res, {msg: `users and clients must be of the form {issuer}#{id} where id is an email address or a UUID. Examples are https://login.apigee.com#6ff95057-7b80-4f57-bfec-c23ec5609c77 and https://login.apigee.com#mnally@apigee.com. Value is ${principal}`})              
-        } else
-          return rLib.badRequest(res, {msg: `users and clients must be of the form {issuer}#{id} where id is an email address or a UUID. Examples are https://login.apigee.com#6ff95057-7b80-4f57-bfec-c23ec5609c77 and https://login.apigee.com#mnally@apigee.com. Value is ${principal}`})      
-    }
-  }
-  let total = Object.keys(emails).length + Object.keys(ids).length
-  if (total === 0)
-    callback({})
-  else {
-    let count = 0
-    let principalMap = {}
-    for (let iss in emails) {
-      let emailArray = [...emails[iss]]
-      convertEmailsToIDs(res, iss, emailArray, function(issIds) {
-        if (emailArray.length === issIds.length)
-          for (let i = 0; i < issIds.length; i++) {
-            let principal = iss + '#' + issIds[i].id
-            principalCache[principal] = Date.now() + (principalCacheTTL * 1000)
-            principalMap[iss + '#' + issIds[i].email] = iss + '#' + issIds[i].id
-          }
-        else
-          return rLib.badRequest(res, {msg: 'invalid email IDs', ids: emailArray.filter(email => issIds.filter(entry => entry.email == email).length == 0)})
-        if (++count === total)
-          callback(principalMap) 
-      })
-    }
-    for (let iss in ids) {
-      let idsArray = [...ids[iss]]
-      convertIDsToEmails(res, iss, idsArray, function(issEmails) {
-        if (idsArray.length !== issEmails.length)
-          return rLib.badRequest(res, {msg: 'invalid principal IDs', ids: idsArray.filter(id => issEmails.filter(entry => entry.id == id).length == 0)})
-        for (let i = 0; i < issEmails.length; i++) {
-          let principal = iss + '#' + issEmails[i].id
-          principalCache[principal] = Date.now() + (principalCacheTTL * 1000)
-          principalMap[iss + '#' + issEmails[i].email] = iss + '#' + issEmails[i].id
-        }
-        if (++count === total)
-          callback(principalMap)      
-      })
-    }
-  }
-}
-
 function verifyPropertyPrincipals(req, res, permissions, callback) {
   function iteratePrincipals(callback) {
     for (let propertyName in permissions)
@@ -171,19 +69,17 @@ function verifyPropertyPrincipals(req, res, permissions, callback) {
           }
       }    
   }
-  let allPrincipals = []
-  iteratePrincipals(function(principals, i) {
-    if (!principalCache[principals[i]])
-      allPrincipals.push(principals[i])
-    if (Date.now() > principalCache[principals[i]]) {
-      delete principalCache[principals[i]]
-      allPrincipals.push(principals[i])
-    }
-  })
-  if (allPrincipals.length === 0)
+  let allPrincipals = new Set()
+  iteratePrincipals((principals, i) => allPrincipals.add(principals[i]))
+  if (allPrincipals.size === 0)
     callback()
   else 
-    verifyPrincipals(req, res, allPrincipals, function(principalMap) {
+    idpLib.verifyPrincipals(req, res, [...allPrincipals], emailToIdMap => {
+      iteratePrincipals((principals, i) => {
+        let principal = emailToIdMap[principals[i]]
+        if (principal)
+          principals[i] = principal
+      })
       callback()
     })
 }
@@ -413,7 +309,7 @@ function getResourcesSharedWith(req, res, user) {
   var hrstart = process.hrtime()
   log('getResourcesSharedWith', `start user: ${JSON.stringify(user)}`)
   var requestingUser = lib.getUser(req.headers.authorization)
-  user = lib.internalizeURL(user, req.headers.host)
+  user = decodeURIComponent(user)
   if (user == requestingUser || user == INCOGNITO || (requestingUser !== null && user == ANYONE))
     withTeamsDo(req, res, user, function(actors) {
       db.withResourcesSharedWithActorsDo(req, res, actors, function(resources) {
@@ -577,38 +473,38 @@ function requestHandler(req, res) {
     var req_url = url.parse(req.url)
     if (req_url.pathname == '/az-permissions' && req_url.search !== null)
       if (req.method == 'GET') 
-        getPermissions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
+        getPermissions(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else if (req.method == 'DELETE') 
-        deletePermissions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
+        deletePermissions(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else if (req.method == 'PATCH')  
-        lib.getServerPostObject(req, res, (body) => updatePermissions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host), body))
+        lib.getServerPostObject(req, res, (body) => updatePermissions(req, res, lib.internalizeURL(req_url.query, req.headers.host), body))
       else if (req.method == 'PUT')  
-        lib.getServerPostObject(req, res, (body) => putPermissions(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host), body))
+        lib.getServerPostObject(req, res, (body) => putPermissions(req, res, lib.internalizeURL(req_url.query, req.headers.host), body))
       else 
         rLib.methodNotAllowed(res, ['GET', 'PATCH', 'PUT'])
     else if (req_url.pathname == '/az-resources-accessible-by-team-members' && req_url.search !== null)
       if (req.method == 'GET')
-        getResourcesSharedWithTeamTransitively(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
+        getResourcesSharedWithTeamTransitively(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-resources-shared-with' && req_url.search !== null)
       if (req.method == 'GET')
-        getResourcesSharedWith(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
+        getResourcesSharedWith(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-permissions-heirs' && req_url.search !== null)
       if (req.method == 'GET') 
-        getPermissionsHeirs(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
+        getPermissionsHeirs(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-permissions-heirs-details' && req_url.search !== null) 
       if (req.method == 'GET') 
-        getPermissionsHeirsDetails(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
+        getPermissionsHeirsDetails(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-users-who-can-access' && req_url.search !== null)
       if (req.method == 'GET')
-        getUsersWhoCanAccess(req, res, lib.internalizeURL(req_url.search.substring(1), req.headers.host))
+        getUsersWhoCanAccess(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else
