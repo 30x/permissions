@@ -9,8 +9,7 @@ def b64_decode(data):
 def main(token):
     user_claims = json.loads(b64_decode(token.split('.')[1]))      
     user = '%s#%s' % (user_claims['iss'], user_claims['sub'])
-    user_e = user.replace('#', '%23')
-    return user_e
+    return user
 
 if __name__ == '__main__':
     print main(sys.argv[1])

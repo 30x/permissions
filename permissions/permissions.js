@@ -149,12 +149,13 @@ function getAllowedActions(req, res, queryString) {
   var user = queryParts.user
   var property = queryParts.property || '_self'
   log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property}`)
-  if (user == lib.getUser(req.headers.authorization)) 
+  let userFromToken = lib.getUser(req.headers.authorization)
+  if (user == userFromToken) 
     withAllowedActionsDo(req, res, resource, property, user, function(allowedActions) {
       rLib.found(res, allowedActions, req.headers.accept, req.url)
     })
   else
-    rLib.forbidden(res, 'user in query string must match user credentials', req.headers.accept, req.url)
+    rLib.forbidden(res, {msg: 'user in query string must match user credentials', queryStringUser: user, credentialsUser: userFromToken}, req.headers.accept, req.url)
 }
 
 function collateAllowedActions(permissionsObject, property, actors) {

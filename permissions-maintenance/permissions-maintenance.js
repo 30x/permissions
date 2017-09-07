@@ -160,7 +160,7 @@ function createPermissions(req, res, permissions) {
       })
     })
   } else
-    rLib.unauthorized(res, {msg: 'must provide x-client-authorization header to create permissions'})
+    rLib.unauthorized(res, {msg: 'must provide x-client-authorization header to create permissions', headers: req.headers})
 }
 
 function addCalculatedProperties(req, permissions) {
