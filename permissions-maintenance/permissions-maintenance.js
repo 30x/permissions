@@ -145,22 +145,29 @@ function createPermissions(req, res, permissions) {
       log('createPermissions', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
     })        
   }
-  var headers = lib.flowThroughHeaders(req)
-  if (req.headers['x-client-authorization']) {
-    var clientHeaders = Object.assign(lib.flowThroughHeaders(req),{authorization: req.headers['x-client-authorization']})
-    pLib.ifAllowedThen(clientHeaders, res, '/', 'permissions', 'create', function() {
-      verifyPermissions(req, res, permissions, () => {
-        var ancestors = permissions._inheritsPermissionsOf
-        if (ancestors)
-          ifAllowedToInheritFromThen(req, res, null, ancestors, function(scopes) {
-            primCreate(req, res, permissions, scopes)
-          })
-        else
-          primCreate(req, res, permissions, [])
-      })
+  let headers = lib.flowThroughHeaders(req)
+  let errorHandler = res
+  if (req.headers['x-client-authorization'])
+    headers.authorization = req.headers['x-client-authorization']
+  else {
+    errorHandler = rLib.errorHandler(err => {
+      if (err.statusCode == 403)
+        rLib.unauthorized(res, {msg: 'must provide x-client-authorization header to create permissions', headers: req.headers})
+      else
+        rLib.respond(res, err.statusCode, err.headers, err.body)
     })
-  } else
-    rLib.unauthorized(res, {msg: 'must provide x-client-authorization header to create permissions', headers: req.headers})
+  }
+  pLib.ifAllowedThen(headers, errorHandler, '/', 'permissions', 'create', function() {
+    verifyPermissions(req, res, permissions, () => {
+      var ancestors = permissions._inheritsPermissionsOf
+      if (ancestors)
+        ifAllowedToInheritFromThen(req, res, null, ancestors, function(scopes) {
+          primCreate(req, res, permissions, scopes)
+        })
+      else
+        primCreate(req, res, permissions, [])
+    })
+  })
 }
 
 function addCalculatedProperties(req, permissions) {

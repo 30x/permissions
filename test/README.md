@@ -36,7 +36,7 @@ export PG_DATABASE="permissions"
 * create local-export-system-variables.sh
 * in the test subdirectory, enter ./test-edge-simplified.sh
 
-An example local-export-system-variables.sh looks loime this:
+An example local-export-system-variables.sh looks like this:
 ```bash
 export IPADDRESS="127.0.0.1"
 export PORT=3200
@@ -49,7 +49,13 @@ export INTERNAL_SY_ROUTER_PORT="3200"
 export EXTERNAL_SCHEME="http"
 
 export AUTH_URL="https://login.e2e.apigee.net/oauth/token"
+export AUTH_BASIC_CREDENTIALS="ZGVzaXJlZGNsaTpkZXNpcmVkY2xpc2VjcmV0"
 export ISSUER="https://login.e2e.apigee.net"
+export OAUTH_CALLBACK_URL="http://localhost:3200/oauth-callback"
+export AUTH_KEY_URL="https://login.e2e.apigee.net/token_key"
+export SSO_CLIENT_ID="permissionsclientlocal"
+export SSO_CLIENT_SECRET="permissionsclientlocal"
+export SSO_AUTHORIZATION_URL="https://login.e2e.apigee.net/oauth/authorize"
 
 export PERMISSIONS_CLIENTID="permissions-client"
 export PERMISSIONS_CLIENTSECRET="*****"
@@ -79,7 +85,6 @@ export AZ_READ_CLIENT_GRANT_TYPE="client_credentials"
 ### install prereqs and run the demo
 * brew install gettext
 * brew link --force gettext
-* source renew-prod-token.sh
 * ./edge-simulation-demo.sh
 * ./docstore-org-simulation-demo.sh
 * ./docstore-personal-simulation-demo.sh
