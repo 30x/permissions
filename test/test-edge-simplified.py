@@ -479,6 +479,7 @@ def main():
             print 'incorrect returned actions of http://apigee.com/o/acme for USER1 %s' % actions
     else:
         print 'failed to return allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
+        return
 
     # Retrieve resources shared with USER1
 
@@ -507,6 +508,7 @@ def main():
             print 'correctly created permissions %s' % r.headers['Location'] 
         else:
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
+            return
 
     sharingSets = ['/apiproducts', '/apps', '/axCustomReports', '/companies', '/developers', '/reports']    
     for item in sharingSets:
@@ -524,6 +526,7 @@ def main():
             print 'correctly created permissions %s' % r.headers['Location']
         else:
             print 'incorrectly rejected permission creation %s %s' % (r.status_code, r.text)
+            return
 
     permissions = {
         '_subject': 'http://apigee.com/o/acme/keyvaluemaps',
@@ -557,6 +560,7 @@ def main():
             return
     else:
         print 'failed to return users-who-can-access of http://apigee.com/o/acme/keyvaluemaps for USER1 %s %s' % (r.status_code, r.text)
+        return
 
     permissions_patch = {'_inheritsPermissionsOf': ['http://apigee.com/o/acme/developers']}
 
@@ -606,6 +610,7 @@ def main():
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
+        return
 
     # Retrieve is-allowed for CLIENT_TOKEN_SCOPE_AZREAD on http://apigee.com/o/acme FOR USER1
 
@@ -622,6 +627,7 @@ def main():
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme for USER1 using client token with az.read scope %s %s' % (r.status_code, r.text)
+        return
 
     # Retrieve is-allowed for USER1 on http://apigee.com/o/acme/keyvaluemaps
 
@@ -638,6 +644,7 @@ def main():
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme/keyvaluemaps for USER1 %s %s' % (r.status_code, r.text)
+        return
 
     # Patch permissions for http://apigee.com/o/acme to add keyvaluemaps property
 
@@ -666,6 +673,7 @@ def main():
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s %s' % (r.status_code, r.text)
+        return
 
     # Retrieve is-allowed for USER1 on http://apigee.com/o/acme for property keyvaluemaps
 
@@ -682,6 +690,7 @@ def main():
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme property: keyvaluemaps for USER2 %s %s' % (r.status_code, r.text)
+        return
 
     # Retrieve is-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
@@ -730,6 +739,7 @@ def main():
             return
     else:
         print 'failed to return is-allowed actions of http://apigee.com/o/acme/keyvaluemaps for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
 
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
@@ -746,6 +756,7 @@ def main():
             return
     else:
         print 'failed to return allowed-actions of http://apigee.com/o/acme/keyvaluemaps for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
 
     # patch Ordinary_users team to add role permissions for user 3 to read http://apigee.com/o/acme/environments/*
 
@@ -789,6 +800,7 @@ def main():
             print 'incorrect returned are-any-allowed of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 %s' % answer
     else:
         print 'failed to return are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
 
     # POST are-any-allowed for USER3 on http://apigee.com/o/acme for property keyvaluemaps
 
@@ -808,8 +820,10 @@ def main():
             print 'correctly POSTed are-any-allowed (%s) of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
             print 'incorrect returned from POST to are-any-allowed of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 %s' % answer
+            return
     else:
         print 'failed to return POST to are-any-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
 
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property /environments/test
 
@@ -823,8 +837,10 @@ def main():
             print 'correctly returned allowed-actions (%s) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
         else:
             print 'incorrect returned allowed-actions of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
+            return
     else:
         print 'failed to return allowed-actions of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
 
     # Create a team using emails instead of UUIDS
 
@@ -849,6 +865,7 @@ def main():
             return
     else:
         print 'failed to create team %s %s - cannot continue' % (r.status_code, r.text)
+        return
 
     # patch team to add new user by email
 

@@ -1,8 +1,6 @@
-The permissions service can be run locally by running 4 processes and an Nginx router. An example nginx config file for the purpose is in this directory (nginx.conf).
-On OSX, you can copy it to /usr/local/etc/nginx/ and run nginx. See the Nginx documentation for other operating systems and other options.
-(nginx -V will display the location where nginx is currently looking for its config file.)
+The permissions service can be run locally as a single process. 
 
-Each of the following repos has a test directory containg a bash file whose name is of the form run-xxxxxxx. This bash file is expected to be run from the root as ./test/run-xxxxxxx
+[Permissions can also run as 4 or 5 processes and an Nginx router. This capability is not being used at the moment, but may be important in the future.]
 
 You will need a postgres with a database called permissions. The applications will create the tables themselves. If you want to use the shell scripts unmodified, you should create
 a user whose name and password are the same as those in the file local-export-pg-connection-variables.sh
@@ -20,7 +18,8 @@ Here are the steps I went through to get this going on my new Google machine:
 * git clone sso://edge-internal/permissions
 * execute `npm install` in the root directory of the repository
 * optionally clone 30x/http-helper-functions, execute `npm link` in that directory, and execute `npm link http-helper-functions` where it is used. Repeat for 30x/response-helper-functions, 30x/permissions-helper-functions, 30x/pg-event-producer and 30x/pg-event-consumer 
-* source local-export-pg-connection-variables.sh will set up environment variables for PG
+* create local-export-pg-connection-variables.sh will set up environment variables for PG
+* create local-export-system-variables.sh
 * execute ./test/run-permissions-allinone.sh in the root directory
 
 An example local-export-pg-connection-variables.sh looks loime this:
@@ -30,11 +29,6 @@ export PG_USER="martinnally"
 export PG_PASSWORD="martinnally"
 export PG_DATABASE="permissions" 
 ```
-
-### install prereqs and run the tests
-* sudo easy_install requests (this python egg is used by the test script)
-* create local-export-system-variables.sh
-* in the test subdirectory, enter ./test-edge-simplified.sh
 
 An example local-export-system-variables.sh looks like this:
 ```bash
@@ -82,16 +76,44 @@ export AZ_READ_CLIENT_SECRET="*****"
 export AZ_READ_CLIENT_GRANT_TYPE="client_credentials"
 ```
 
+### install prereqs and run the tests
+* sudo easy_install requests (this python egg is used by the test script)
+* in the test subdirectory, enter ./test-edge-simplified.sh
+
+If the tests execute correctly, you should see output like this:
+
+Sourcing in /Users/mnally/source/permissions/test/../local-export-pg-connection-variables.sh
+Sourcing in file /Users/mnally/source/permissions/test/../local-export-system-variables.sh
+start delete test data: host: 127.0.0.1 user: martinnally password: martinnally database: permissions
+setConsumers: consumers: [ '127.0.0.1:3200' ]
+removed all test data from permissions table on 127.0.0.1
+removed all test data from teams table on 127.0.0.1
+pg-event-producer finalizing
+failed to send event 2693 to 127.0.0.1:3200 err: unable to send event to: 127.0.0.1:3200 statusCode: 401
+failed to send event 2692 to 127.0.0.1:3200 err: unable to send event to: 127.0.0.1:3200 statusCode: 401
+retrieved password token for mnally@apigee.com
+retrieved password token for mnally+1@apigee.com
+retrieved password token for mnally+2@apigee.com
+retrieved password token for mnally@google.com
+retrieved client_credentials token for permissions-client
+retrieved client_credentials token for notifications-client
+correctly retrieved /az-permissions?/ etg: 71fdcc14-f377-4dfa-aa11-53c177948948
+correctly patched /az-permissions?/
+sending requests to http://localhost:3200
+correctly created permissions url: http://localhost:3200/az-permissions?http://apigee.com/o/acme etag: deb282d2-bab2-4e72-b69b-383d641ab36b
+correctly retrieved allowed-actions for https://login.e2e.apigee.net#6ff95057-7b80-4f57-bfec-c23ec5609c77 on http://apigee.com/o/acme
+correctly retrieved allowed-actions for https://login.e2e.apigee.net#81325ff1-32e9-4f50-b5c5-8923e3dc244a on http://apigee.com/o/acme
+...
+correctly returned allowed-actions ([u'read']) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = 12.7611160278ms
+correctly created team /az-tm-fleabane-ceremony-32fe1e8aa88d5bd491e23791 etag: 9a63fc53-668e-4f6f-bcb9-367aa137e690
+correctly patched Email Team team to add user2
+finished test suite
+
+Each time you run the test script, it will begin by removing the data from any previous run.
+
 ### install prereqs and run the demo
 * brew install gettext
 * brew link --force gettext
 * ./edge-simulation-demo.sh
 * ./docstore-org-simulation-demo.sh
 * ./docstore-personal-simulation-demo.sh
-
-It is also possible to run the 4 permissions applications on minikube (a local kubernetes environment).
-To do this, install Docker tools, virtualbox and minikube. There is also a configuration using `docker for mac`, minikube and
-xhyve (osx built-in hypervisor) that should work, but I have not tried it. Having installed these prereqs, you
-should be able to do the following:
-* run ./docker_build.sh in each of the 4 repo directories
-* run the k8s-start.sh and k8s-restart.sh scripts.
