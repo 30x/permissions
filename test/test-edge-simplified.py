@@ -45,6 +45,7 @@ AZ_READ_CLIENT_GRANT_TYPE = env.get('AZ_READ_CLIENT_GRANT_TYPE')
 AUTH_URL = env.get('AUTH_URL')
 ISSUER = env.get('ISSUER')
 AUTH_BASIC_CREDENTIALS = base64.b64encode('desiredcli:desiredclisecret')
+PERMISSIONS_INITIALIZED = env.get('PERMISSIONS_INITIALIZED')
 
 # return true if the given http response code represents success
 def status_ok(code):
@@ -170,24 +171,24 @@ def patch_headers(token, if_match):
     return rslt
 
 def main():
+    if not PERMISSIONS_INITIALIZED:
+        get_headers1 = get_headers(TOKEN1)
+        r = requests.get(urljoin(BASE_URL, '/az-permissions?/') , headers=get_headers1)
+        if r.status_code == 200:
+            print 'correctly retrieved /az-permissions?/ etg: %s' % r.headers['Etag'] 
+            slash_etag = r.headers['Etag'] 
+        else:
+            print 'failed to retrieve /az-permissions?/ %s %s' % (r.status_code, r.text)
+            return
 
-    get_headers1 = get_headers(TOKEN1)
-    r = requests.get(urljoin(BASE_URL, '/az-permissions?/') , headers=get_headers1)
-    if r.status_code == 200:
-        print 'correctly retrieved /az-permissions?/ etg: %s' % r.headers['Etag'] 
-        slash_etag = r.headers['Etag'] 
-    else:
-        print 'failed to retrieve /az-permissions?/ %s %s' % (r.status_code, r.text)
-        return
-
-    permissions_patch = {"permissions":  {"read": [PERMISSIONS_CLIENT_FULL_ID], "create": [PERMISSIONS_CLIENT_FULL_ID]}}
-    patch_headers1 = patch_headers(TOKEN1, slash_etag)
-    r = requests.patch(urljoin(BASE_URL, '/az-permissions?/'), headers=patch_headers1, json=permissions_patch)
-    if r.status_code == 200:
-        print 'correctly patched /az-permissions?/ ' 
-    else:
-        print 'failed to patch /az-permissions?/ %s %s' % (r.status_code, r.text)
-        return
+        permissions_patch = {"permissions":  {"read": [PERMISSIONS_CLIENT_FULL_ID], "create": [PERMISSIONS_CLIENT_FULL_ID]}}
+        patch_headers1 = patch_headers(TOKEN1, slash_etag)
+        r = requests.patch(urljoin(BASE_URL, '/az-permissions?/'), headers=patch_headers1, json=permissions_patch)
+        if r.status_code == 200:
+            print 'correctly patched /az-permissions?/ ' 
+        else:
+            print 'failed to patch /az-permissions?/ %s %s' % (r.status_code, r.text)
+            return
         
     org_url = 'http://apigee.com/o/acme'
     permissions = {
@@ -616,7 +617,8 @@ def main():
 
     url = urljoin(BASE_URL, '/az-is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
     start = timer()
-    r = requests.get(url, headers=get_headers_for_client(get_valid_token('AZ_READ_CLIENT', AUTH_URL, AZ_READ_CLIENT_ID, AZ_READ_CLIENT_SECRET, AZ_READ_CLIENT_GRANT_TYPE)))
+    headers=get_headers_for_client(get_valid_token('AZ_READ_CLIENT', AUTH_URL, AZ_READ_CLIENT_ID, AZ_READ_CLIENT_SECRET, AZ_READ_CLIENT_GRANT_TYPE))
+    r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:
         answer = r.json()

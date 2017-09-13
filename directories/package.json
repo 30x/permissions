@@ -1,0 +1,29 @@
+{
+  "name": "@apigee/directories",
+  "version": "0.0.1",
+  "description": "Create and maintain directories",
+  "main": "directories.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Martin Nally",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/30x/directories/issues"
+  },
+  "homepage": "https://github.com/30x/directories#readme",
+  "dependencies": {
+    "@apigee/http-helper-functions": "*",
+    "@apigee/permissions-helper-functions": "*",
+    "pg": "^6.1.2",
+    "@apigee/response-helper-functions": "*"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "sso://edge-internal/directories"
+  }
+}

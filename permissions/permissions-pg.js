@@ -85,7 +85,6 @@ function init(callback) {
               },
             "permissions":  {"create": [ANYONE]}, 
             "teams":        {"read": [ANYONE], "create": [ANYONE]}, 
-            "folders":      {"read": [ANYONE], "create": [ANYONE]}, 
             "_self":        {"read": [ANYONE], "update": [ANYONE], "admin": [ANYONE], "govern": [ANYONE]}
           }
           query = `INSERT INTO permissions (subject, etag, data) values($1, 1, $2) RETURNING etag`

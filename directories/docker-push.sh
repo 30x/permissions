@@ -1,0 +1,1 @@
+docker push thirtyx/directories:0.0.24

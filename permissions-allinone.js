@@ -10,7 +10,7 @@ const microServices = [
   require('./permissions-audit/audit.js'),
   require('./permissions-migration/permissions-migration.js'),
   require('./teams/teams.js'),
-  require('./folders/folders.js')
+  require('./directories/directories.js')
 ]
 
 const config = {
@@ -61,7 +61,7 @@ function requestHandler(req, res) {
       if (isValid)
         primRequestHandler(req, res, parsedRequestURL)
       else
-        rLib.unauthorized(res, {msg: 'must provide valid Bearer token'})
+        rLib.unauthorized(res, {msg: 'must provide valid Bearer token', reason: reason})
   })
 }
 

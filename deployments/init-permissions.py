@@ -3,6 +3,7 @@ import base64
 import json
 from os import environ as env
 from urlparse import urljoin
+import sys
 
 ANYONE = 'http://apigee.com/users#anyone'
 
@@ -73,7 +74,7 @@ def main():
         print 'correctly created "global governors" team %s etag: %s' % (GLOBAL_GOVS, r.headers['Etag'])
     else:
         print 'failed to create global governors team %s %s %s - cannot continue' % (teams_url, r.status_code, r.text)
-        return
+        sys.exit(1)
 
     headers = get_headers(USER_TOKEN)
     url = urljoin(BASE_URL, '/az-permissions?/')
@@ -83,7 +84,7 @@ def main():
         slash_etag = r.headers['Etag']
     else:
         print 'failed to retrieve /az-permissions?/ %s %s' % (r.status_code, r.text)
-        return
+        sys.exit(1)
 
     permissions_patch = {
         '_self': {
@@ -98,16 +99,20 @@ def main():
             'remove': [GLOBAL_GOVS]
         },
         'permissions': {
-            'read': [GLOBAL_GOVS],
+            'read': [CLIENT_ID, GLOBAL_GOVS],
             'create': [CLIENT_ID, GLOBAL_GOVS]
         },
         'teams': {
             'read': [GLOBAL_GOVS]
             # create is not mentioned because anyone can make one
         },
-        'folders': {
-            'read': [GLOBAL_GOVS]
-            # create is not mentioned because anyone can make one
+        'dir-directories': {
+            'read': [GLOBAL_GOVS],
+            'create': [GLOBAL_GOVS]
+        },
+        'dir-entries': {
+            'read': [GLOBAL_GOVS],
+            'create': [GLOBAL_GOVS]
         }        
     }
     headers = patch_headers(USER_TOKEN, slash_etag)
@@ -116,14 +121,13 @@ def main():
         print 'correctly patched permissions for /'
     else:
         print 'failed to patch permissions for / %s %s' % (r.status_code, r.text)
-        return
+        sys.exit(1)
 
     permissions = {
         '_subject': '/az-well-known-teams',
         '_inheritsPermissionsOf': '/',
         '_self': {
-            'read': [ANYONE],
-            'delete': [GLOBAL_GOVS],
+            'read': [ANYONE]
             }
         }
     headers = post_permissions_headers(USER_TOKEN)
@@ -131,9 +135,38 @@ def main():
     r = requests.post(url, headers=headers, json=permissions)
     if r.status_code == 201:
         print 'correctly created permissions for /az-well-known-teams'
+    elif r.status_code == 409:
+        print 'permissions for /az-well-known-teams already exists'
     else:
         print 'failed to create permissions for /az-well-known-teams %s %s' % (r.status_code, r.text)
-        return
+        sys.exit(1)
+
+    permissions = {
+        '_subject': '/dir-dir-root',
+        '_inheritsPermissionsOf': '/',
+        '_self': {
+            'read': [ANYONE]
+            },
+        'dir-entries': {
+            'create': [GLOBAL_GOVS],
+            'remove': [GLOBAL_GOVS],
+            'add': [GLOBAL_GOVS]
+            },
+        '_permissionsHeirs': {
+            'remove': [GLOBAL_GOVS],
+            'add': [GLOBAL_GOVS]            
+            }
+        }
+    headers = post_permissions_headers(USER_TOKEN)
+    url = urljoin(BASE_URL, '/az-permissions')
+    r = requests.post(url, headers=headers, json=permissions)
+    if r.status_code == 201:
+        print 'correctly created permissions for /dir-dir-root'
+    elif r.status_code == 409:
+        print 'permissions for /az-well-known-teams already exists'
+    else:
+        print 'failed to create permissions for /dir-dir-root %s %s' % (r.status_code, r.text)
+        sys.exit(1)
 
     well_known_teams_patch = {
         'global-govs': GLOBAL_GOVS
@@ -145,7 +178,7 @@ def main():
         print 'correctly patched /az-well-known-teams'
     else:
         print 'failed to patch /az-well-known-teams %s %s' % (r.status_code, r.text)
-        return
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

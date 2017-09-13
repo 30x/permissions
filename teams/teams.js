@@ -18,7 +18,7 @@ var PERMISSIONS_CLIENT_TOKEN
 
 if (PERMISSIONS_CLIENTID == null || PERMISSIONS_CLIENTSECRET == null || AUTH_URL == null) {
   console.log(PERMISSIONS_CLIENTID == null ? 'PERMISSIONS_CLIENTID must be set' : PERMISSIONS_CLIENTSECRET == null ? 'PERMISSIONS_CLIENTSECRET must be set' : 'AUTH_URL must be set')
-  process.exit(-1)
+  process.exit(1)
 }
 
 function log(functionName, text) {

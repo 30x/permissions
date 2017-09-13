@@ -1,27 +1,27 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: folders
+  name: directories
   labels:
-    name: folders
+    name: directories
   namespace: apigee
 spec:
   replicas: 1
   selector:
     matchLabels:
-      component: folders
+      component: directories
   template:
     metadata:
       labels:
-        component: folders
+        component: directories
         routable: "true"
       annotations:
         privateHosts: sso.k8s.dev
-        privatePaths: 3000:/folders
+        privatePaths: 3000:/directories
     spec:
       containers:
-      - name: folders
-        image: folders
+      - name: directories
+        image: directories
         imagePullPolicy: IfNotPresent
         env:
           - name: PORT
