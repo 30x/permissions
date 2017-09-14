@@ -635,7 +635,18 @@ function isAllowedToInheritFrom(req, res, queryString) {
         })
     }      
   }
-  function checkPotentialAncestors(existingAncestors, sharingSets) {    
+  function withExistingParentsDo(resource, callback) {
+    if (resource)
+      withPermissionsDo(req, res, resource, permissions => {
+        if (permissions._inheritsPermissionsOf)
+          callback(permissions._inheritsPermissionsOf)
+        else
+          callback([])
+      })
+    else
+      callback([])
+  }
+  function checkPotentialAncestors(existingParents, existingAncestors, sharingSets) {    
     withPotentialAncestorsDo(sharingSets, function (potentialAncestors) {
       // The algorithm here is a bit different from the usual permissions inheritance lookup. In the usual case
       // we are considering a single action, and going up the hierarchy to find a permission that allows it. In this case
@@ -645,21 +656,21 @@ function isAllowedToInheritFrom(req, res, queryString) {
         return {allowed: true, scopes: Array.from(new Set(existingAncestors.concat(potentialAncestors)))}
       }
       if (potentialAncestors.indexOf(subject) == -1) {
-        var addedAncestors = potentialAncestors.filter(x=>existingAncestors.indexOf(x) == -1)
-        var removedAncestors = existingAncestors.filter(x=>potentialAncestors.indexOf(x) == -1)
+        var addedParents = sharingSets.filter(x=>existingParents.indexOf(x) == -1)
+        var removedParents = existingParents.filter(x=>sharingSets.indexOf(x) == -1)
         var responded = false
-        var addOK = addedAncestors.length == 0
-        var removeOK = removedAncestors.length == 0
-        if (removedAncestors.length > 0) {
+        var addOK = addedParents.length == 0
+        var removeOK = removedParents.length == 0
+        if (removedParents.length > 0) {
           let count = 0
-          for (let i=0; i < removedAncestors.length; i++)
-            withPermissionFlagDo(req, res, null, removedAncestors[i], '_permissionsHeirs', 'remove', false, function(answer) {
+          for (let i=0; i < removedParents.length; i++)
+            withPermissionFlagDo(req, res, null, removedParents[i], '_permissionsHeirs', 'remove', false, function(answer) {
               if (!responded) 
                 if (!answer) {
                   responded = true
-                  rLib.found(res, {allowed: false, reason: `may not remove permissions inheritance from ${removedAncestors[i]}`}, req.headers.accept, req.url) 
+                  rLib.found(res, {allowed: false, reason: `may not remove permissions inheritance from ${removedParents[i]}`}, req.headers.accept, req.url) 
                 } else
-                  if (++count == removedAncestors.length) {
+                  if (++count == removedParents.length) {
                     removeOK = true
                     if (addOK) {
                       responded = true
@@ -668,16 +679,16 @@ function isAllowedToInheritFrom(req, res, queryString) {
                   }
             })
         }
-        if (addedAncestors.length > 0) {
+        if (addedParents.length > 0) {
           let count = 0
-          for (let i=0; i < addedAncestors.length; i++) 
-            withPermissionFlagDo(req, res, null, addedAncestors[i], '_permissionsHeirs', 'add', false, function(answer) {
+          for (let i=0; i < addedParents.length; i++) 
+            withPermissionFlagDo(req, res, null, addedParents[i], '_permissionsHeirs', 'add', false, function(answer) {
               if (!responded)
                 if (!answer) {
                   responded = true
-                  rLib.found(res, {result: false, reason: `may not add permissions inheritance to ${addedAncestors[i]}`}, req.headers.accept, req.url) 
+                  rLib.found(res, {result: false, reason: `may not add permissions inheritance to ${addedParents[i]}`}, req.headers.accept, req.url) 
                 } else
-                  if (++count == addedAncestors.length) {
+                  if (++count == addedParents.length) {
                     addOK = true
                     if (removeOK) {
                       responded = true
@@ -686,7 +697,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
                   }
             })
         }
-        if (removedAncestors.length == 0 && addedAncestors.length == 0)
+        if (removedParents.length == 0 && addedParents.length == 0)
           rLib.found(res, positiveResult(), req.headers.accept, req.url)
       } else
         rLib.found(res, {result: false, reason: `may not add cycle to permisions inheritance`}, req.headers.accept, req.url) // cycles not allowed
@@ -697,13 +708,15 @@ function isAllowedToInheritFrom(req, res, queryString) {
   var sharingSet = queryParts.sharingSet || []
   var sharingSets = (Array.isArray(sharingSet) ? sharingSet : [sharingSet]).map(anURL => lib.internalizeURL(anURL, req.headers.host))
   if (subject === undefined) 
-    checkPotentialAncestors([], sharingSets)
+    checkPotentialAncestors([], [], sharingSets)
   else {
     subject = lib.internalizeURL(subject, req.headers.host)
     withPermissionFlagDo(req, res, null, subject, '_self', 'admin', false, function(answer) {
       if (answer)
-        withExistingAncestorsDo(subject, function(existingAncestors) {
-          checkPotentialAncestors(existingAncestors, sharingSets)
+        withExistingAncestorsDo(subject, existingAncestors => {
+          withExistingParentsDo(subject, existingParents => {
+            checkPotentialAncestors(existingParents, existingAncestors, sharingSets)
+          })
         })
       else
         rLib.forbidden(res)
