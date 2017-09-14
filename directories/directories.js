@@ -118,12 +118,10 @@ function verifyEntry(req, res, entry, callback) {
   if (entry.kind == 'Entry')
     if (typeof entry.name == 'string')
       if (typeof entry.directory == 'string')
-        ifAllowedThen(lib.flowThroughHeaders(req), res, entry.directory, 'dir-entries', 'add', () => {
-          if (typeof entry.resource == 'string')
-            callback()
-          else
-            rLib.badRequest(res, {msg: 'invalid JSON: Entry must reference a resource', body: entry})
-        })
+        if (typeof entry.resource == 'string')
+          callback()
+        else
+          rLib.badRequest(res, {msg: 'invalid JSON: Entry must reference a resource', body: entry})
       else
         rLib.badRequest(res, {msg: 'invalid JSON: Entry must be in a Directory', body: entry})
     else
@@ -135,14 +133,16 @@ function verifyEntry(req, res, entry, callback) {
 function createEntry(req, res, entry) {
   // enties don't have their own permissions documents — permissions are derived from the enclosing directory
   verifyEntry(req, res, entry, () => {
-    var user = lib.getUser(req.headers.authorization)
-    lib.setStandardCreationProperties(req, entry, user)
-    var id = `${ENTRY}${rLib.uuidw()}`
-    var selfURL = id
-    db.createResourceThen(res, 'entry', id, entry, etag => {
-      entry.self = id 
-      addCalculatedProperties(entry)
-      rLib.created(res, entry, req.headers.accept, id, etag)
+    ifAllowedThen(lib.flowThroughHeaders(req), res, entry.directory, 'dir-entries', 'add', () => {
+      var user = lib.getUser(req.headers.authorization)
+      lib.setStandardCreationProperties(req, entry, user)
+      var id = `${ENTRY}${rLib.uuidw()}`
+      var selfURL = id
+      db.createResourceThen(res, 'entry', id, entry, etag => {
+        entry.self = id 
+        addCalculatedProperties(entry)
+        rLib.created(res, entry, req.headers.accept, id, etag)
+      })
     })
   })
 }

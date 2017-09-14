@@ -8,7 +8,7 @@ function withErrorHandling(req, res, callback) {
     if (err == 404) 
       rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
     else if (err == 409) 
-      rLib.duplicate(res, 'permissions-maintenance-db: permissions already exist for this subject')
+      rLib.duplicate(res, {msg: 'permissions-maintenance-db: permissions already exist for this subject'})
     else if (err)
       rLib.internalError(res, err)
     else 

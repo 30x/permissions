@@ -29,10 +29,10 @@ function generateDelimiter() {
 function createResourceThen(res, type, id, resource, callback) {
   resource.etag = rLib.uuid4()
   var query = `INSERT INTO ${type} (id, data) values($1, $2)`
-  pool.query(query, [id, resource], (err, pgResult) => {
+  pool.query(query, [id, JSON.stringify(resource)], (err, pgResult) => {
     if (err)
       if (err.code == 23505)
-        rLib.duplicate(res)
+        rLib.duplicate(res, {msg: 'duplicate entry', name: resource.name, directory: resource.directory})
       else
         rLib.internalError(res, {msg: 'unable to create in database', err: err})
     else {
