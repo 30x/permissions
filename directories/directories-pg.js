@@ -80,24 +80,27 @@ function withEntryDo(res, path, callback) {
       AND entry_0.data->>'directory' = '/dir-dir-root'
   */
   var parts = path.split('/')
-  if (parts.length > 4)
-    rLib.badRequest(res, {msg: `no more than 4 levels of nesting of directories allowed`})
+  if (parts.length > 10)
+    rLib.badRequest(res, {msg: `no more than 10 levels of nesting of directories allowed`, path: path})
   else {
-    var delim = generateDelimiter()
-    var tables = parts.map((_, inx) => `entry as entry_${inx}`)
-    var whereClauses = parts.map((part, inx) => `entry_${inx}.data->>'directory' = ${inx > 0 ? `entry_${inx-1}.data->>'resource'` : `'${DIRECTORY}root'`} AND
-      entry_${inx}.data->>'name' = $${delim}$${parts[inx]}$${delim}$`)
-    var query = `SELECT entry_${parts.length-1}.id, entry_${parts.length-1}.data FROM ${tables.join(', ')} WHERE ${whereClauses.join(' AND ')}`
-    console.log('\n\nwithEntryDo', query, '\n\n')
-    pool.query(query, (err, pgRes) => {
-      if (err)
-        rLib.internalError(res, {msg: 'unable to read from database', err: err})
-      else
-        if (pgRes.rowCount === 0)
-          rLib.notFound(res)
-        else {console.log(pgRes.rows[0])
-          callback(pgRes.rows[0].id, pgRes.rows[0].data) }
-    })
+    if (parts[0] == '') {
+      parts = parts.slice(1, parts.length)
+      var delim = generateDelimiter()
+      var tables = parts.map((_, inx) => `entry as entry_${inx}`)
+      var whereClauses = parts.map((part, inx) => `entry_${inx}.data->>'directory' = ${inx > 0 ? `entry_${inx-1}.data->>'resource'` : `'${DIRECTORY}root'`} AND
+        entry_${inx}.data->>'name' = $${delim}$${parts[inx]}$${delim}$`)
+      var query = `SELECT entry_${parts.length-1}.id, entry_${parts.length-1}.data FROM ${tables.join(', ')} WHERE ${whereClauses.join(' AND ')}`
+      pool.query(query, (err, pgRes) => {
+        if (err)
+          rLib.internalError(res, {msg: 'unable to read from database', err: err})
+        else
+          if (pgRes.rowCount === 0)
+            rLib.notFound(res)
+          else
+            callback(pgRes.rows[0].id, pgRes.rows[0].data)
+      })
+    } else
+      rLib.badRequest(res, {msg: `only paths starting with / are supported`, path: path})    
   }
 }
 

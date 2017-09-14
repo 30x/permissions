@@ -217,11 +217,7 @@ function requestHandler(req, res) {
       lib.getServerPostObject(req, res, (jso) => updateDirectory(req, res, id, jso))
     else
       rLib.methodNotAllowed(res, ['GET', 'DELETE', 'PATCH'])
-  } else if (req.url == '/entries') 
-    if (req.method == 'POST') 
-      lib.getServerPostObject(req, res, (t) => createDirectory(req, res, t))
-    else 
-      rLib.methodNotAllowed(res, ['POST'])
+  }
   else if (parsedURL.pathname.startsWith(ENTRY)) {
     var id = parsedURL.pathname
     if (req.method == 'GET')
@@ -232,11 +228,11 @@ function requestHandler(req, res) {
       lib.getServerPostObject(req, res, (jso) => updateEntry(req, res, id, jso))
     else
       rLib.methodNotAllowed(res, ['GET', 'DELETE', 'PATCH'])
-  } else if (parsedURL.pathname.startsWith(FIND_ENTRIES)) 
-    // something like /entries/a/b/c, where a, b and c are entry names, a is an entry in root, b is an entry in the resource identified with a, 
+  } else if (parsedURL.pathname == ENTRIES && parsedURL.query) 
+    // something like /dir-entries?/a/b/c, where a, b and c are entry names, a is an entry in root, b is an entry in the resource identified with a, 
     // and c is an entry in the resource identified by /a/b
     if (req.method == 'GET')
-      findEntry(req, res, parsedURL.pathname.substring(FIND_ENTRIES.length))
+      findEntry(req, res, parsedURL.query)
     else
       rLib.methodNotAllowed(res, ['GET'])
   else 

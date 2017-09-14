@@ -153,7 +153,7 @@ def main():
             'Accept': 'application/json',
             'Authorization': 'Bearer %s' % GOVERNOR_TOKEN}
     conn = httplib.HTTPConnection(AUTHORITY)
-    url = '/dir-entries/SystemResources/Google'
+    url = '/dir-entries?/SystemResources/Google'
     conn.request('GET', url, headers=headers)
     response = conn.getresponse()
     if response.status == 200:
@@ -165,7 +165,6 @@ def main():
         conn.close()
         return
     
-
     conn.close()
 
 main()

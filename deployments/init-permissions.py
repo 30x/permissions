@@ -151,10 +151,6 @@ def main():
             'create': [GLOBAL_GOVS],
             'remove': [GLOBAL_GOVS],
             'add': [GLOBAL_GOVS]
-            },
-        '_permissionsHeirs': {
-            'remove': [GLOBAL_GOVS],
-            'add': [GLOBAL_GOVS]            
             }
         }
     headers = post_permissions_headers(USER_TOKEN)

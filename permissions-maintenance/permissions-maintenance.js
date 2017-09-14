@@ -216,7 +216,7 @@ function ifAllowedToInheritFromThen(req, res, subject, sharingSets, callback) {
             if (result.allowed == true)
               callback(result.scopes)
             else
-              rLib.badRequest(res, `may not inherit from ${sharingSets}`)
+              rLib.badRequest(res, {msg: 'may not inherit from specified resources', reason:result.reason, sharingSets: sharingSets, user: lib.getUser(req.headers.authorization)})
           } else {
             var err = `ifAllowedToInheritFromThen: unable to retrieve ${path} statusCode ${clientResponse.statusCode} text: ${body}`
             log('ifAllowedToInheritFromThen', err)
