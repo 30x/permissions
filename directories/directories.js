@@ -5,6 +5,7 @@ const lib = require('@apigee/http-helper-functions')
 const rLib = require('@apigee/response-helper-functions')
 const db = require('./directories-pg.js')
 const pLib = require('@apigee/permissions-helper-functions')
+const querystring = require('querystring')
 
 const DIRECTORY = '/dir-dir-'
 const ENTRY = '/dir-entry-'
@@ -186,13 +187,42 @@ function updateEntry(req, res, id, patch) {
   })
 }
 
-function findEntry(req, res, path) {
-  db.withEntryDo(res, path, (id, entry) => {
-    entry.self = id
-    addCalculatedProperties(entry)
-    console.log('entry:', entry, 'id:', id)
-    rLib.found(res, entry, req.headers.accept, entry.self, entry.etag)
-  })
+function findEntry(req, res, query) {
+  let qs = querystring.parse(query)
+  if ('path' in qs)
+    if (Object.keys(qs).length == 1)
+      findEntryByPath(qs['path'])
+    else
+      rLib.badRequest(res, {msg: 'cannot mix path query with other parameters', query: query})
+  else if ('directory' in qs || 'resource' in qs)
+    if ('directory' in qs && 'name' in qs)
+      db.withEntryByDirectoryAndNameDo(res, qs['directory'], qs['name'], (id, entry) => {
+        entry.self = id
+        addCalculatedProperties(entry)
+        rLib.found(res, entry, req.headers.accept, entry.self, entry.etag)
+      })
+    else if ('directory' in qs && 'resource' in qs)
+      db.withEntryByDirectoryAndResourceDo(res, qs['directory'], qs['resource'], (id, entry) => {
+        entry.self = id
+        addCalculatedProperties(entry)
+        rLib.found(res, entry, req.headers.accept, entry.self, entry.etag)
+      })
+    else
+      rLib.badRequest(res, {msg: 'may provide "directory" and "name" or "directory" and "resource", but not this combination', query: query})
+  else {
+    let params = Object.keys(qs)
+    if (params.length == 1 && !(params[0] == 'name' && qs['name'] != ''))
+      findEntryByPath(params[0])
+    else
+      rLib.badRequest(res, {msg: 'unrecognized query parameters', query: query})
+  }
+  function findEntryByPath(path) {
+    db.withEntryByPathDo(res, path, (id, entry) => {
+      entry.self = id
+      addCalculatedProperties(entry)
+      rLib.found(res, entry, req.headers.accept, entry.self, entry.etag)
+    })
+  }
 }
 
 function requestHandler(req, res) {
@@ -233,8 +263,16 @@ function requestHandler(req, res) {
     // and c is an entry in the resource identified by /a/b
     if (req.method == 'GET')
       findEntry(req, res, parsedURL.query)
-    else
-      rLib.methodNotAllowed(res, ['GET'])
+    else if (req.method == 'DELETE') {
+      let newRes = rLib.errorHandler(err => {
+        if (err.statuscode == 200)
+          deleteEntry(req, res, err.headers['Content-Location'])
+        else
+          rLib.respond(res, err.statusCode, {'content-type': err.headers['content-type']}, err.body)
+      })
+      findEntry(req, newRes, parsedURL.query)
+    } else
+      rLib.methodNotAllowed(res, ['GET', 'DELETE'])
   else 
     rLib.notFound(res, `//${req.headers.host}${req.url} not found`)
 }

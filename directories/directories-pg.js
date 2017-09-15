@@ -47,7 +47,7 @@ function createResourceThen(res, type, id, resource, callback) {
 }
 
 function withResourceDo(res, type, id, callback) {
-  pool.query('SELECT data FROM ${type} WHERE id = $1', [id], (err, pgRes) => {
+  pool.query(`SELECT data FROM ${type} WHERE id = $1`, [id], (err, pgRes) => {
     if (err) {
       rLib.internalError(res, {msg: 'unable to read from database', err: err})
     }
@@ -63,7 +63,7 @@ function withResourceDo(res, type, id, callback) {
   })
 }
 
-function withEntryDo(res, path, callback) {
+function withEntryByPathDo(res, path, callback) {
   /*
   For a path of the form a/b/c/d, construct a query of the form:
 
@@ -102,6 +102,34 @@ function withEntryDo(res, path, callback) {
     } else
       rLib.badRequest(res, {msg: `only paths starting with / are supported`, path: path})    
   }
+}
+
+function withEntryByDirectoryAndNameDo(res, directory, name, callback) {
+  let query = `select data from entry where data->>'directory' = $1 and data->>'name' = $2`
+  pool.query(query, [directory, name], (err, pgRes) => {
+    if (err)
+      rLib.internalError(res, {msg: 'unable to read from database', err: err})
+    else
+      if (pgRes.rowCount === 0)
+        rLib.notFound(res, {msg: 'unable to find entry for given directory and name', directory: directory, name: name})
+      else
+        callback(pgRes.rows[0].id, pgRes.rows[0].data)
+  })
+}
+
+function withEntryByDirectoryAndResourceDo(res, directory, resource, callback) {
+  let query = `select data from entry where data->>'directory' = $1 and data->>'resource' = $2`
+  pool.query(query, [directory, resource], (err, pgRes) => {
+    if (err)
+      rLib.internalError(res, {msg: 'unable to read from database', err: err})
+    else
+      if (pgRes.rowCount === 0)
+        rLib.notFound(res, {msg: 'unable to find entry for given directory and resource', directory: directory, resource: resource})
+      else if (pgRes.rowCount === 1)
+        callback(pgRes.rows[0].id, pgRes.rows[0].data)
+      else
+        rLib.duplicate(res, {msg: "resource is in directory under more than one name", directory: directory, resource: resource, names: pgRes.rows.map(row => row.data.name)})
+    })
 }
 
 function deleteResourceThen(res, type, id, callback) {
@@ -189,5 +217,7 @@ exports.createResourceThen = createResourceThen
 exports.updateResourceThen = updateResourceThen
 exports.deleteResourceThen = deleteResourceThen
 exports.withResourceDo = withResourceDo
-exports.withEntryDo = withEntryDo
+exports.withEntryByPathDo = withEntryByPathDo
+exports.withEntryByDirectoryAndNameDo = withEntryByDirectoryAndNameDo
+exports.withEntryByDirectoryAndResourceDo = withEntryByDirectoryAndResourceDo
 exports.init = init

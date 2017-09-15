@@ -197,14 +197,18 @@ function isActionAllowed(permissionsObject, property, actors, action) {
       else if (actors !== null)
         if (allowedActors.indexOf(ANYONE) > -1)
           return true
-        else if (allowedActors.indexOf(allowedActors[0].split('#')[0] + '#anyone') > -1) // first entry in allowedActors is the user
-          return true
-        else 
-          for (var j=0; j<actors.length; j++) {
-            var actor = actors[j]
-            if (allowedActors.indexOf(actor) > -1 )
-              return true
-          }
+        else {
+          let user = actors[0]  // first entry in actors is the user
+          let issuer = user.split('#')[0]
+          if (allowedActors.indexOf(issuer + '#anyone') > -1)
+            return true
+          else 
+            for (var j=0; j<actors.length; j++) {
+              var actor = actors[j]
+              if (allowedActors.indexOf(actor) > -1 )
+                return true
+            }
+        }
     }
   }
   // if we get this far, we have not been able to say definiitively yes

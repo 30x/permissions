@@ -124,8 +124,9 @@ function addCalculatedProperties(team) {
 }
 
 function getTeam(req, res, id) {
-  pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, req.url, '_self', 'read', function(err, reason) {
-    db.withTeamDo(req, res, id, function(team , etag) {
+  // fetching from the database before checking permissions ensures we give 404 for missing or deleted team rather than 403
+  db.withTeamDo(req, res, id, function(team , etag) {
+    pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, req.url, '_self', 'read', function(err, reason) {
       team.self = makeSelfURL(req, id)
       addCalculatedProperties(team)
       rLib.found(res, team, req.headers.accept, team.self, etag)
@@ -134,8 +135,9 @@ function getTeam(req, res, id) {
 }
 
 function deleteTeam(req, res, id) {
-  pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, req.url, '_self', 'delete', function() {
-    db.deleteTeamThen(req, res, id, makeSelfURL(req, id), function (team, etag) {
+  var selfURL =  makeSelfURL(req, id) 
+  pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, req.url, '_self', 'delete', allowed => {
+    db.deleteTeamThen(req, res, id, selfURL, allowed.scopes[selfURL], function (team, etag) {
       pLib.deletePermissionsThen(lib.flowThroughHeaders(req), res, `${TEAM_PREFIX}${id}`, function () {
         console.log(`deleted permissions for ${TEAM_PREFIX}${id}`)
       })
@@ -143,7 +145,7 @@ function deleteTeam(req, res, id) {
       addCalculatedProperties(team)
       rLib.found(res, team, req.headers.accept, team.self, etag)
     })
-  })
+  }, true)
 }
 
 function patchTeam(req, res, id, patch) {
