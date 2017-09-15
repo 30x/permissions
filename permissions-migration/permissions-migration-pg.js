@@ -73,7 +73,7 @@ function init(callback, aPool) {
   pool = aPool || new Pool(config)
   var query = 'CREATE TABLE IF NOT EXISTS migrations (orgURL text primary key, startTime bigint, endTime bigint, data jsonb)'  
   pool.connect(function(err, client, release) {
-    if(err)
+    if(err && err.code != 23505)
       console.error('error creating migrations table', err)
     else
       client.query(query, function(err, pgResult) {

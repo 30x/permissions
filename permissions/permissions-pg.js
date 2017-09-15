@@ -73,7 +73,7 @@ function init(callback) {
       console.error('error creating permissions table', err)
     else
       client.query(query, function(err, pgResult) {
-        if(err) {
+        if(err && err.code != 23505) {
           release()
           console.error('error creating permissions table', err)
         } else {

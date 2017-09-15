@@ -10,3 +10,4 @@ test/token*.txt
 .idea
 apigee-permissions-allinone.tar.gz
 build/rpm/app/
+package-lock.json

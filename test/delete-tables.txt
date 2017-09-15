@@ -1,0 +1,8 @@
+delete from permissions;
+delete from teams;
+delete from teams_misc;
+delete from entry;
+delete from directory;
+delete from migrations;
+delete from events;
+delete from consumers;
