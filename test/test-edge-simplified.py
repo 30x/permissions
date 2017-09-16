@@ -96,9 +96,9 @@ def get_valid_token(token_name, auth_url, id, secret, grant_type):
         response = conn.getresponse()
         if not check_response(response):
             if grant_type == 'password':
-                print 'error: get_valid_token: url=%s response.status=%s AUTH_BASIC_CREDENTIALS:%s id: %s password: %s grant_type:%s' % (url_parts.path, response.status, AUTH_BASIC_CREDENTIALS, id, secret, grant_type)
+                print 'error: get_valid_token: url=%s response.status=%s AUTH_BASIC_CREDENTIALS:%s id: %s password: %s grant_type:%s' % (auth_url, response.status, AUTH_BASIC_CREDENTIALS, id, secret, grant_type)
             else:
-                print 'error: get_valid_token: url=%s response.status=%s client_id: %s client_secret: %s grant_type:%s' % (url_parts.path, response.status, id, secret, grant_type)
+                print 'error: get_valid_token: url=%s response.status=%s client_id: %s client_secret: %s grant_type:%s' % (auth_url, response.status, id, secret, grant_type)
             raise RuntimeError('get_valid_token conn.request failed')
         js = json.load(response)
         token = js['access_token']
