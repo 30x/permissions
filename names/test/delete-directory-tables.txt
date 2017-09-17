@@ -1,0 +1,2 @@
+delete from entry;
+delete from directory;

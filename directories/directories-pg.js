@@ -4,7 +4,7 @@ var lib = require('@apigee/http-helper-functions')
 const rLib = require('@apigee/response-helper-functions')
 const MAX_ENTITY_SIZE = 1e4
 var DIRECTORY = '/dir-dir-'
-var ENTRY = '/dir-entry-'
+var ENTRY = '/name-entry-'
 
 var config = {
   host: process.env.PG_HOST,
@@ -26,28 +26,25 @@ function generateDelimiter() {
   return rslt
 }
 
-function createResourceThen(res, type, id, resource, callback) {
-  resource.etag = rLib.uuid4()
-  var query = `INSERT INTO ${type} (id, data) values($1, $2)`
-  pool.query(query, [id, JSON.stringify(resource)], (err, pgResult) => {
+function createDirectoryThen(res, id, directory, callback) {
+  directory.etag = rLib.uuid4()
+  var query = 'INSERT INTO directory (id, data) values($1, $2)'
+  pool.query(query, [id, JSON.stringify(directory)], (err, pgResult) => {
     if (err)
-      if (err.code == 23505)
-        rLib.duplicate(res, {msg: 'duplicate entry', name: resource.name, directory: resource.directory})
-      else
-        rLib.internalError(res, {msg: 'unable to create in database', err: err})
+      rLib.internalError(res, {msg: 'unable to create directory in database', err: err})
     else {
       if (pgResult.rowCount === 0) 
         callback(404)
       else {
         var row = pgResult.rows[0];
-        callback(resource.etag)
+        callback(directory.etag)
       }
     }
   })
 }
 
-function withResourceDo(res, type, id, callback) {
-  pool.query(`SELECT data FROM ${type} WHERE id = $1`, [id], (err, pgRes) => {
+function withDirectoryDo(res, id, callback) {
+  pool.query('SELECT data FROM directory WHERE id = $1', [id], (err, pgRes) => {
     if (err) {
       rLib.internalError(res, {msg: 'unable to read from database', err: err})
     }
@@ -63,77 +60,8 @@ function withResourceDo(res, type, id, callback) {
   })
 }
 
-function withEntryByPathDo(res, path, callback) {
-  /*
-  For a path of the form a/b/c/d, construct a query of the form:
-
-  SELECT entry_3.data->>'resource' 
-  FROM  entry AS entry_3, entry AS entry_2, entry AS entry_1, entry AS entry_0 
-  WHERE
-          entry_3.data->>'name' = 'd'
-      AND entry_2.data->>'name' = 'c'
-      AND entry_1.data->>'name' = 'b'
-      AND entry_0.data->>'name' = 'a'
-      AND entry_3.data->>'directory' = entry_2.data->>'resource'
-      AND entry_2.data->>'directory' = entry_1.data->>'resource'
-      AND entry_1.data->>'directory' = entry_0.data->>'resource'
-      AND entry_0.data->>'directory' = '/dir-dir-root'
-  */
-  var parts = path.split('/')
-  if (parts.length > 10)
-    rLib.badRequest(res, {msg: `no more than 10 levels of nesting of directories allowed`, path: path})
-  else {
-    if (parts[0] == '') {
-      parts = parts.slice(1, parts.length)
-      var delim = generateDelimiter()
-      var tables = parts.map((_, inx) => `entry as entry_${inx}`)
-      var whereClauses = parts.map((part, inx) => `entry_${inx}.data->>'directory' = ${inx > 0 ? `entry_${inx-1}.data->>'resource'` : `'${DIRECTORY}root'`} AND
-        entry_${inx}.data->>'name' = $${delim}$${parts[inx]}$${delim}$`)
-      var query = `SELECT entry_${parts.length-1}.id, entry_${parts.length-1}.data FROM ${tables.join(', ')} WHERE ${whereClauses.join(' AND ')}`
-      pool.query(query, (err, pgRes) => {
-        if (err)
-          rLib.internalError(res, {msg: 'unable to read from database', err: err})
-        else
-          if (pgRes.rowCount === 0)
-            rLib.notFound(res)
-          else
-            callback(pgRes.rows[0].id, pgRes.rows[0].data)
-      })
-    } else
-      rLib.badRequest(res, {msg: `only paths starting with / are supported`, path: path})    
-  }
-}
-
-function withEntryByDirectoryAndNameDo(res, directory, name, callback) {
-  let query = `select data from entry where data->>'directory' = $1 and data->>'name' = $2`
-  pool.query(query, [directory, name], (err, pgRes) => {
-    if (err)
-      rLib.internalError(res, {msg: 'unable to read from database', err: err})
-    else
-      if (pgRes.rowCount === 0)
-        rLib.notFound(res, {msg: 'unable to find entry for given directory and name', directory: directory, name: name})
-      else
-        callback(pgRes.rows[0].id, pgRes.rows[0].data)
-  })
-}
-
-function withEntryByDirectoryAndResourceDo(res, directory, resource, callback) {
-  let query = `select data from entry where data->>'directory' = $1 and data->>'resource' = $2`
-  pool.query(query, [directory, resource], (err, pgRes) => {
-    if (err)
-      rLib.internalError(res, {msg: 'unable to read from database', err: err})
-    else
-      if (pgRes.rowCount === 0)
-        rLib.notFound(res, {msg: 'unable to find entry for given directory and resource', directory: directory, resource: resource})
-      else if (pgRes.rowCount === 1)
-        callback(pgRes.rows[0].id, pgRes.rows[0].data)
-      else
-        rLib.duplicate(res, {msg: "resource is in directory under more than one name", directory: directory, resource: resource, names: pgRes.rows.map(row => row.data.name)})
-    })
-}
-
-function deleteResourceThen(res, type, id, callback) {
-  var query = `DELETE FROM ${type} WHERE id = $1 RETURNING *`
+function deleteDirectoryThen(res, id, callback) {
+  var query = 'DELETE FROM directory WHERE id = $1 RETURNING *'
   pool.query(query, [id], (err, pgResult) => {
     if (err)
       rLib.internalError(res, {msg: 'unable to delete from database', err: err})
@@ -148,12 +76,12 @@ function deleteResourceThen(res, type, id, callback) {
   })
 }
 
-function updateResourceThen(res, type, id, resource, etag, callback) {
-  var query = `UPDATE ${type} SET (data) = ($1) WHERE id = $2 AND data->>'etag' = $3`
-  resource.etag = rLib.uuid4()
-  var args = [JSON.stringify(resource), id, etag]
+function updateDirectoryThen(res, id, directory, etag, callback) {
+  var query = "UPDATE directory SET (data) = ($1) WHERE id = $2 AND data->>'etag' = $3"
+  directory.etag = rLib.uuid4()
+  var args = [JSON.stringify(directory), id, etag]
   if (args[0].length > MAX_ENTITY_SIZE)
-    rLib.badRequest(res, {msg: `size of resource with patch my not exceed ${MAX_ENTITY_SIZE}`})
+    rLib.badRequest(res, {msg: `size of directory with patch my not exceed ${MAX_ENTITY_SIZE}`})
   else
     pool.query(query, args, (err, pgResult) => {
       if (err)
@@ -162,7 +90,7 @@ function updateResourceThen(res, type, id, resource, etag, callback) {
         if (pgResult.rowCount === 0) 
           callback()
         else 
-          callback(resource.etag)
+          callback(directory.etag)
       }
     })
 }
@@ -182,28 +110,10 @@ function init(callback, aPool) {
             if(err) {
               release()
               console.error('error creating directory_data_inx index on directory table', err)
-            } else 
-              client.query("CREATE TABLE IF NOT EXISTS entry (id text primary key, data jsonb)", (err, pgResult) => {
-                if(err) {
-                  release()
-                  console.error('error creating entry table', err)
-                } else
-                  client.query("CREATE INDEX IF NOT EXISTS entry_data_inx ON entry USING gin (data)", (err, pgResult) => {
-                    if (err) {
-                      release()
-                      console.error('error creating entry_data_inx index on entry table', err)
-                    } else
-                      client.query("CREATE UNIQUE INDEX IF NOT EXISTS entry_unique_name_inx ON entry ((data->>'name'), (data->>'directory'))", (err, pgResult) => {
-                        if (err) {
-                          release()
-                          console.error('error creating entry_unique_name_inx index on entry table', err)
-                        } else {
-                          release()
-                          callback()
-                        }
-                      })
-                  })
-              })
+            } else {
+              release()
+              callback()
+            }
           })
       })
   })
@@ -213,11 +123,8 @@ process.on('unhandledRejection', e => {
   console.log(e.message, e.stack)
 })
 
-exports.createResourceThen = createResourceThen
-exports.updateResourceThen = updateResourceThen
-exports.deleteResourceThen = deleteResourceThen
-exports.withResourceDo = withResourceDo
-exports.withEntryByPathDo = withEntryByPathDo
-exports.withEntryByDirectoryAndNameDo = withEntryByDirectoryAndNameDo
-exports.withEntryByDirectoryAndResourceDo = withEntryByDirectoryAndResourceDo
+exports.createDirectoryThen = createDirectoryThen
+exports.updateDirectoryThen = updateDirectoryThen
+exports.deleteDirectoryThen = deleteDirectoryThen
+exports.withDirectoryDo = withDirectoryDo
 exports.init = init

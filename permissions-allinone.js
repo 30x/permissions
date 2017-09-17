@@ -10,7 +10,8 @@ const microServices = [
   require('./permissions-audit/audit.js'),
   require('./permissions-migration/permissions-migration.js'),
   require('./teams/teams.js'),
-  require('./directories/directories.js')
+  require('./directories/directories.js'),
+  require('./names/entries.js')
 ]
 
 const config = {

@@ -110,7 +110,7 @@ def main():
             'read': [GLOBAL_GOVS],
             'create': [GLOBAL_GOVS]
         },
-        'dir-entries': {
+        'name-entries': {
             'read': [GLOBAL_GOVS],
             'create': [GLOBAL_GOVS]
         }        
@@ -139,29 +139,6 @@ def main():
         print 'permissions for /az-well-known-teams already exists'
     else:
         print 'failed to create permissions for /az-well-known-teams %s %s' % (r.status_code, r.text)
-        sys.exit(1)
-
-    permissions = {
-        '_subject': '/dir-dir-root',
-        '_inheritsPermissionsOf': '/',
-        '_self': {
-            'read': [ANYONE]
-            },
-        'dir-entries': {
-            'create': [GLOBAL_GOVS],
-            'remove': [GLOBAL_GOVS],
-            'add': [GLOBAL_GOVS]
-            }
-        }
-    headers = post_permissions_headers(USER_TOKEN)
-    url = urljoin(BASE_URL, '/az-permissions')
-    r = requests.post(url, headers=headers, json=permissions)
-    if r.status_code == 201:
-        print 'correctly created permissions for /dir-dir-root'
-    elif r.status_code == 409:
-        print 'permissions for /az-well-known-teams already exists'
-    else:
-        print 'failed to create permissions for /dir-dir-root %s %s' % (r.status_code, r.text)
         sys.exit(1)
 
     well_known_teams_patch = {
