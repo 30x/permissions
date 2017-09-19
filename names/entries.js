@@ -7,9 +7,6 @@ const db = require('./entries-pg.js')
 const pLib = require('@apigee/permissions-helper-functions')
 const querystring = require('querystring')
 
-const ENTRY_PREFIX = '/name-ety-'
-const ENTRIES = '/name-entries'
-const ENTRY = '/name-entry'
 const CHECK_PERMISSIONS = !(process.env.CHECK_PERMISSIONS == 'false')
 
 const PERMISSIONS_CLIENTID = process.env.PERMISSIONS_CLIENTID
@@ -61,7 +58,7 @@ function createEntry(req, res, entry) {
     ifAllowedThen(lib.flowThroughHeaders(req), res, entry.namespace, 'name-entries', 'create', () => {
       var user = lib.getUser(req.headers.authorization)
       lib.setStandardCreationProperties(req, entry, user)
-      var id = `${ENTRY_PREFIX}${rLib.uuidw()}`
+      var id = `${'/name-ety-'}${rLib.uuidw()}`
       var selfURL = id
       db.createEntryThen(res, id, entry, etag => {
         entry.self = id 
@@ -153,12 +150,12 @@ function deleteEntries(req, res, query) {
 
 function requestHandler(req, res) {
   var parsedURL = url.parse(req.url)
-  if (req.url == ENTRIES) 
+  if (req.url == '/name-entries') 
     if (req.method == 'POST') 
       lib.getServerPostObject(req, res, entry => createEntry(req, res, entry))
     else 
       rLib.methodNotAllowed(res, ['POST'])
-  else if (parsedURL.pathname.startsWith(ENTRY_PREFIX)) {
+  else if (parsedURL.pathname.startsWith('/name-ety-')) {
     var id = parsedURL.pathname
     if (req.method == 'GET')
       getEntry(req, res, id)
@@ -168,7 +165,7 @@ function requestHandler(req, res) {
       lib.getServerPostObject(req, res, (jso) => updateEntry(req, res, id, jso))
     else
       rLib.methodNotAllowed(res, ['GET', 'DELETE', 'PATCH'])
-  } else if (parsedURL.pathname == ENTRY && parsedURL.query) 
+  } else if (parsedURL.pathname == '/name-entry' && parsedURL.query) 
     // something like /name-entry?/a/b/c, where a, b and c are entry names, a is an entry in root, b is an entry in the resource identified with a, 
     // and c is an entry in the resource identified by /a/b
     if (req.method == 'GET')
@@ -187,7 +184,7 @@ function requestHandler(req, res) {
       })
       findEntryByPath(req, newRes, parsedURL.query)
     }
-  else if (parsedURL.pathname == ENTRIES && parsedURL.query) 
+  else if (parsedURL.pathname == '/name-entries' && parsedURL.query) 
     // something like /name-entries?namedResource='/xxxxx'
     if (req.method == 'GET')
       findEntries(req, res, parsedURL.query)
@@ -218,7 +215,7 @@ function start() {
   else
     module.exports = {
       requestHandler:requestHandler,
-      paths: [ENTRIES, ENTRY_PREFIX, ENTRY],
+      paths: ['/name-entries', '/name-ety-', '/name-entry'],
       init: init
     }
 }
