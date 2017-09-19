@@ -123,11 +123,26 @@ function findEntries(req, res, query) {
   let qs = querystring.parse(query)
   if ('namedResource' in qs)
     if (Object.keys(qs).length == 1)
-      db.withEntriesForCalleeDo(res, qs['namedResource'], entries => {
+      db.withEntriesForNamedResourceDo(res, qs['namedResource'], entries => {
         let rslt = {kind: 'Collection'}
         rslt.contents = entries
         rslt.self = req.url
-        console.log('\n\nentries::findEntries', query, rslt, res, '\n\n')
+        rLib.found(res, rslt, req.headers.accept, rslt.self)
+      })
+    else
+      rLib.badRequest(res, {msg: 'may only provide "namedResource" parameter', query: query})
+  else 
+    rLib.badRequest(res, {msg: 'unrecognized query parameters', query: query})
+}
+
+function deleteEntries(req, res, query) {
+  let qs = querystring.parse(query)
+  if ('namedResource' in qs)
+    if (Object.keys(qs).length == 1)
+      db.deleteEntriesForNamedResourceThen(res, qs['namedResource'], entries => {
+        let rslt = {kind: 'Collection'}
+        rslt.contents = entries
+        rslt.self = req.url
         rLib.found(res, rslt, req.headers.accept, rslt.self)
       })
     else
@@ -177,15 +192,7 @@ function requestHandler(req, res) {
     if (req.method == 'GET')
       findEntries(req, res, parsedURL.query)
     else if (req.method == 'DELETE') {
-      let newRes = rLib.errorHandler(err => {
-        if (err.statusCode == 200) {
-          let entryCollection = JSON.parse(err.body)
-          for (let entry of entryCollection.contents)
-            deleteEntry(req, res, entry.self)
-        } else
-          rLib.respond(res, err.statusCode, {'content-type': err.headers['content-type']}, err.body)
-      })
-      findEntries(req, newRes, parsedURL.query)
+      deleteEntries(req, res, parsedURL.query)
     } else
       rLib.methodNotAllowed(res, ['GET', 'DELETE'])
   else 

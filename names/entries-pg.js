@@ -103,7 +103,7 @@ function withEntryByPathDo(res, path, callback) {
   }
 }
 
-function withEntriesForCalleeDo(res, namedResource, callback) {
+function withEntriesForNamedResourceDo(res, namedResource, callback) {
   let query = `select id, data from entry where data->>'namedResource' = $1`
   pool.query(query, [namedResource], (err, pgRes) => {
     if (err)
@@ -111,6 +111,25 @@ function withEntriesForCalleeDo(res, namedResource, callback) {
     else
       if (pgRes.rowCount === 0)
         rLib.notFound(res, {msg: 'unable to find entry for given namedResource', namedResource: namedResource})
+      else {
+        let rslt = []
+        for (let row of pgRes.rows) {
+          row.data.self = row.id
+          rslt.push(row.data)
+        }
+        callback(rslt)
+      }
+    })
+}
+
+function deleteEntriesForNamedResourceThen(res, namedResource, callback) {
+  let query = `delete from entry where data->>'namedResource' = $1 returning id, data`
+  pool.query(query, [namedResource], (err, pgRes) => {
+    if (err)
+      rLib.internalError(res, {msg: 'unable to delete entries from database for given namedResource', namedResource: namedResource, err: err})
+    else
+      if (pgRes.rowCount === 0)
+        rLib.notFound(res, {msg: 'unable to delete entries for given namedResource', namedResource: namedResource})
       else {
         let rslt = []
         for (let row of pgRes.rows) {
@@ -208,5 +227,6 @@ exports.updateEntryThen = updateEntryThen
 exports.deleteEntryThen = deleteEntryThen
 exports.withEntryDo = withEntryDo
 exports.withEntryByPathDo = withEntryByPathDo
-exports.withEntriesForCalleeDo = withEntriesForCalleeDo
+exports.withEntriesForNamedResourceDo = withEntriesForNamedResourceDo
+exports.deleteEntriesForNamedResourceThen = deleteEntriesForNamedResourceThen
 exports.init = init
