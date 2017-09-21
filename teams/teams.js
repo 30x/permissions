@@ -87,8 +87,8 @@ function createTeam(req, res, team) {
           var selfURL = makeSelfURL(req, id)
           var permissions = team._permissions
           if (permissions !== undefined) {
-            delete team._permissions; // unusual case where ; is necessary
-            (new pLib.Permissions(permissions)).resolveRelativeURLs(selfURL)
+            delete team._permissions
+            new pLib.Permissions(permissions).resolveRelativeURLs(selfURL)
           }
           var headers = lib.flowThroughHeaders(req)
           lib.withValidClientToken(res, PERMISSIONS_CLIENT_TOKEN, PERMISSIONS_CLIENTID, PERMISSIONS_CLIENTSECRET, AUTH_URL, function(newToken) {
