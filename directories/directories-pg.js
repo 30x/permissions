@@ -98,18 +98,21 @@ function updateDirectoryThen(res, id, directory, etag, callback) {
 function init(callback, aPool) {
   pool = aPool || new Pool(config)
   pool.connect((err, client, release) => {
-    if(err)
+    if(err) {
       console.error('error creating teams table', err)
-    else
+      process.exit(1)
+    } else
       client.query("CREATE TABLE IF NOT EXISTS directory (id text primary key, data jsonb)", (err, pgResult) => {
-        if(err) {
+        if (err && err.code != 23505) {
           release()
           console.error('error creating directory table', err)
+          process.exit(1)
         } else 
           client.query("CREATE INDEX IF NOT EXISTS directory_data_inx ON directory USING gin (data)", (err, pgResult) => {
-            if(err) {
+            if(err && err.code != 23505) {
               release()
               console.error('error creating directory_data_inx index on directory table', err)
+              process.exit(1)
             } else {
               release()
               callback()

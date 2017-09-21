@@ -69,17 +69,19 @@ function withTeamsForUserDo(req, user, callback) {
 function init(callback) {
   var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag text, data jsonb);'  
   pool.connect(function(err, client, release) {
-    if(err)
+    if(err) {
       console.error('error creating permissions table', err)
-    else
+      process.exit(1)
+    } else
       client.query(query, function(err, pgResult) {
         if(err && err.code != 23505) {
           release()
           console.error('error creating permissions table', err)
+          process.exit(1)
         } else {
           console.log('permissions-db: connected to PG: ', config)
           var permissions = {
-            "_subject": "/", 
+            "_subject": "/",
             "_permissionsHeirs": {
               "add": [ANYONE]
               },
@@ -93,9 +95,11 @@ function init(callback) {
             if(err)
               if (err.code == 23505) {
                 callback()
-                console.error('permissions for "/" already existed')
-              } else
+                console.log('permissions for "/" already existed')
+              } else {
                 console.error('error creating permissions for "/"', err)
+                process.exit(1)
+              }
             else 
               callback()
           })

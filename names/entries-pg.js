@@ -179,39 +179,31 @@ function updateEntryThen(res, id, entry, etag, callback) {
 function init(callback, aPool) {
   pool = aPool || new Pool(config)
   pool.connect((err, client, release) => {
-    if(err)
+    if(err) {
       console.error('error creating teams table', err)
-    else
-      client.query("CREATE TABLE IF NOT EXISTS directory (id text primary key, data jsonb)", (err, pgResult) => {
-        if(err) {
+      process.exit(1)
+    } else
+      client.query("CREATE TABLE IF NOT EXISTS entry (id text primary key, data jsonb)", (err, pgResult) => {
+        if(err && err.code != 23505) {
           release()
-          console.error('error creating directory table', err)
-        } else 
-          client.query("CREATE INDEX IF NOT EXISTS directory_data_inx ON directory USING gin (data)", (err, pgResult) => {
-            if(err) {
+          console.error('error creating entry table', err)
+          process.exit(1)
+        } else
+          client.query("CREATE INDEX IF NOT EXISTS entry_data_inx ON entry USING gin (data)", (err, pgResult) => {
+            if (err && err.code != 23505) {
               release()
-              console.error('error creating directory_data_inx index on directory table', err)
-            } else 
-              client.query("CREATE TABLE IF NOT EXISTS entry (id text primary key, data jsonb)", (err, pgResult) => {
-                if(err) {
+              console.error('error creating entry_data_inx index on entry table', err)
+              process.exit(1)
+            } else
+              client.query("CREATE UNIQUE INDEX IF NOT EXISTS entry_unique_name_inx ON entry ((data->>'name'), (data->>'namespace'))", (err, pgResult) => {
+                if (err && err.code != 23505) {
                   release()
-                  console.error('error creating entry table', err)
-                } else
-                  client.query("CREATE INDEX IF NOT EXISTS entry_data_inx ON entry USING gin (data)", (err, pgResult) => {
-                    if (err) {
-                      release()
-                      console.error('error creating entry_data_inx index on entry table', err)
-                    } else
-                      client.query("CREATE UNIQUE INDEX IF NOT EXISTS entry_unique_name_inx ON entry ((data->>'name'), (data->>'namespace'))", (err, pgResult) => {
-                        if (err) {
-                          release()
-                          console.error('error creating entry_unique_name_inx index on entry table', err)
-                        } else {
-                          release()
-                          callback()
-                        }
-                      })
-                  })
+                  console.error('error creating entry_unique_name_inx index on entry table', err)
+                  process.exit(1)
+                } else {
+                  release()
+                  callback()
+                }
               })
           })
       })

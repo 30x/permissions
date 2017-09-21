@@ -142,25 +142,29 @@ function init(callback, aPool) {
   eventProducer = new pge.eventProducer(pool)
   var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag text, data jsonb);'
   pool.connect(function(err, client, release) {
-    if(err && err.code != 23505)
+    if(err) {
       console.error('error creating permissions table', err)
-    else
+      process.exit(1)
+    } else
       client.query(query, function(err, pgResult) {
-        if(err) {
+        if(err && err.code != 23505) {
           release()
           console.error('error creating permissions table', err)
+          process.exit(1)
         } else {
           query = "CREATE INDEX IF NOT EXISTS inxinherits ON permissions USING gin ((data->'_inheritsPermissionsOf'));"
           client.query(query, function(err, pgResult) {
             if(err && err.code != 23505) {
               release()
               console.error('error creating inxinherits index', err)
+              process.exit(1)
             } else {
               query = "CREATE INDEX IF NOT EXISTS inxsharedwith ON permissions USING gin ((data->'_metadata'->'sharedWith'));"
               client.query(query, function(err, pgResult) {
                 if(err && err.code != 23505) {
                   release()
                   console.error('error creating inxsharedwith index', err)
+                  process.exit(1)
                 } else {
                   release()
                   console.log('permissions-maintenance-db: connected to PG, config: ', config)

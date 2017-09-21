@@ -73,13 +73,15 @@ function init(callback, aPool) {
   pool = aPool || new Pool(config)
   var query = 'CREATE TABLE IF NOT EXISTS migrations (orgURL text primary key, startTime bigint, endTime bigint, data jsonb)'  
   pool.connect(function(err, client, release) {
-    if(err && err.code != 23505)
+    if(err) {
       console.error('error creating migrations table', err)
-    else
+      process.exit(1)
+    } else
       client.query(query, function(err, pgResult) {
-        if(err) {
+        if(err && err.code != 23505) {
           release()
           console.error('error creating migrations table', err)
+          process.exit(1)
         } else {
           release()
           log('init', `connected to PG, host: ${config.host} database: ${config.database}`)
