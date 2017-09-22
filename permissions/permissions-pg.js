@@ -79,7 +79,7 @@ function init(callback) {
           console.error('error creating permissions table', err)
           process.exit(1)
         } else {
-          console.log('permissions-db: connected to PG: ', config)
+          console.log('permissions-db: connected to PG. host:" ', config.host, ' database: ', config.database)
           var permissions = {
             "_subject": "/",
             "_permissionsHeirs": {
@@ -100,7 +100,7 @@ function init(callback) {
                 console.error('error creating permissions for "/"', err)
                 process.exit(1)
               }
-            else 
+            else
               callback()
           })
         }
