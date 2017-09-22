@@ -153,13 +153,13 @@ function init(callback, aPool) {
                       release()
                       if (err.code == '23505') {
                         console.log('teams-pg: /az-well-known-teams already existed')
-                        console.log('teams-pg: connected to PG, config: ', config)
+                        console.log('teams-pg: connected to PG')
                         eventProducer.init(callback)
                       } else  
                         console.error('error adding /az-well-known-teams to teams_misc table', err)
                     } else {
                       release()
-                      console.log('teams-pg: connected to PG, config: ', config)
+                      console.log('teams-pg: connected to PG')
                       eventProducer.init(callback)
                     }
                   })

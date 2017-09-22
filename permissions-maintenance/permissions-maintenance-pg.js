@@ -167,7 +167,7 @@ function init(callback, aPool) {
                   process.exit(1)
                 } else {
                   release()
-                  console.log('permissions-maintenance-db: connected to PG, config: ', config)
+                  console.log('permissions-maintenance-db: connected to PG')
                   eventProducer.init(callback)
                 }
               })
