@@ -19,6 +19,8 @@ const REMIGRATION_INTERVAL = 5 * 60 * 1000    // every 5 minutes
 const SPEEDUP = process.env.SPEEDUP || 1
 const clientTokens = {}
 
+let PERMISSIONS_CLIENT_TOKEN = undefined
+
 function log(functionName, text) {
   console.log(Date.now(), COMPONENT_NAME, functionName, text)
 }
@@ -55,9 +57,9 @@ function handleReMigration(res, issuer, clientToken, body){
 }
 
 function handleReMigrationRequest(req, res, body){ 
-  var requestUser = lib.getUser(req.headers.authorization)
-  var issuer = requestUser.split('#')[0]  
-  withClientCredentialsDo(res, issuer, function(clientToken) { 
+  let requestUser = lib.getUser(req.headers.authorization)
+  let issuer = requestUser.split('#')[0]
+  lib.withValidClientToken(res, PERMISSIONS_CLIENT_TOKEN, CLIENT_ID, CLIENT_SECRET, issuer+'/oauth/token', function(clientToken) {
     handleReMigration(res, issuer, clientToken, body)
   })
 }
@@ -124,28 +126,6 @@ function performMigration(res, orgName, orgURL, issuer, clientToken, callback, b
     } else
       migrateOrgPermissionsFromEdge(res, orgName, orgURL, issuer, clientToken, migrationRecord, callback)
   })  
-}
-
-function withClientCredentialsDo(res, issuer, callback) {
-  // build up a new request object with the client credentials used for getting user UUIDs from their emails
-  var clientAuthEncoded = new Buffer(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64')
-  var tokenHeaders = {}
-  tokenHeaders['authorization'] = 'Basic ' + clientAuthEncoded
-  tokenHeaders['Accept'] = 'application/json'
-  tokenHeaders['content-type'] = 'application/x-www-form-urlencoded'
-  // get client credentials token with scim.ids read scope so we can translate emails to user UUIDs
-  sendExternalRequestThen(res, tokenHeaders, issuer, '/oauth/token', 'POST', 'grant_type=client_credentials', function (clientRes) {
-    lib.getClientResponseBody(clientRes, function (body) {
-      if (clientRes.statusCode == 200) {
-        var clientToken = JSON.parse(body).access_token
-        callback(clientToken)
-      } else {
-        var msg = {msg: 'unable to authenticate with IDs service to perform migration', statusCode: clientRes.statusCode}
-        log('withClientCredentialsDo', msg)
-        rLib.internalError(res, msg)
-      }
-    })
-  })
 }
 
 function withEdgeUserUUIDsDo(res, issuer, clientToken, edgeRolesAndPermissions, callback) {
@@ -294,25 +274,12 @@ function updateOrgPermissons(orgPermission, roleNames, teamLocation) {
     // add permissions heirs
     orgPermission._permissionsHeirs.read.push(teamLocation)
     orgPermission._permissionsHeirs.add.push(teamLocation)
-    orgPermission._permissionsHeirs.remove.push(teamLocation)
 
     // subscriptions permissions
     orgPermission.subscriptions.create.push(teamLocation)
     orgPermission.subscriptions.read.push(teamLocation)
     orgPermission.subscriptions.update.push(teamLocation)
     orgPermission.subscriptions.delete.push(teamLocation)
-
-    // notifications permissions
-    orgPermission.notifications.create.push(teamLocation)
-    orgPermission.notifications.read.push(teamLocation)
-    orgPermission.notifications.update.push(teamLocation)
-    orgPermission.notifications.delete.push(teamLocation)
-
-    // events permissions
-    orgPermission.events.create.push(teamLocation)
-    orgPermission.events.read.push(teamLocation)
-    orgPermission.events.update.push(teamLocation)
-    orgPermission.events.delete.push(teamLocation)
 
     // history permissions
     orgPermission.history.read.push(teamLocation)
@@ -337,18 +304,6 @@ function updateOrgPermissons(orgPermission, roleNames, teamLocation) {
     orgPermission.subscriptions.update.push(teamLocation)
     orgPermission.subscriptions.delete.push(teamLocation)
 
-    // notifications permissions
-    orgPermission.notifications.create.push(teamLocation)
-    orgPermission.notifications.read.push(teamLocation)
-    orgPermission.notifications.update.push(teamLocation)
-    orgPermission.notifications.delete.push(teamLocation)
-
-    // events permissions
-    orgPermission.events.create.push(teamLocation)
-    orgPermission.events.read.push(teamLocation)
-    orgPermission.events.update.push(teamLocation)
-    orgPermission.events.delete.push(teamLocation)
-
     // history permissions
     orgPermission.history.read.push(teamLocation)
     orgPermission.history.delete.push(teamLocation)
@@ -368,12 +323,6 @@ function updateOrgPermissons(orgPermission, roleNames, teamLocation) {
     // subscription permissions
     orgPermission.subscriptions.read.push(teamLocation)
 
-    // notifications permissions
-    orgPermission.notifications.read.push(teamLocation)
-
-    // events permissions
-    orgPermission.events.read.push(teamLocation)
-
     // history permissions
     orgPermission.history.read.push(teamLocation)
 
@@ -387,12 +336,6 @@ function updateOrgPermissons(orgPermission, roleNames, teamLocation) {
 
     // subscription permissions
     orgPermission.subscriptions.read.push(teamLocation)
-
-    // notifications permissions
-    orgPermission.notifications.read.push(teamLocation)
-
-    // events permissions
-    orgPermission.events.read.push(teamLocation)
 
     // history permissions
     orgPermission.history.read.push(teamLocation)
@@ -411,12 +354,6 @@ function updateOrgPermissons(orgPermission, roleNames, teamLocation) {
     // subscription permissions
     orgPermission.subscriptions.read.push(teamLocation)
 
-    // notifications permissions
-    orgPermission.notifications.read.push(teamLocation)
-
-    // events permissions
-    orgPermission.events.read.push(teamLocation)
-
     // history permissions
     orgPermission.history.read.push(teamLocation)
 
@@ -431,12 +368,6 @@ function updateOrgPermissons(orgPermission, roleNames, teamLocation) {
 
     // subscription permissions
     orgPermission.subscriptions.read.push(teamLocation)
-
-    // notifications permissions
-    orgPermission.notifications.read.push(teamLocation)
-
-    // events permissions
-    orgPermission.events.read.push(teamLocation)
 
     // history permissions
     orgPermission.history.read.push(teamLocation)
@@ -560,12 +491,12 @@ function remigrateOnSchedule() {
   db.getMigrationsOlderThan(now - (REMIGRATION_INTERVAL / SPEEDUP), function(err, migrations) {
     if (err == null)
       for (let i=0; i<migrations.length; i++) {
-        var migration = migrations[i]
-        var orgName = migration.data.orgName
-        var lastMigrationTime = migration.starttime
-        var orgURL = migration.orgurl
-        var issuer = migration.data.issuer
-        withClientCredentialsDo(res, issuer, function(clientToken) {         
+        let migration = migrations[i]
+        let orgName = migration.data.orgName
+        let lastMigrationTime = migration.starttime
+        let orgURL = migration.orgurl
+        let issuer = migration.data.issuer
+        lib.withValidClientToken(res, PERMISSIONS_CLIENT_TOKEN, CLIENT_ID, CLIENT_SECRET, issuer+'/oauth/token', function(clientToken) {
           ifAuditShowsChange(res, clientToken, orgName, orgURL, lastMigrationTime, function() {
             var requestBody = {resource: orgURL}
             var res = rLib.errorHandler(function(result) {

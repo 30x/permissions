@@ -13,11 +13,11 @@
   "license": "Apache-2.0",
   "dependencies": {
     "pg": "^6.0.3",
-    "@apigee/http-helper-functions": "*",
-    "@apigee/pg-event-consumer": "*",
-    "@apigee/pg-event-producer": "*",
-    "@apigee/response-helper-functions": "*",
-    "@apigee/permissions-helper-functions": "*",
+    "@apigee/http-helper-functions": "0.0.142",
+    "@apigee/pg-event-consumer": "0.0.22",
+    "@apigee/pg-event-producer": "0.0.42",
+    "@apigee/response-helper-functions": "0.0.23",
+    "@apigee/permissions-helper-functions": "0.0.64"
     "@apigee/logger": "*"
   },
   "devDependencies": {

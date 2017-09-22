@@ -157,12 +157,19 @@ function patchTeam(req, res, id, patch) {
           verifyTeam(req, res, patchedTeam, function(err) {
             if (err)
               rLib.badRequest(res, err)
-            else
-              db.updateTeamThen(req, res, id, selfURL, patchedTeam, allowed.scopes[selfURL], etag, function (etag) {
-                patchedTeam.self = selfURL 
-                addCalculatedProperties(patchedTeam)
-                rLib.found(res, patchedTeam, req.headers.accept, patchedTeam.self, etag)
-              })
+            else {
+              let user = lib.getUser(req.headers.authorization)
+              let rslt = lib.setStandardModificationProperties(req, team, user)
+              if (rslt)
+                rLib.badRequest(res, {msg: rslt})
+              else {
+                db.updateTeamThen(req, res, id, selfURL, patchedTeam, allowed.scopes[selfURL], etag, function (etag) {
+                  patchedTeam.self = selfURL
+                  addCalculatedProperties(patchedTeam)
+                  rLib.found(res, patchedTeam, req.headers.accept, patchedTeam.self, etag)
+                })
+              }
+            }
           })
         })
       } else {
@@ -178,12 +185,19 @@ function putTeam(req, res, id, team) {
     verifyTeam(req, res, team, function(err) {
       if (err)
         rLib.badRequest(res, err)
-      else
-        db.updateTeamThen(req, res, id, makeSelfURL(req, id), team, allowed.scopes, null, function (etag) {
-          team.self = makeSelfURL(req, id) 
-          addCalculatedProperties(team)
-          rLib.found(res, team, req.headers.accept, team.self, etag)
-        })
+      else {
+        let user = lib.getUser(req.headers.authorization)
+        let rslt = lib.setStandardModificationProperties(req, team, user)
+        if (rslt)
+          rLib.badRequest(res, {msg: rslt})
+        else {
+          db.updateTeamThen(req, res, id, makeSelfURL(req, id), team, allowed.scopes, null, function (etag) {
+            team.self = makeSelfURL(req, id)
+            addCalculatedProperties(team)
+            rLib.found(res, team, req.headers.accept, team.self, etag)
+          })
+        }
+      }
     })
   }, true)
 }
