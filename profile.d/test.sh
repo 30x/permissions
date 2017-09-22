@@ -1,6 +1,6 @@
 export IPADDRESS="127.0.0.1"
 export PORT=3200
-export COMPONENT_NAME="permissions"
+export COMPONENT_NAME="test-edge-simplified script"
 export SPEEDUP=10
 export EXTERNAL_SY_ROUTER_HOST="localhost"
 export EXTERNAL_SY_ROUTER_PORT="3200"
