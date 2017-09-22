@@ -24,19 +24,23 @@ function log(method, text) {
 function convertUsers(errorHandler, iss, path, inputArray, callback) {
   if (inputArray && inputArray.length > 0)
     lib.withValidClientToken(errorHandler, clientTokens[iss], CLIENT_ID, CLIENT_SECRET, iss+ '/oauth/token', function(token) {
-        if (token)
+      if (token)
         clientTokens[iss] = token
-        else
+      else
         token = clientTokens[iss]
-        var headers = {authorization: `Bearer ${token}`, 'content-type': 'application/json'}
-        lib.sendExternalRequestThen(errorHandler, 'POST', iss + path, headers, inputArray, function(clientRes) {
+      var headers = {authorization: `Bearer ${token}`, 'content-type': 'application/json'}
+      lib.sendExternalRequestThen(errorHandler, 'POST', iss + path, headers, inputArray, function(clientRes) {
         lib.getClientResponseBody(clientRes, function(body) {
-            if (clientRes.statusCode == 200) {
+          if (clientRes.statusCode == 200) {
             callback(JSON.parse(body))
-            } else 
-            rLib.internalError(errorHandler, `unable to convert User ids/emails. statusCode: ${clientRes.statusCode} body: ${body}`)
+          } else 
+            rLib.internalError(errorHandler, {
+              msg: 'unable to convert User ids/emails.', 
+              statusCode: clientRes.statusCode, 
+              body: JSON.parse(body)
+            })
         })
-        })
+      })
     })
 }
 
