@@ -17,7 +17,8 @@
     "@apigee/pg-event-consumer": "*",
     "@apigee/pg-event-producer": "*",
     "@apigee/response-helper-functions": "*",
-    "@apigee/permissions-helper-functions": "*"
+    "@apigee/permissions-helper-functions": "*",
+    "@apigee/logger": "*"
   },
   "devDependencies": {
     "d3-random": "^1.0.2",
