@@ -7,7 +7,7 @@ const db = require('./entries-pg.js')
 const pLib = require('@apigee/permissions-helper-functions')
 const querystring = require('querystring')
 
-const CHECK_PERMISSIONS = !(process.env.CHECK_PERMISSIONS == 'false')
+const CHECK_PERMISSIONS = process.env.CHECK_PERMISSIONS !== 'false';
 
 const PERMISSIONS_CLIENTID = process.env.PERMISSIONS_CLIENTID
 const PERMISSIONS_CLIENTSECRET = process.env.PERMISSIONS_CLIENTSECRET
