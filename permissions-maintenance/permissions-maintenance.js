@@ -207,6 +207,7 @@ function ifAllowedToInheritFromThen(req, res, subject, sharingSets, callback) {
     var queryParams = sharingSets.map(x => `sharingSet=${x}`)
     if (subject)
       queryParams.push(`subject=${subject}`)
+    queryParams.push(`user=${encodeURIComponent(lib.getUserFromReq(req))}`)
     if (queryParams.length > 0) {
       var path = `/az-is-allowed-to-inherit-from?${queryParams.join('&')}`
       lib.sendInternalRequestThen(res, 'GET', path, lib.flowThroughHeaders(req), null, function(clientResponse) {

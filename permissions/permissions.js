@@ -195,15 +195,15 @@ function isActionAllowed(permissionsObject, property, actors, action) {
   if (propertyPermissions !== undefined) {
     var allowedActors = propertyPermissions[action]
     if (allowedActors !== undefined) {
-      if (allowedActors.indexOf(INCOGNITO) > -1)
+      if (allowedActors.includes(INCOGNITO))
         return true
       else if (actors !== null)
-        if (allowedActors.indexOf(ANYONE) > -1)
+        if (allowedActors.includes(ANYONE))
           return true
-        else {
+        else if (actors.length > 0) {
           let user = actors[0]  // first entry in actors is the user
           let issuer = user.split('#')[0]
-          if (allowedActors.indexOf(issuer + '#anyone') > -1)
+          if (allowedActors.includes(issuer + '#anyone'))
             return true
           else 
             for (var j=0; j<actors.length; j++) {
@@ -343,7 +343,7 @@ function withActorsForUserDo(req, res, user, callback) {
       })
     }
   } else
-    rLib.badRequest(res, 'user must be provided' + req.url)
+    callback([])
 }
 
 function pathPatternMatch(pathPatternParts, pathParts) {
@@ -407,44 +407,32 @@ function checkRoles(actors, baseAndPath, action, answer, scopes, callback) {
   callback(answer, scopes)
 }
 
-function withPermissionFlagDo(req, res, queryUser, subject, baseAndPath, property, action, withScopes, callback) {
-  function calculateFlagForActors (actors) {  
-    var allowed = null
-    var scopes = withScopes ? [] : undefined
-    if (subject === undefined)
-      checkRoles(actors, baseAndPath, action, null, scopes, callback)
-    else
-      withAncestorPermissionsDo(req, res, subject, function(permissions) {
-        if (withScopes)
-          scopes.push(permissions._subject)
-        var opinion = isActionAllowed(permissions, property, actors, action)
-        if (opinion == true) { // someone says its OK, but there may be  a veto later
-          allowed = allowed == null || allowed == true
-          return false // keep going
-        } else if (opinion == false) {
-          allowed = false
-          return !withScopes  // operation is forbidden. Stop looking unless we need to return the hierarchy
-        } else
-          return false // keep going
-      }, function() {
-        checkRoles(actors, baseAndPath, action, allowed, scopes, callback)
-      }, function(err) {
-        if (err == 404)
-          checkRoles(actors, baseAndPath, action, null, scopes, callback)
-        else
-          lib.internalError(res, err)              
-      })
-  }
-  let user = lib.getUser(req.headers.authorization)
-  if(user === null && queryUser !== null && req.headers['x-client-authorization'])
-    user = queryUser
-  if (user === null)
-    calculateFlagForActors([])
-  else {
-    withActorsForUserDo(req, res, user, function(actors) {
-      calculateFlagForActors(actors)
+function withPermissionFlagDo(req, res, user, actors, subject, baseAndPath, property, action, withScopes, callback) {
+  var allowed = null
+  var scopes = withScopes ? [] : undefined
+  if (subject === undefined)
+    checkRoles(actors, baseAndPath, action, null, scopes, callback)
+  else
+    withAncestorPermissionsDo(req, res, subject, function(permissions) {
+      if (withScopes)
+        scopes.push(permissions._subject)
+      var opinion = isActionAllowed(permissions, property, actors, action)
+      if (opinion == true) { // someone says its OK, but there may be  a veto later
+        allowed = allowed == null || allowed == true
+        return false // keep going
+      } else if (opinion == false) {
+        allowed = false
+        return !withScopes  // operation is forbidden. Stop looking unless we need to return the hierarchy
+      } else
+        return false // keep going
+    }, function() {
+      checkRoles(actors, baseAndPath, action, allowed, scopes, callback)
+    }, function(err) {
+      if (err == 404)
+        checkRoles(actors, baseAndPath, action, null, scopes, callback)
+      else
+        lib.internalError(res, err)              
     })
-  }
 }
 
 function withAncestorPermissionsTreeDo(req, res, subject, callback, errorCallback) {
@@ -564,35 +552,61 @@ function _isAllowed(req, res, user, action, property, resources, withScopes, wit
   var responded = false
   // Multiple resources is interpreted to mean that the user must have access to all of them. 
   // For an API that returns true if the user has access to any one of the resources, see areAnyAllowed.  
-  for (let i = 0; i< resources.length; i++)
-    if (!responded)
-      withPermissionFlagDo(req, res, user, resources[i], resources[i], property, action, withScopes, function(answer, scopes) {
-        if (!responded) {
-          // If finalAnswer is already false, then it must remain false, regardless of the value of answer
-          finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
-          if (withScopes)
-            allScopes[resources[i]] = Array.from(new Set(scopes))
-          if (withIndividualAnswers)
-            allAnswers[resources[i]] = answer
-          // in the simples case, we stop looking if finalAsnswer is false. however, if the user asked for
-          // the scopes, or asked for an answer for each resource, then we need to continue
-          if (!finalAnswer && !withScopes && !withIndividualAnswers) {
-            callback(finalAnswer)
-            responded = true
-          } else if (++count == resources.length) {
-            var result
-            if (withScopes || withIndividualAnswers) {
-              result = {allowed: finalAnswer}
-              if (withScopes)
-                result.scopes = allScopes
-              if (withIndividualAnswers)
-                result.allAnswers = allAnswers
-            } else
-              result = finalAnswer
-            callback(result)
+  withActorsForUserDo(req, res, user, function(actors) {    
+    for (let i = 0; i< resources.length; i++)
+      if (!responded)
+        withPermissionFlagDo(req, res, user, actors, resources[i], resources[i], property, action, withScopes, function(answer, scopes) {
+          if (!responded) {
+            // If finalAnswer is already false, then it must remain false, regardless of the value of answer
+            finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
+            if (withScopes)
+              allScopes[resources[i]] = Array.from(new Set(scopes))
+            if (withIndividualAnswers)
+              allAnswers[resources[i]] = answer
+            // in the simples case, we stop looking if finalAsnswer is false. however, if the user asked for
+            // the scopes, or asked for an answer for each resource, then we need to continue
+            if (!finalAnswer && !withScopes && !withIndividualAnswers) {
+              callback(finalAnswer)
+              responded = true
+            } else if (++count == resources.length) {
+              var result
+              if (withScopes || withIndividualAnswers) {
+                result = {allowed: finalAnswer}
+                if (withScopes)
+                  result.scopes = allScopes
+                if (withIndividualAnswers)
+                  result.allAnswers = allAnswers
+              } else
+                result = finalAnswer
+              callback(result)
+            }
           }
-        }
-      })
+        })
+  })
+}
+
+/**
+ * Check to see if the user provided matches the token. A match occurs if the
+ * user in the token is the same, or if the user has appropriate read scope.
+ * A 'user' can be a user or clientID. If the user is OK, call the callback
+ * function, otherwise send an appropriate error message
+ * 
+ * @param {object} req. An HTTP request object 
+ * @param {object} res. An HTTP serverResponse Object
+ * @param {string} user. A URL
+ * @param {function} callback - No parameters
+ */
+function ifUserMatchesRequestTokenThen(req, res, user, callback) {
+  if (user === null || user === lib.getUser(req.headers.authorization) || (user && lib.getScopes(req.headers['x-client-authorization']).includes(SCOPE_READ)))
+    callback()
+  else  
+    if (req.headers.authorization)
+      rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
+    else
+      if (req.headers['x-client-authorization'])
+        rLib.unauthorized(res, {msg: `x-client-authorization token does not include ${SCOPE_READ}`, scopes: lib.getScopes(req.headers['x-client-authorization'])})
+      else
+        rLib.unauthorized(res, {msg: 'bearer token missing or expired'})
 }
 
 /**
@@ -642,7 +656,7 @@ function isAllowed(req, res, query) {
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
   log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
-  if (user === null || user === lib.getUser(req.headers.authorization) || lib.getScopes(req.headers['x-client-authorization']).indexOf(SCOPE_READ) !== -1)
+  ifUserMatchesRequestTokenThen(req, res, user, () => {
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
     else 
@@ -653,14 +667,7 @@ function isAllowed(req, res, query) {
         var hrend = process.hrtime(hrstart)
         log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${typeof result == 'string' ? result : JSON.stringify(result)} resources: ${resources}`)    
       })
-  else  
-    if (req.headers.authorization)
-      rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
-    else
-      if (req.headers['x-client-authorization'])
-        rLib.unauthorized(res, {msg: `x-client-authorization token does not include ${SCOPE_READ}`, scopes: lib.getScopes(req.headers['x-client-authorization'])})
-      else
-        rLib.unauthorized(res, {msg: 'bearer token missing or expired'})
+  })
 }
 
 /**
@@ -694,21 +701,23 @@ function areAnyAllowed(req, res, queryParts) {
         resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
         var count = 0
         var responded = false
-        for (let i = 0; i< resources.length; i++)
-          if (!responded)
-            // In the API areAnyAllowed, we assume that each resource value could be either a resourceID
-            // or a concatenation of a base resource and a path. We pass the resource to withPermissionFlagDo
-            // as both, so that it will be checked both ways
-            withPermissionFlagDo(req, res, user, resources[i], resources[i], property, action, null, function(answer) {
-              if (!responded) {
-                if (answer || ++count == resources.length) {
-                  rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
-                  responded = true
-                  var hrend = process.hrtime(hrstart)
-                  log('areAnyAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
+        withActorsForUserDo(req, res, user, function(actors) {
+          for (let i = 0; i< resources.length; i++)
+            if (!responded)
+              // In the API areAnyAllowed, we assume that each resource value could be either a resourceID
+              // or a concatenation of a base resource and a path. We pass the resource to withPermissionFlagDo
+              // as both, so that it will be checked both ways
+              withPermissionFlagDo(req, res, user, actors, resources[i], resources[i], property, action, null, function(answer) {
+                if (!responded) {
+                  if (answer || ++count == resources.length) {
+                    rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
+                    responded = true
+                    var hrend = process.hrtime(hrstart)
+                    log('areAnyAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
+                  }
                 }
-              }
-            })
+              })
+        })
       }
     else  
       rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
@@ -753,7 +762,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
     else
       callback([])
   }
-  function checkPotentialAncestors(existingParents, existingAncestors, sharingSets) {    
+  function checkPotentialAncestors(user, actors, existingParents, existingAncestors, sharingSets) {
     withPotentialAncestorsDo(sharingSets, function (potentialAncestors) {
       // The algorithm here is a bit different from the usual permissions inheritance lookup. In the usual case
       // we are considering a single action, and going up the hierarchy to find a permission that allows it. In this case
@@ -771,7 +780,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         if (removedParents.length > 0) {
           let count = 0
           for (let i=0; i < removedParents.length; i++)
-            withPermissionFlagDo(req, res, null, removedParents[i], null, '_permissionsHeirs', 'remove', false, function(answer) {
+            withPermissionFlagDo(req, res, user, actors, removedParents[i], null, '_permissionsHeirs', 'remove', false, function(answer) {
               if (!responded) 
                 if (!answer) {
                   responded = true
@@ -789,7 +798,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         if (addedParents.length > 0) {
           let count = 0
           for (let i=0; i < addedParents.length; i++) 
-            withPermissionFlagDo(req, res, null, addedParents[i], null, '_permissionsHeirs', 'add', false, function(answer) {
+            withPermissionFlagDo(req, res, user, actors, addedParents[i], null, '_permissionsHeirs', 'add', false, function(answer) {
               if (!responded)
                 if (!answer) {
                   responded = true
@@ -813,22 +822,27 @@ function isAllowedToInheritFrom(req, res, queryString) {
   var queryParts = querystring.parse(queryString)
   var subject = queryParts.subject
   var sharingSet = queryParts.sharingSet || []
+  let user = queryParts.user
   var sharingSets = (Array.isArray(sharingSet) ? sharingSet : [sharingSet]).map(anURL => lib.internalizeURL(anURL, req.headers.host))
-  if (subject === undefined) 
-    checkPotentialAncestors([], [], sharingSets)
-  else {
-    subject = lib.internalizeURL(subject, req.headers.host)
-    withPermissionFlagDo(req, res, null, subject, null, '_self', 'admin', false, function(answer) {
-      if (answer)
-        withExistingAncestorsDo(subject, existingAncestors => {
-          withExistingParentsDo(subject, existingParents => {
-            checkPotentialAncestors(existingParents, existingAncestors, sharingSets)
-          })
+  ifUserMatchesRequestTokenThen(req, res, user, () => {
+    withActorsForUserDo(req, res, user, function(actors) {
+      if (subject === undefined) 
+        checkPotentialAncestors(user, actors, [], [], sharingSets)
+      else {
+        subject = lib.internalizeURL(subject, req.headers.host)
+        withPermissionFlagDo(req, res, user, actors, subject, null, '_self', 'admin', false, function(answer) {
+          if (answer)
+            withExistingAncestorsDo(subject, existingAncestors => {
+              withExistingParentsDo(subject, existingParents => {
+                checkPotentialAncestors(user, actors, existingParents, existingAncestors, sharingSets)
+              })
+            })
+          else
+            rLib.forbidden(res)
         })
-      else
-        rLib.forbidden(res)
+      }
     })
-  }
+  })
 }
 
 function processEvent(event) {
