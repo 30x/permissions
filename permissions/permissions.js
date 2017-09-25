@@ -151,7 +151,10 @@ function getAllowedActions(req, res, queryString) {
   log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property}`)
   let userFromToken = lib.getUser(req.headers.authorization)
   if (user == userFromToken) 
-    withAllowedActionsDo(req, res, resource, property, user, function(allowedActions) {
+    // In the API getAllowedActions, we assume that the resource value could be either a resourceID
+    // or a concatenation of a base resource and a path. We pass the resource to withAllowedActionsDo
+    // as both, so that it will be checked both ways
+    withAllowedActionsDo(req, res, resource, resource, property, user, function(allowedActions) {
       rLib.found(res, allowedActions, req.headers.accept, req.url)
     })
   else
@@ -374,23 +377,42 @@ function calculateRoleActions(roles, resource) {
   return null
 }
 
-function withPermissionFlagDo(req, res, queryUser, subject, property, action, withScopes, callback) {
+/**
+ * This jsdoc defines the callback parameter to buildQueryResult
+ * @callback checkRolesCallback
+ * @param {boolean or null} answer
+ * @param {Array} scopes
+ */
+/**
+ * checkRoles looks to see if the roles stored with the team of which the
+ * user is a member grant permission for the action and path. 
+ * 
+ * @param {Array} actors
+ * @param {string} baseAndPath
+ * @param {string} action
+ * @param {boolean or null} answer
+ * @param {Array} scopes
+ * @param {checkRolesCallback} callback
+ */
+function checkRoles(actors, baseAndPath, action, answer, scopes, callback) {
+  if (baseAndPath)
+    for (let i = 1; i < actors.length && answer === null ; i++) {
+      let roles = retrieveFromTeamsCache(actors[i]).roles // touching the teamsCache will keep entry alive
+      if (answer === null) {
+        let actions = calculateRoleActions(roles, baseAndPath)
+        if (actions !== null && actions.includes(action))
+          answer = true
+      }
+    }  
+  callback(answer, scopes)
+}
+
+function withPermissionFlagDo(req, res, queryUser, subject, baseAndPath, property, action, withScopes, callback) {
   function calculateFlagForActors (actors) {  
-    function checkRoles(answer, scopes) {
-      for (let i = 1; i < actors.length && answer === null ; i++) {
-        let roles = retrieveFromTeamsCache(actors[i]).roles // touching the teamsCache will keep entry alive
-        if (answer === null && subject != null) {
-          let actions = calculateRoleActions(roles, subject)
-          if (actions !== null && actions.indexOf(action) > -1)
-            answer = true
-        }
-      }  
-      callback(answer, scopes)
-    }
     var allowed = null
     var scopes = withScopes ? [] : undefined
     if (subject === undefined)
-      checkRoles(null, scopes)
+      checkRoles(actors, baseAndPath, action, null, scopes, callback)
     else
       withAncestorPermissionsDo(req, res, subject, function(permissions) {
         if (withScopes)
@@ -405,10 +427,10 @@ function withPermissionFlagDo(req, res, queryUser, subject, property, action, wi
         } else
           return false // keep going
       }, function() {
-        checkRoles(allowed, scopes)
+        checkRoles(actors, baseAndPath, action, allowed, scopes, callback)
       }, function(err) {
         if (err == 404)
-          checkRoles(null, scopes)
+          checkRoles(actors, baseAndPath, action, null, scopes, callback)
         else
           lib.internalError(res, err)              
       })
@@ -453,14 +475,14 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback, errorCallbac
   withAncestorPermissionsSubtreeDo(subject, tree, callback, errorCallback)
 }
 
-function withAllowedActionsDo(req, res, resource, property, user, callback) {
+function withAllowedActionsDo(req, res, resource, baseAndPath, property, user, callback) {
   withActorsForUserDo(req, res, user, function(actors) {
     function calculateAllRoleActions(actions) {
-      if (resource) {
+      if (baseAndPath) {
         for (let i=1; i<actors.length; i++) {
           let roles = retrieveFromTeamsCache(actors[i]).roles
           if (roles != null) {
-            let roleActions = calculateRoleActions(roles, resource)
+            let roleActions = calculateRoleActions(roles, baseAndPath)
             if (roleActions !== null)
               for (let i = 0; i < roleActions.length; i++)
                 actions[roleActions[i]] = true
@@ -516,7 +538,100 @@ function withAllowedActionsDo(req, res, resource, property, user, callback) {
   }
 }
 
-function isAllowed(req, res, queryParts, callback) {
+/**
+ * This jsdoc defines the callback parameter to buildQueryResult
+ * @callback isAllowedCallback
+ * @param {boolean or object} - see 'isAllowed' for explanation
+ */
+/**
+ * See 'isAllowed for explanations
+ * 
+ * @param {object} req 
+ * @param {object} res 
+ * @param {url-string} user 
+ * @param {url-string} action 
+ * @param {url-string} property 
+ * @param {[url-string]} resources 
+ * @param {boolean} withScopes 
+ * @param {boolean} withIndividualAnswers 
+ * @param {isAllowedCallback} callback 
+ */
+function _isAllowed(req, res, user, action, property, resources, withScopes, withIndividualAnswers, callback) {
+  var allScopes = withScopes ? {} : null
+  var allAnswers = withIndividualAnswers ? {} : null
+  var count = 0
+  var finalAnswer
+  var responded = false
+  // Multiple resources is interpreted to mean that the user must have access to all of them. 
+  // For an API that returns true if the user has access to any one of the resources, see areAnyAllowed.  
+  for (let i = 0; i< resources.length; i++)
+    if (!responded)
+      withPermissionFlagDo(req, res, user, resources[i], resources[i], property, action, withScopes, function(answer, scopes) {
+        if (!responded) {
+          // If finalAnswer is already false, then it must remain false, regardless of the value of answer
+          finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
+          if (withScopes)
+            allScopes[resources[i]] = Array.from(new Set(scopes))
+          if (withIndividualAnswers)
+            allAnswers[resources[i]] = answer
+          // in the simples case, we stop looking if finalAsnswer is false. however, if the user asked for
+          // the scopes, or asked for an answer for each resource, then we need to continue
+          if (!finalAnswer && !withScopes && !withIndividualAnswers) {
+            callback(finalAnswer)
+            responded = true
+          } else if (++count == resources.length) {
+            var result
+            if (withScopes || withIndividualAnswers) {
+              result = {allowed: finalAnswer}
+              if (withScopes)
+                result.scopes = allScopes
+              if (withIndividualAnswers)
+                result.allAnswers = allAnswers
+            } else
+              result = finalAnswer
+            callback(result)
+          }
+        }
+      })
+}
+
+/**
+ * 'isAllowed' implements one of the primary APIs of the permissions runt-time. It is used to check
+ * whether a particular user has permission to perform a particular action on a partocular set of resources
+ * 
+ * @param {object} req. An HTTP request object 
+ * @param {object} res. An HTTP response object
+ * @param {string} query. A querystring from the URL of the incoming request. The querystring may include the following parameters
+ *     user - the user whose permissions are being checked. Must match the user in the authorization bearer token
+ *     action                - the action the user wishes to perform. 
+ *                             Can be any string, but create, read, update, delete, add, and remove are the recommended ones
+ *     property              - the name of the relationship or property the user wants to access or change. '_self' means the whole object
+ *     resource              - the resource the user wishes to access. May appear multiple times to mean multiple resources.
+ *                             If multiple resources are provided, each one is checked, and the answer is an AND of them all
+ *     withScopes            - the client wants to get back the list of all ancestors in the inheritance hierarchy at the time
+ *                             of the call. This is important for audit logging as it will control who can see those particular
+ *                             audit records. The audit log contains the logs for multiple tenants, and we don't want Coke
+ *                             to see Pepsi's audit log records unless they pertain to resoures they have agreed to share.
+ *                             (ToDo: consider renaming this parameter to 'withAncestors')
+ *     withIndividualAnswers - the client wants to know the permissions result for each individual resource, in addition to the aggregate
+ * @returns the body of the request response depends on the query parameters.
+ *     {boolean} - if neither withScopes nor withIndividualAnswers was specified in the querystring, 
+ *                 the response will be either the string true, or the string false
+ *     {object}  - if either withScopes or withIndividualAnswers was specified in the querystring, the result will be an object of the form
+ *                 {"result": true/false
+ *                  "scopes": [<url1>, ..., <urlN>],
+ *                  "allAnswers": {
+ *                     "resourceUrl1": true/false,
+ *                     ...
+ *                     "resourceUrlM": true/false,
+ *                  }
+ *                 }
+ */
+function isAllowed(req, res, query) {
+  // In the API isAllowe, we assume that each resource value could be either a resourceID
+  // or a concatenation of a base resource and a path. We pass the resource to withPermissionFlagDo
+  // as both, so that it will be checked both ways
+  let queryParts =  querystring.parse(query)
   var hrstart = process.hrtime()
   var user = queryParts.user
   var action = queryParts.action
@@ -530,43 +645,14 @@ function isAllowed(req, res, queryParts, callback) {
   if (user === null || user === lib.getUser(req.headers.authorization) || lib.getScopes(req.headers['x-client-authorization']).indexOf(SCOPE_READ) !== -1)
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
-    else {
-      var allScopes = withScopes ? {} : null
-      var allAnswers = withIndividualAnswers ? {} : null
-      var count = 0
-      var finalAnswer
-      var responded = false
-      for (let i = 0; i< resources.length; i++) // multiple resources is interpreted to mean that the user must have access to all of them. A different API that answers "any of them" might be useful.
-        if (!responded)
-          withPermissionFlagDo(req, res, user, resources[i], property, action, withScopes, function(answer, scopes) {
-            if (!responded) {
-              finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
-              if (withScopes)
-                allScopes[resources[i]] = Array.from(new Set(scopes))
-              if (withIndividualAnswers)
-                allAnswers[resources[i]] = answer
-              if (!finalAnswer && !withScopes && !withIndividualAnswers) {
-                rLib.found(res, finalAnswer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no information, which means no)
-                responded = true
-                var hrend = process.hrtime(hrstart)
-                log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
-              } else if (++count == resources.length) {
-                var result
-                if (withScopes || withIndividualAnswers) {
-                  result = {allowed: finalAnswer}
-                  if (withScopes)
-                    result.scopes = allScopes
-                  if (withIndividualAnswers)
-                    result.allAnswers = allAnswers
-                } else
-                  result = finalAnswer
-                rLib.found(res, result, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)        
-                var hrend = process.hrtime(hrstart)
-                log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${typeof result == 'string' ? result : JSON.stringify(result)} resources: ${resources}`)
-              }
-            }
-          })
-    }
+    else 
+      _isAllowed(req, res, user, action, property, resources, withScopes, withIndividualAnswers, (result) => {
+        // result will be true (allowed), false (forbidden) or null (no informaton, which callers normally interpret to mean no)
+        // if withScopes or withIndividualAnswers is set, the result will be wrapped in an object    
+        rLib.found(res, result, req.headers.accept, req.url)  
+        var hrend = process.hrtime(hrstart)
+        log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${typeof result == 'string' ? result : JSON.stringify(result)} resources: ${resources}`)    
+      })
   else  
     if (req.headers.authorization)
       rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
@@ -577,6 +663,20 @@ function isAllowed(req, res, queryParts, callback) {
         rLib.unauthorized(res, {msg: 'bearer token missing or expired'})
 }
 
+/**
+ * Answers true if the user has access to any one of the specified resources
+ *  
+ * @param {object} req. An HTTP request object 
+ * @param {object} res. An HTTP response object
+ * @param {string} query. A querystring from the URL of the incoming request. The querystring may include the following parameters
+ *     user                  - the user whose permissions are being checked. Must match the user in the authorization bearer token
+ *     action                - the action the user wishes to perform. 
+ *                             Can be any string, but create, read, update, delete, add, and remove are the recommended ones
+ *     property              - the name of the relationship or property the user wants to access or change. '_self' means the whole object
+ *     resource              - the resource(s) the user wishes to access. May appear multiple times to mean multiple resources 
+ *                             If multiple resources are provided, each one is checked, and the answer is an AND of them all
+ * @returns {boolean} - 'return' is in the form of an HTTP response, not a function return
+ */
 function areAnyAllowed(req, res, queryParts) {
   var hrstart = process.hrtime()
   var user = queryParts.user
@@ -596,7 +696,10 @@ function areAnyAllowed(req, res, queryParts) {
         var responded = false
         for (let i = 0; i< resources.length; i++)
           if (!responded)
-            withPermissionFlagDo(req, res, user, resources[i], property, action, null, function(answer) {
+            // In the API areAnyAllowed, we assume that each resource value could be either a resourceID
+            // or a concatenation of a base resource and a path. We pass the resource to withPermissionFlagDo
+            // as both, so that it will be checked both ways
+            withPermissionFlagDo(req, res, user, resources[i], resources[i], property, action, null, function(answer) {
               if (!responded) {
                 if (answer || ++count == resources.length) {
                   rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
@@ -668,7 +771,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         if (removedParents.length > 0) {
           let count = 0
           for (let i=0; i < removedParents.length; i++)
-            withPermissionFlagDo(req, res, null, removedParents[i], '_permissionsHeirs', 'remove', false, function(answer) {
+            withPermissionFlagDo(req, res, null, removedParents[i], null, '_permissionsHeirs', 'remove', false, function(answer) {
               if (!responded) 
                 if (!answer) {
                   responded = true
@@ -686,7 +789,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         if (addedParents.length > 0) {
           let count = 0
           for (let i=0; i < addedParents.length; i++) 
-            withPermissionFlagDo(req, res, null, addedParents[i], '_permissionsHeirs', 'add', false, function(answer) {
+            withPermissionFlagDo(req, res, null, addedParents[i], null, '_permissionsHeirs', 'add', false, function(answer) {
               if (!responded)
                 if (!answer) {
                   responded = true
@@ -715,7 +818,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
     checkPotentialAncestors([], [], sharingSets)
   else {
     subject = lib.internalizeURL(subject, req.headers.host)
-    withPermissionFlagDo(req, res, null, subject, '_self', 'admin', false, function(answer) {
+    withPermissionFlagDo(req, res, null, subject, null, '_self', 'admin', false, function(answer) {
       if (answer)
         withExistingAncestorsDo(subject, existingAncestors => {
           withExistingParentsDo(subject, existingParents => {
@@ -787,7 +890,7 @@ function requestHandler(req, res) {
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-is-allowed' && req_url.search !== null)
       if (req.method == 'GET')
-        isAllowed(req, res, querystring.parse(req_url.query))
+        isAllowed(req, res, req_url.query)
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-are-any-allowed' && req_url.search == null)
