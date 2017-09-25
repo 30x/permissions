@@ -75,12 +75,12 @@ function invalidateCachedUsers(teamURL, team) {
   var existingTeam = retrieveFromTeamsCache(teamURL)
   var beforeMembers = existingTeam !== undefined ? existingTeam.members : []
   var afterMembers = team !== undefined ? team.members : []
-  for (let i = 0; i < beforeMembers.length; i++)
-    if (afterMembers.indexOf(beforeMembers[i]) == -1)
-      delete actorsForUserCache[beforeMembers[i]]
-  for (let i = 0; i < afterMembers.length; i++)
-    if (beforeMembers.indexOf(afterMembers[i]) == -1)
-      delete actorsForUserCache[afterMembers[i]]    
+  for (let beforeMember of beforeMembers)
+    if (afterMembers.indexOf(beforeMember) == -1)
+      delete actorsForUserCache[beforeMember]
+  for (let afterMember of afterMembers)
+    if (beforeMembers.indexOf(afterMember) == -1)
+      delete actorsForUserCache[afterMembers]    
 }
 
 function addToTeamsCache(teamURL, team) {
@@ -168,17 +168,16 @@ function collateAllowedActions(permissionsObject, property, actors) {
     for (var action in permissionsObject) {
       var allowedActors = permissionsObject[action]
       if (allowedActors !== undefined)
-        if (allowedActors.indexOf(INCOGNITO) > -1)  
+        if (allowedActors.includes(INCOGNITO))  
           allowedActions[action] = true
         else if (actors !== null) 
-          if (allowedActors.indexOf(ANYONE) > -1) 
+          if (allowedActors.includes(ANYONE)) 
             allowedActions[action] = true       
-          else if (allowedActors.indexOf(allowedActors[0].split('#')[0] + '#anyone') > -1)
+          else if (allowedActors.includes(allowedActors[0].split('#')[0] + '#anyone'))
             allowedActions[action] = true
           else
-            for (var j=0; j<actors.length; j++) {
-              var user = actors[j]
-              if (allowedActors.indexOf(user) > -1 )
+            for (let actor of actors) {
+              if (allowedActors.includes(actor))
                 allowedActions[action] = true
             }
     }
@@ -197,20 +196,18 @@ function isActionAllowed(permissionsObject, property, actors, action) {
     if (allowedActors !== undefined) {
       if (allowedActors.includes(INCOGNITO))
         return true
-      else if (actors !== null)
-        if (allowedActors.includes(ANYONE))
+      else if (allowedActors.includes(ANYONE))
+        return true
+      else if (actors != null && actors.length > 0) {
+        let user = actors[0]  // first entry in actors is the user
+        let issuer = user.split('#')[0]
+        if (allowedActors.includes(issuer + '#anyone'))
           return true
-        else if (actors.length > 0) {
-          let user = actors[0]  // first entry in actors is the user
-          let issuer = user.split('#')[0]
-          if (allowedActors.includes(issuer + '#anyone'))
-            return true
-          else 
-            for (var j=0; j<actors.length; j++) {
-              var actor = actors[j]
-              if (allowedActors.indexOf(actor) > -1 )
-                return true
-            }
+        else 
+          for (let actor of actors) {
+            if (allowedActors.includes(actor))
+              return true
+          }
         }
     }
   }
@@ -270,7 +267,7 @@ function withPermissionsDo(req, res, resource, callback, errorCallback) {
 function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallback, errorCallback) {
   var recursionSet = {}
   function ancestors(resource, callback) {
-    withPermissionsDo(req, res, resource, function(permissions) {
+    withPermissionsDo(req, res, resource, (permissions) => {
       var stopHere = itemCallback(permissions)
       if (stopHere) 
         callback(stopHere)
@@ -281,9 +278,9 @@ function withAncestorPermissionsDo(req, res, subject, itemCallback, finalCallbac
           if (inheritsPermissionsOf.length > 0) {
             var count = 0
             var replied = false
-            for (var j = 0; j < inheritsPermissionsOf.length; j++) {
-              recursionSet[inheritsPermissionsOf[j]] = true 
-              ancestors(inheritsPermissionsOf[j], function(stopped) {
+            for (let resource of inheritsPermissionsOf) {
+              recursionSet[resource] = true 
+              ancestors(resource, (stopped) => {
                 if (stopped || ++count == inheritsPermissionsOf.length) 
                   if (!replied) {
                     replied = true
@@ -328,11 +325,11 @@ function withActorsForUserDo(req, res, user, callback) {
         else {
           // We cache both teams and the list of teams for a user. These caches must be coherent.
           var actors = [user]
-          for (let i = 0; i < rows.length; i++) {
-            var teamURL = `${TEAMS}${rows[i].id}`
-            var team = rows[i].data
+          for (let row of rows) {
+            var teamURL = `${TEAMS}${row.id}`
+            var team = row.data
             team.self = teamURL
-            team.etag = rows[i].etag 
+            team.etag = row.etag 
             sortAndSplitRoles(team.roles)
             addToTeamsCache(teamURL, team)
             actors.push(teamURL)
@@ -359,22 +356,21 @@ function pathPatternMatch(pathPatternParts, pathParts) {
   return pathPatternParts.length <= pathParts.length;
 }
 
-function calculateRoleActions(roles, resource) {
-  if (roles != null){
-    let bases = Object.keys(roles)
-    for(let i=0; i < bases.length; i++){
-      if (resource.startsWith(bases[i])) {
-        let pathParts = resource.substring(bases[i].length, resource.length).split('/')
-        let rolePermissions = roles[bases[i]]
-        for (let j=0; j<rolePermissions.length; j++){
-          if (pathPatternMatch(rolePermissions[j].path, pathParts)){
-            return rolePermissions[j].actions
+function calculateRoleActions(bases, baseAndPath) {
+  if (bases != null){
+    for (let base in bases) {
+      if (baseAndPath.startsWith(base)) {
+        let pathParts = baseAndPath.substring(base.length, baseAndPath.length).split('/')
+        let permissions = bases[base]
+        for (let permission of permissions){
+          if (pathPatternMatch(permission.path, pathParts)){
+            return [permission.actions, base]
           }
         }
       }
     }
   }
-  return null
+  return [null, null]
 }
 
 /**
@@ -395,29 +391,33 @@ function calculateRoleActions(roles, resource) {
  * @param {checkRolesCallback} callback
  */
 function checkRoles(actors, baseAndPath, action, answer, scopes, callback) {
-  if (baseAndPath)
+  if (answer == null && baseAndPath)
     for (let i = 1; i < actors.length && answer === null ; i++) {
       let roles = retrieveFromTeamsCache(actors[i]).roles // touching the teamsCache will keep entry alive
-      if (answer === null) {
-        let actions = calculateRoleActions(roles, baseAndPath)
-        if (actions !== null && actions.includes(action))
-          answer = true
+      let [actions, base] = calculateRoleActions(roles, baseAndPath)
+      if (actions !== null && actions.includes(action)) {
+        if (scopes)
+          scopes.push(base)
+        answer = true
       }
     }  
   callback(answer, scopes)
 }
 
-function withPermissionFlagDo(req, res, user, actors, subject, baseAndPath, property, action, withScopes, callback) {
+function withPermissionFlagDo(req, res, user, actors, subject, property, action, withScopes, callback) {
   var allowed = null
   var scopes = withScopes ? [] : undefined
   if (subject === undefined)
-    checkRoles(actors, baseAndPath, action, null, scopes, callback)
+    callback(allowed)
   else
-    withAncestorPermissionsDo(req, res, subject, function(permissions) {
+    withAncestorPermissionsDo(req, res, subject, (permissions) => {
+      // This function parameter is called for each ancestor permissions document.
+      // If it returns true, the ancestor tree traversal will stop, otherwise it will continue
       if (withScopes)
         scopes.push(permissions._subject)
       var opinion = isActionAllowed(permissions, property, actors, action)
       if (opinion == true) { // someone says its OK, but there may be  a veto later
+        // Be careful not to set allowed to true if it is currently set to false
         allowed = allowed == null || allowed == true
         return false // keep going
       } else if (opinion == false) {
@@ -425,11 +425,15 @@ function withPermissionFlagDo(req, res, user, actors, subject, baseAndPath, prop
         return !withScopes  // operation is forbidden. Stop looking unless we need to return the hierarchy
       } else
         return false // keep going
-    }, function() {
-      checkRoles(actors, baseAndPath, action, allowed, scopes, callback)
+    }, () => {
+      // This function parameter is called when all the acestors have been traversed
+      // Or when the item function aboce returns true. 
+      callback(allowed)
     }, function(err) {
+      // This function parameter is called when on error.
+      // tyical error is a missing permissions document 
       if (err == 404)
-        checkRoles(actors, baseAndPath, action, null, scopes, callback)
+        callback(allowed)
       else
         lib.internalError(res, err)              
     })
@@ -470,10 +474,10 @@ function withAllowedActionsDo(req, res, resource, baseAndPath, property, user, c
         for (let i=1; i<actors.length; i++) {
           let roles = retrieveFromTeamsCache(actors[i]).roles
           if (roles != null) {
-            let roleActions = calculateRoleActions(roles, baseAndPath)
+            let [roleActions, base] = calculateRoleActions(roles, baseAndPath)
             if (roleActions !== null)
-              for (let i = 0; i < roleActions.length; i++)
-                actions[roleActions[i]] = true
+              for (let roleAction of roleActions)
+                actions[roleAction] = true
           }
         }
       }
@@ -544,7 +548,7 @@ function withAllowedActionsDo(req, res, resource, baseAndPath, property, user, c
  * @param {boolean} withIndividualAnswers 
  * @param {isAllowedCallback} callback 
  */
-function _isAllowed(req, res, user, action, property, resources, withScopes, withIndividualAnswers, callback) {
+function _isAllowed(req, res, user, resources, property, action, withScopes, withIndividualAnswers, callback) {
   var allScopes = withScopes ? {} : null
   var allAnswers = withIndividualAnswers ? {} : null
   var count = 0
@@ -553,36 +557,43 @@ function _isAllowed(req, res, user, action, property, resources, withScopes, wit
   // Multiple resources is interpreted to mean that the user must have access to all of them. 
   // For an API that returns true if the user has access to any one of the resources, see areAnyAllowed.  
   withActorsForUserDo(req, res, user, function(actors) {    
-    for (let i = 0; i< resources.length; i++)
-      if (!responded)
-        withPermissionFlagDo(req, res, user, actors, resources[i], resources[i], property, action, withScopes, function(answer, scopes) {
-          if (!responded) {
-            // If finalAnswer is already false, then it must remain false, regardless of the value of answer
-            finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
-            if (withScopes)
-              allScopes[resources[i]] = Array.from(new Set(scopes))
-            if (withIndividualAnswers)
-              allAnswers[resources[i]] = answer
-            // in the simples case, we stop looking if finalAsnswer is false. however, if the user asked for
-            // the scopes, or asked for an answer for each resource, then we need to continue
-            if (!finalAnswer && !withScopes && !withIndividualAnswers) {
-              callback(finalAnswer)
-              responded = true
-            } else if (++count == resources.length) {
-              var result
-              if (withScopes || withIndividualAnswers) {
-                result = {allowed: finalAnswer}
-                if (withScopes)
-                  result.scopes = allScopes
-                if (withIndividualAnswers)
-                  result.allAnswers = allAnswers
-              } else
-                result = finalAnswer
-              callback(result)
-            }
-          }
-        })
+    for (let resource of resources)
+      withPermissionFlagDo(req, res, user, actors, resource, property, action, withScopes, (answer, scopes) => {
+        if (answer == null && (!property || property == '_self'))
+          checkRoles(actors, resource, action, answer, scopes, (answer, scopes) => {
+            processResult(resource, answer, scopes)
+          })
+        else
+          processResult(resource, answer, scopes)
+      })
   })
+  function processResult(resource, answer, scopes) {
+    if (!responded) {
+      // If finalAnswer is already false, then it must remain false, regardless of the value of answer
+      finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
+      if (withScopes)
+        allScopes[resource] = Array.from(new Set(scopes))
+      if (withIndividualAnswers)
+        allAnswers[resources[i]] = answer
+      // in the simples case, we stop looking if finalAnswer is false. However, if the user asked for
+      // the scopes, or asked for an individual answer for each resource, then we need to continue
+      if (!finalAnswer && !withScopes && !withIndividualAnswers) {
+        callback(finalAnswer)
+        responded = true
+      } else if (++count == resources.length) {
+        var result
+        if (withScopes || withIndividualAnswers) {
+          result = {allowed: finalAnswer}
+          if (withScopes)
+            result.scopes = allScopes
+          if (withIndividualAnswers)
+            result.allAnswers = allAnswers
+        } else
+          result = finalAnswer
+        callback(result)
+      }
+    }
+  }
 }
 
 /**
@@ -643,8 +654,7 @@ function ifUserMatchesRequestTokenThen(req, res, user, callback) {
  */
 function isAllowed(req, res, query) {
   // In the API isAllowe, we assume that each resource value could be either a resourceID
-  // or a concatenation of a base resource and a path. We pass the resource to withPermissionFlagDo
-  // as both, so that it will be checked both ways
+  // or a concatenation of a base resource and a path.
   let queryParts =  querystring.parse(query)
   var hrstart = process.hrtime()
   var user = queryParts.user
@@ -660,7 +670,7 @@ function isAllowed(req, res, query) {
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
     else 
-      _isAllowed(req, res, user, action, property, resources, withScopes, withIndividualAnswers, (result) => {
+      _isAllowed(req, res, user, resources, property, action, withScopes, withIndividualAnswers, (result) => {
         // result will be true (allowed), false (forbidden) or null (no informaton, which callers normally interpret to mean no)
         // if withScopes or withIndividualAnswers is set, the result will be wrapped in an object    
         rLib.found(res, result, req.headers.accept, req.url)  
@@ -702,25 +712,31 @@ function areAnyAllowed(req, res, queryParts) {
         var count = 0
         var responded = false
         withActorsForUserDo(req, res, user, function(actors) {
-          for (let i = 0; i< resources.length; i++)
+          for (let resource of resources)
             if (!responded)
               // In the API areAnyAllowed, we assume that each resource value could be either a resourceID
               // or a concatenation of a base resource and a path. We pass the resource to withPermissionFlagDo
               // as both, so that it will be checked both ways
-              withPermissionFlagDo(req, res, user, actors, resources[i], resources[i], property, action, null, function(answer) {
-                if (!responded) {
-                  if (answer || ++count == resources.length) {
-                    rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
-                    responded = true
-                    var hrend = process.hrtime(hrstart)
-                    log('areAnyAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
-                  }
-                }
+              withPermissionFlagDo(req, res, user, actors, resource, property, action, null, (answer) => {
+                if (answer == null && (!property || property == '_self'))
+                  checkRoles(actors, resource, action, answer, null, processResult)
+                else
+                  processResult(answer)                      
               })
         })
       }
     else  
       rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
+  function processResult(answer) {
+    if (!responded) {
+      if (answer || ++count == resources.length) {
+        rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
+        responded = true
+        var hrend = process.hrtime(hrstart)
+        log('areAnyAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
+      }
+    }
+  }
 }
 
 function isAllowedToInheritFrom(req, res, queryString) {
@@ -742,8 +758,8 @@ function isAllowedToInheritFrom(req, res, queryString) {
     else {
       var allAncestors = ancestors.slice()
       var count = 0
-      for (var i = 0; i < ancestors.length; i++)
-        withAncestorPermissionsDo(req, res, ancestors[i], function(permissions) {
+      for (let ancestor of ancestors)
+        withAncestorPermissionsDo(req, res, ancestor, function(permissions) {
           allAncestors.push(permissions._subject)
         }, function(){
           if (++count == ancestors.length)
@@ -779,8 +795,8 @@ function isAllowedToInheritFrom(req, res, queryString) {
         var removeOK = removedParents.length == 0
         if (removedParents.length > 0) {
           let count = 0
-          for (let i=0; i < removedParents.length; i++)
-            withPermissionFlagDo(req, res, user, actors, removedParents[i], null, '_permissionsHeirs', 'remove', false, function(answer) {
+          for (let removedParent of removedParents)
+            withPermissionFlagDo(req, res, user, actors, removedParent, '_permissionsHeirs', 'remove', false, function(answer) {
               if (!responded) 
                 if (!answer) {
                   responded = true
@@ -797,8 +813,8 @@ function isAllowedToInheritFrom(req, res, queryString) {
         }
         if (addedParents.length > 0) {
           let count = 0
-          for (let i=0; i < addedParents.length; i++) 
-            withPermissionFlagDo(req, res, user, actors, addedParents[i], null, '_permissionsHeirs', 'add', false, function(answer) {
+          for (let addedParent of addedParents) 
+            withPermissionFlagDo(req, res, user, actors, addedParent, '_permissionsHeirs', 'add', false, function(answer) {
               if (!responded)
                 if (!answer) {
                   responded = true
@@ -830,7 +846,7 @@ function isAllowedToInheritFrom(req, res, queryString) {
         checkPotentialAncestors(user, actors, [], [], sharingSets)
       else {
         subject = lib.internalizeURL(subject, req.headers.host)
-        withPermissionFlagDo(req, res, user, actors, subject, null, '_self', 'admin', false, function(answer) {
+        withPermissionFlagDo(req, res, user, actors, subject, '_self', 'admin', false, function(answer) {
           if (answer)
             withExistingAncestorsDo(subject, existingAncestors => {
               withExistingParentsDo(subject, existingParents => {
@@ -868,8 +884,8 @@ function processEvent(event) {
     else if (event.data.action == 'create') {
       var members = event.data.team.members
       if (members !== undefined)
-        for (let i=0; i<members.length; i++)
-          delete actorsForUserCache[members[i]]
+        for (let member of members)
+          delete actorsForUserCache[member]
     } else if (event.data.action == 'deleteAll') {
       resetTeamsCache()
     }
