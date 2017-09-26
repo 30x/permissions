@@ -98,11 +98,11 @@ def main():
             'add': [GLOBAL_GOVS],
             'remove': [GLOBAL_GOVS]
         },
-        'permissions': {
+        'az-permissions': {
             'read': [CLIENT_ID, GLOBAL_GOVS],
             'create': [CLIENT_ID, GLOBAL_GOVS]
         },
-        'teams': {
+        'az-teams': {
             'read': [GLOBAL_GOVS]
             # create is not mentioned because anyone can make one
         },

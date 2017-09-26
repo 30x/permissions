@@ -73,7 +73,7 @@ function verifyTeam(req, res, team, callback) {
 }
 
 function createTeam(req, res, team) {
-  pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, '/', 'teams', 'create', function() {
+  pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, '/', 'az-teams', 'create', function() {
     verifyTeam(req, res, team, function(err) { 
       if (err !== null) 
         rLib.badRequest(res, err)

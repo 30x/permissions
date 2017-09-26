@@ -85,8 +85,8 @@ function init(callback) {
             "_permissionsHeirs": {
               "add": [ANYONE]
               },
-            "permissions":  {"create": [ANYONE]}, 
-            "teams":        {"read": [ANYONE], "create": [ANYONE]}, 
+            "az-permissions":  {"create": [ANYONE]}, 
+            "az-teams":        {"read": [ANYONE], "create": [ANYONE]}, 
             "_self":        {"read": [ANYONE], "update": [ANYONE], "admin": [ANYONE], "govern": [ANYONE]}
           }
           query = `INSERT INTO permissions (subject, etag, data) values($1, 1, $2) RETURNING etag`

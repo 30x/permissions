@@ -157,7 +157,7 @@ function createPermissions(req, res, permissions) {
         rLib.respond(res, err.statusCode, err.headers, err.body)
     })
   }
-  pLib.ifAllowedThen(headers, errorHandler, '/', 'permissions', 'create', function() {
+  pLib.ifAllowedThen(headers, errorHandler, '/', 'az-permissions', 'create', function() {
     verifyPermissions(req, res, permissions, () => {
       var ancestors = permissions._inheritsPermissionsOf
       if (ancestors)
