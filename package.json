@@ -17,7 +17,7 @@
     "@apigee/pg-event-consumer": "0.0.22",
     "@apigee/pg-event-producer": "0.0.42",
     "@apigee/response-helper-functions": "0.0.23",
-    "@apigee/permissions-helper-functions": "0.0.64"
+    "@apigee/permissions-helper-functions": "0.0.64",
     "@apigee/logger": "*"
   },
   "devDependencies": {
