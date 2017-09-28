@@ -1,7 +1,8 @@
-import httplib, urllib, json
+import httplib, urllib, json, sys
 from os import environ as env
 from urlparse import urlsplit
 import base64
+from pprint import pprint
 
 def b64_decode(data):
     missing_padding = (4 - len(data) % 4) % 4
@@ -9,7 +10,9 @@ def b64_decode(data):
         data += b'='* missing_padding
     return base64.decodestring(data)
 
-AUTHORITY = env['AUTHORITY']
+AUTHORITY = env['EXTERNAL_SY_ROUTER_HOST']
+if env.get('EXTERNAL_SY_ROUTER_PORT'):
+    AUTHORITY = AUTHORITY + ':' + env['EXTERNAL_SY_ROUTER_PORT']
 GOVERNOR_ID = env.get('USER4_ID')
 GOVERNOR_SECRET = env.get('USER4_SECRET')
 GOVERNOR_GRANT_TYPE = env.get('USER4_GRANT_TYPE')
@@ -110,8 +113,8 @@ def main():
     entry = {
         'kind': 'Entry',
         'name': 'SystemResources',
-        'directory': '/',
-        'resource': directory
+        'namespace': '/',
+        'namedResource': directory
     }
     headers = {'Content-type': 'application/json',
             'Accept': 'application/json',
@@ -131,8 +134,8 @@ def main():
     entry = {
         'kind': 'Entry',
         'name': 'Google',
-        'directory': directory,
-        'resource': 'https://www.google.com/'
+        'namespace': directory,
+        'namedResource': 'https://www.google.com/'
     }
     headers = {'Content-type': 'application/json',
             'Accept': 'application/json',
@@ -158,13 +161,35 @@ def main():
     response = conn.getresponse()
     if response.status == 200:
         data = json.load(response)
-        print 'correctly found entry at %s name: %s resource: %s' % (response.getheader('Content-Location'), data['name'], data['resource'])
+        print 'correctly found entry at %s name: %s namedResource: %s' % (response.getheader('Content-Location'), data['name'], data['namedResource'])
     else:
         data = response.read()
         print 'failed to find entry. url: %s status: %s body: %s' % (response.status, url, data)
         conn.close()
         return
-    
+
+    # GET directory at /SystemResources
+    headers = {'Content-type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer %s' % GOVERNOR_TOKEN}
+    conn = httplib.HTTPConnection(AUTHORITY)
+    url = '/name-resource?/SystemResources'
+    conn.request('GET', url, headers=headers)
+    response = conn.getresponse()
+    if response.status == 200:
+        data = response.read()
+        data = json.loads(data)
+        if data['kind'] == 'Directory':
+            print 'correctly found directory at %s' % (response.getheader('Content-Location'))
+        else:
+            print 'incorrect result for GET on %s data: %s' % (url, data)
+            sys.exit(1)       
+    else:
+        data = response.read()
+        print 'failed to find entry. url: %s status: %s body: %s' % (response.status, url, data)
+        conn.close()
+        return
+
     conn.close()
 
 main()
