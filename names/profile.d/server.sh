@@ -7,7 +7,6 @@ export INTERNAL_SY_ROUTER_PORT=${1:-"3200"}
 export EXTERNAL_SCHEME="http"
 
 export OAUTH_CALLBACK_URL="http://localhost:3200/oauth-callback"
-export AUTH_KEY_URL="https://login.e2e.apigee.net/token_key"
 export SSO_CLIENT_ID="permissionsclientlocal"
 export SSO_CLIENT_SECRET=$(cat "$HERE/secrets/sso_client_secret.txt")
 export SSO_AUTHORIZATION_URL="https://login.e2e.apigee.net/oauth/authorize"

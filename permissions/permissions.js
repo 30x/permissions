@@ -541,59 +541,46 @@ function withAllowedActionsDo(req, res, resource, baseAndPath, property, user, c
  * @param {object} req 
  * @param {object} res 
  * @param {url-string} user 
- * @param {url-string} action 
- * @param {url-string} property 
  * @param {[url-string]} resources 
  * @param {boolean} withScopes 
  * @param {boolean} withIndividualAnswers 
  * @param {isAllowedCallback} callback 
  */
-function _isAllowed(req, res, user, resources, property, action, withScopes, withIndividualAnswers, callback) {
-  var allScopes = withScopes ? {} : null
-  var allAnswers = withIndividualAnswers ? {} : null
+function _isAllowed(req, res, user, resources, withScopes, withIndividualAnswers, permissionsFunction, callback) {
+  let result = {
+    scopes: withScopes ? {} : null,
+    answers: withIndividualAnswers ? {} : null
+  }
   var count = 0
-  var finalAnswer
   var responded = false
   // Multiple resources is interpreted to mean that the user must have access to all of them. 
   // For an API that returns true if the user has access to any one of the resources, see areAnyAllowed.  
   withActorsForUserDo(req, res, user, function(actors) {    
-    for (let resource of resources)
-      withPermissionFlagDo(req, res, user, actors, resource, property, action, withScopes, (answer, scopes) => {
-        if (answer == null && (!property || property == '_self'))
-          checkRoles(actors, resource, action, answer, scopes, (answer, scopes) => {
-            processResult(resource, answer, scopes)
-          })
-        else
-          processResult(resource, answer, scopes)
-      })
-  })
-  function processResult(resource, answer, scopes) {
-    if (!responded) {
-      // If finalAnswer is already false, then it must remain false, regardless of the value of answer
-      finalAnswer = finalAnswer === undefined ? answer : finalAnswer && answer
-      if (withScopes)
-        allScopes[resource] = Array.from(new Set(scopes))
-      if (withIndividualAnswers)
-        allAnswers[resources[i]] = answer
-      // in the simples case, we stop looking if finalAnswer is false. However, if the user asked for
-      // the scopes, or asked for an individual answer for each resource, then we need to continue
-      if (!finalAnswer && !withScopes && !withIndividualAnswers) {
-        callback(finalAnswer)
-        responded = true
-      } else if (++count == resources.length) {
-        var result
-        if (withScopes || withIndividualAnswers) {
-          result = {allowed: finalAnswer}
+    for (let resource of resources) {
+      permissionsFunction(actors, resource, processResult)
+      function processResult(answer, scopes) {
+        if (!responded) {
+          // If result.allowed is already false, then it must remain false, regardless of the value of answer
+          result.allowed = result.allowed === undefined ? answer : result.allowed && answer
           if (withScopes)
-            result.scopes = allScopes
+            result.scopes[resource] = Array.from(new Set(scopes))
           if (withIndividualAnswers)
-            result.allAnswers = allAnswers
-        } else
-          result = finalAnswer
-        callback(result)
+            result.answers[resources[i]] = answer
+            // in the simples case, we stop looking if result.allowed is false. However, if the user asked for
+          // the scopes, or asked for an individual answer for each resource, then we need to continue
+          if (!result.allowed && !withScopes && !withIndividualAnswers) {
+            callback(result.allowed)
+            responded = true
+          } else if (++count == resources.length) {
+            if (withScopes || withIndividualAnswers) 
+              callback(result)
+            else
+              callback(result.allowed)
+          }
+        }
       }
     }
-  }
+  })
 }
 
 /**
@@ -608,16 +595,25 @@ function _isAllowed(req, res, user, resources, property, action, withScopes, wit
  * @param {function} callback - No parameters
  */
 function ifUserMatchesRequestTokenThen(req, res, user, callback) {
-  if (user === null || user === lib.getUser(req.headers.authorization) || (user && lib.getScopes(req.headers['x-client-authorization']).includes(SCOPE_READ)))
+  let withScopes, withIndividualAnswers
+  if (user === null || user === lib.getUser(req.headers.authorization))
     callback()
-  else  
-    if (req.headers.authorization)
-      rLib.forbidden(res, {msg: `user must be provided in querystring and must match user in token. querystring user ${user} token user: ${lib.getUser(req.headers.authorization)}`})
-    else
-      if (req.headers['x-client-authorization'])
-        rLib.unauthorized(res, {msg: `x-client-authorization token does not include ${SCOPE_READ}`, scopes: lib.getScopes(req.headers['x-client-authorization'])})
+  else if (user && req.headers['x-client-authorization']) {
+    let client = lib.getUser(req.headers['x-client-authorization'])
+    _isAllowed(req, res, client, ['/'], withScopes, withIndividualAnswers, permissionsFunction, (answer) => {
+      if (answer)
+        callback()
       else
-        rLib.unauthorized(res, {msg: 'bearer token missing or expired'})
+        rLib.unauthorized(res, {msg: 'client in x-client-authorization token does not have permission to read permissions', client: client})
+    }) 
+  } else
+    if (req.headers.authorization)
+      rLib.forbidden(res, {msg: 'user must be provided in querystring and must match user in token', querystringUser: user, tokenUser: lib.getUser(req.headers.authorization)})
+    else
+      rLib.unauthorized(res, {msg: 'bearer token missing or expired'})
+  function permissionsFunction (actors, resource, processResult) {
+    withPermissionFlagDo(req, res, user, actors, resource, 'az-permissions', 'read', withScopes, processResult)
+  }
 }
 
 /**
@@ -643,9 +639,9 @@ function ifUserMatchesRequestTokenThen(req, res, user, callback) {
  *     {boolean} - if neither withScopes nor withIndividualAnswers was specified in the querystring, 
  *                 the response will be either the string true, or the string false
  *     {object}  - if either withScopes or withIndividualAnswers was specified in the querystring, the result will be an object of the form
- *                 {"result": true/false
+ *                 {"allowed": true/false
  *                  "scopes": [<url1>, ..., <urlN>],
- *                  "allAnswers": {
+ *                  "result.answers": {
  *                     "resourceUrl1": true/false,
  *                     ...
  *                     "resourceUrlM": true/false,
@@ -669,15 +665,26 @@ function isAllowed(req, res, query) {
   ifUserMatchesRequestTokenThen(req, res, user, () => {
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
-    else 
-      _isAllowed(req, res, user, resources, property, action, withScopes, withIndividualAnswers, (result) => {
+    else {
+      _isAllowed(req, res, user, resources, withScopes, withIndividualAnswers, permissionsFunction, (result) => {
         // result will be true (allowed), false (forbidden) or null (no informaton, which callers normally interpret to mean no)
         // if withScopes or withIndividualAnswers is set, the result will be wrapped in an object    
         rLib.found(res, result, req.headers.accept, req.url)  
         var hrend = process.hrtime(hrstart)
         log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${typeof result == 'string' ? result : JSON.stringify(result)} resources: ${resources}`)    
       })
+    }
   })
+  function permissionsFunction (actors, resource, processResult) {
+    withPermissionFlagDo(req, res, user, actors, resource, property, action, withScopes, (answer, scopes) => {
+      if (answer == null && (!property || property == '_self'))
+        checkRoles(actors, resource, action, answer, scopes, (answer, scopes) => {
+          processResult(answer, scopes)
+        })
+      else
+        processResult(answer, scopes)
+    })
+  }
 }
 
 /**
@@ -915,9 +922,9 @@ function requestHandler(req, res) {
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-is-allowed' && req_url.search == null)
       if (req.method == 'POST')
-        lib.getServerPostObject(req, res, (body) => postIsAllowed(req, res, body))
+        lib.getServerPostObject(req, res, (body) => isAllowed(req, res, body))
       else
-        rLib.methodNotAllowed(res, ['GET'])
+        rLib.methodNotAllowed(res, ['POST'])
     else if (req_url.pathname == '/az-is-allowed' && req_url.search !== null)
       if (req.method == 'GET')
         isAllowed(req, res, req_url.query)

@@ -26,7 +26,6 @@ const COMPONENT_NAME = 'permissions-allinone'
 
 const CHECK_PERMISSIONS = process.env.CHECK_PERMISSIONS !== 'false';
 const CHECK_IDENTITY = CHECK_PERMISSIONS || process.env.CHECK_IDENTITY == 'true'
-const AUTH_KEY_URL = process.env.AUTH_KEY_URL
 const OAUTH_CALLBACK_URL = process.env.OAUTH_CALLBACK_URL
 if (!OAUTH_CALLBACK_URL) {
   console.log('OAUTH_CALLBACK_URL not set')

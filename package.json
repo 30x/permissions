@@ -13,7 +13,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "pg": "^6.0.3",
-    "@apigee/http-helper-functions": "0.0.145",
+    "@apigee/http-helper-functions": "0.0.148",
     "@apigee/pg-event-consumer": "0.0.22",
     "@apigee/pg-event-producer": "0.0.42",
     "@apigee/response-helper-functions": "0.0.23",

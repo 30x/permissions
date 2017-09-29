@@ -7,10 +7,9 @@ export EXTERNAL_SY_ROUTER_PORT="3200"
 export EXTERNAL_SCHEME="http"
 
 export AUTH_URL="https://login.e2e.apigee.net/oauth/token"
-export AUTH_BASIC_CREDENTIALS="ZGVzaXJlZGNsaTpkZXNpcmVkY2xpc2VjcmV0"
+export AUTH_BASIC_CREDENTIALS="ZWRnZWNsaTplZGdlY2xpc2VjcmV0" #$(echo -n 'desiredcli:desiredclisecret' | base64)
 export ISSUER="https://login.e2e.apigee.net"
 export OAUTH_CALLBACK_URL="http://localhost:3200/oauth-callback"
-export AUTH_KEY_URL="https://login.e2e.apigee.net/token_key"
 export SSO_CLIENT_ID="permissionsclientlocal"
 export SSO_CLIENT_SECRET="permissionsclientlocal"
 export SSO_AUTHORIZATION_URL="https://login.e2e.apigee.net/oauth/authorize"
@@ -31,7 +30,7 @@ export USER3_ID="mnally+2@apigee.com"
 export USER3_SECRET=$(cat "$HERE/secrets/user3_secret.txt")
 export USER3_GRANT_TYPE="password"
 
-export USER4_ID="mnally@google.com"
+export USER4_ID="mnally+3@apigee.com"
 export USER4_SECRET=$(cat "$HERE/secrets/user4_secret.txt")
 export USER4_GRANT_TYPE="password"
 

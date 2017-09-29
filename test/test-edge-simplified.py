@@ -44,7 +44,7 @@ AZ_READ_CLIENT_SECRET = env.get('AZ_READ_CLIENT_SECRET')
 AZ_READ_CLIENT_GRANT_TYPE = env.get('AZ_READ_CLIENT_GRANT_TYPE')
 AUTH_URL = env.get('AUTH_URL')
 ISSUER = env.get('ISSUER')
-AUTH_BASIC_CREDENTIALS = base64.b64encode('desiredcli:desiredclisecret')
+AUTH_BASIC_CREDENTIALS = 'ZWRnZWNsaTplZGdlY2xpc2VjcmV0' #base64.b64encode('desiredcli:desiredclisecret')
 PERMISSIONS_INITIALIZED = env.get('PERMISSIONS_INITIALIZED')
 
 # return true if the given http response code represents success
@@ -96,9 +96,9 @@ def get_valid_token(token_name, auth_url, id, secret, grant_type):
         response = conn.getresponse()
         if not check_response(response):
             if grant_type == 'password':
-                print 'error: get_valid_token: url=%s response.status=%s AUTH_BASIC_CREDENTIALS:%s id: %s password: %s grant_type:%s' % (auth_url, response.status, AUTH_BASIC_CREDENTIALS, id, secret, grant_type)
+                print 'error: get_valid_token: url=%s response.status=%s AUTH_BASIC_CREDENTIALS:%s id: %s password: %s grant_type:%s' % (auth_url, response.status, AUTH_BASIC_CREDENTIALS, id, '*'*len(secret), grant_type)
             else:
-                print 'error: get_valid_token: url=%s response.status=%s client_id: %s client_secret: %s grant_type:%s' % (auth_url, response.status, id, secret, grant_type)
+                print 'error: get_valid_token: url=%s response.status=%s client_id: %s client_secret: %s grant_type:%s' % (auth_url, response.status, id, '*'*len(secret), grant_type)
             raise RuntimeError('get_valid_token conn.request failed')
         js = json.load(response)
         token = js['access_token']
@@ -111,7 +111,6 @@ TOKEN2 = get_valid_token('USER2', AUTH_URL, USER2_ID, USER2_SECRET, USER2_GRANT_
 TOKEN3 = get_valid_token('USER3', AUTH_URL, USER3_ID, USER3_SECRET, USER3_GRANT_TYPE)
 TOKEN4 = get_valid_token('USER4', AUTH_URL, USER4_ID, USER4_SECRET, USER4_GRANT_TYPE)
 PERMISSIONS_CLIENT_TOKEN = get_valid_token('PERMISSIONS_CLIENT', AUTH_URL, PERMISSIONS_CLIENT_ID, PERMISSIONS_CLIENT_SECRET, PERMISSIONS_CLIENT_GRANT_TYPE)
-AZ_READ_CLIENT_TOKEN = get_valid_token('AZ_READ_CLIENT', AUTH_URL, AZ_READ_CLIENT_ID, AZ_READ_CLIENT_SECRET, AZ_READ_CLIENT_GRANT_TYPE)
 
 USER1_CLAIMS = json.loads(b64_decode(TOKEN1.split('.')[1]))      
 USER1 = '%s#%s' % (USER1_CLAIMS['iss'], USER1_CLAIMS['sub'])
@@ -131,11 +130,7 @@ USER4 = '%s#%s' % (USER4_CLAIMS['iss'], USER4_CLAIMS['sub'])
 
 PERMISSIONS_CLIENT_TOKEN_CLAIMS = json.loads(b64_decode(PERMISSIONS_CLIENT_TOKEN.split('.')[1]))      
 PERMISSIONS_CLIENT_FULL_ID = '%s#%s' % (PERMISSIONS_CLIENT_TOKEN_CLAIMS['iss'], PERMISSIONS_CLIENT_TOKEN_CLAIMS['sub'])
-PERMISSIONS_CLIENT_FULL_ID_E = PERMISSIONS_CLIENT_TOKEN.replace('#', '%23')
-
-AZ_READ_CLIENT_TOKEN_CLAIMS = json.loads(b64_decode(AZ_READ_CLIENT_TOKEN.split('.')[1]))      
-AZ_READ_CLIENT_FULL_ID = '%s#%s' % (AZ_READ_CLIENT_TOKEN_CLAIMS['iss'], AZ_READ_CLIENT_TOKEN_CLAIMS['sub'])
-AZ_READ_CLIENT_FULL_ID_E = AZ_READ_CLIENT_TOKEN.replace('#', '%23')
+PERMISSIONS_CLIENT_FULL_ID_E = PERMISSIONS_CLIENT_FULL_ID.replace('#', '%23')
 
 def get_headers(token):
     rslt = {'Accept': 'application/json'}
@@ -181,7 +176,7 @@ def main():
             print 'failed to retrieve /az-permissions?/ %s %s' % (r.status_code, r.text)
             return
 
-        permissions_patch = {"permissions":  {"read": [PERMISSIONS_CLIENT_FULL_ID], "create": [PERMISSIONS_CLIENT_FULL_ID]}}
+        permissions_patch = {"az-permissions":  {"read": [PERMISSIONS_CLIENT_FULL_ID], "create": [PERMISSIONS_CLIENT_FULL_ID]}}
         patch_headers1 = patch_headers(TOKEN1, slash_etag)
         r = requests.patch(urljoin(BASE_URL, '/az-permissions?/'), headers=patch_headers1, json=permissions_patch)
         if r.status_code == 200:
@@ -613,11 +608,11 @@ def main():
         print 'failed to return is-allowed actions of http://apigee.com/o/acme for USER1 %s %s' % (r.status_code, r.text)
         return
 
-    # Retrieve is-allowed for CLIENT_TOKEN_SCOPE_AZREAD on http://apigee.com/o/acme FOR USER1
+    # Retrieve is-allowed for PERMISSIONS_CLIENT_TOKEN on http://apigee.com/o/acme FOR USER1
 
     url = urljoin(BASE_URL, '/az-is-allowed?resource=%s&user=%s&action=%s' % ('http://apigee.com/o/acme', USER1_E, 'read'))
     start = timer()
-    headers=get_headers_for_client(get_valid_token('AZ_READ_CLIENT', AUTH_URL, AZ_READ_CLIENT_ID, AZ_READ_CLIENT_SECRET, AZ_READ_CLIENT_GRANT_TYPE))
+    headers=get_headers_for_client(PERMISSIONS_CLIENT_TOKEN)
     r = requests.get(url, headers=headers)
     end = timer()
     if r.status_code == 200:

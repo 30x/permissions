@@ -12,3 +12,4 @@ apigee-permissions-allinone.tar.gz
 build/rpm/app/
 package-lock.json
 secrets
+secrets-uaa
