@@ -166,8 +166,9 @@ function requestHandler(req, res) {
     else
       rLib.methodNotAllowed(res, ['GET', 'DELETE', 'PATCH'])
   } else if (parsedURL.pathname == '/name-entry' && parsedURL.query) 
-    // something like /name-entry?/a/b/c, where a, b and c are entry names, a is an entry in root, b is an entry in the resource identified with a, 
-    // and c is an entry in the resource identified by /a/b
+    // something like /name-entry?/a/b/c, where a, b and c are entry names, 
+    // a is an entry in root, b is an entry in the namespace identified by a, 
+    // and c is an entry in the namespace identified by /a/b
     if (req.method == 'GET')
       findEntryByPath(req, res, parsedURL.query)
     else {
@@ -184,6 +185,26 @@ function requestHandler(req, res) {
       })
       findEntryByPath(req, newRes, parsedURL.query)
     }
+  else if (parsedURL.pathname == '/name-resource' && parsedURL.query)
+    // something like /name-resource?/a/b/c, where a, b and c are entry names, 
+    // a is an entry in root, b is an entry in the namespace identified by /a, 
+    // and c is an entry in the namespace identified by /a/b
+    lib.getServerPostBuffer(req, (buff) => {
+      let newRes = rLib.errorHandler(err => {
+        if ((err.statusCode / 100 || 0) == 2) {
+          let entry = JSON.parse(err.body)
+          lib.sendInternalRequestThen(res, req.method, entry.namedResource, req.headers, err.body, (clientRes) => {
+            lib.getClientResponseBuffer(clientRes, (body) => {
+              delete clientRes.headers.connection
+              delete clientRes.headers['content-length']
+              rLib.respond(res, clientRes.statusCode, clientRes.headers, body)  
+            })
+          })
+        } else
+          rLib.respond(res, err.statusCode, {'content-type': err.headers['content-type']}, err.body)
+      })
+      findEntryByPath(req, newRes, parsedURL.query)
+    })
   else if (parsedURL.pathname == '/name-entries' && parsedURL.query) 
     // something like /name-entries?namedResource='/xxxxx'
     if (req.method == 'GET')
@@ -215,7 +236,7 @@ function start() {
   else
     module.exports = {
       requestHandler:requestHandler,
-      paths: ['/name-entries', '/name-ety-', '/name-entry'],
+      paths: ['/name-'],
       init: init
     }
 }

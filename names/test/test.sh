@@ -1,22 +1,14 @@
-export IPADDRESS="127.0.0.1"
-export PORT=3013
-export COMPONENT_NAME="all-in-one"
-export SCHEME="http"
-export AUTHORITY="localhost:${1:-3100}"
-export BASE_RESOURCE="/"
-export AUTHORITY="localhost:3200"
-export WORKING_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+#!/bin/bash
 
+MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-EXPORT_VAR_FILE="${WORKING_DIR}/../../local-export-system-variables.sh"
-if [[ -f "$EXPORT_VAR_FILE" ]]; then
-	echo "Sourcing in file $EXPORT_VAR_FILE"
-	source $EXPORT_VAR_FILE || exit 1
-else
-    echo "Please create a file called local-export-system-variables.sh in parent dir of permissions (${MYDIR}/../)"
-	exit 1
-fi
+. $MYDIR/../test-env.sh || exit 1
 
-x=`psql permissions -f delete-directory-tables.txt`
+#If not told otherwise, test-edge-simplified.py does a little initialization of the '/' permissions
+#on the assumption that this has not been done. It you are running in an environment where permissions has
+# been initialized — perhaps by running one of the scripts in /deployments — then uncomment the following line.
+#PERMISSIONS_INITIALIZED="true"
 
-python test.py
+x=`psql permissions -f $MYDIR/delete-directory-tables.txt`
+
+python $MYDIR/test.py
