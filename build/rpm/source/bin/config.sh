@@ -21,6 +21,5 @@ export PERMISSIONS_CLIENTSECRET="{T}bin_config_permissions_clientsecret{/T}"
 export EDGE_ADDRESS="{T}bin_config_edge_address{/T}"
 export CLIENT_TOKEN_ISSUER="{T}bin_config_client_token_issuer{/T}"
 
-
-
+export AUTH_URL="{T}bin_config_auth_url{/T}"
 
