@@ -19,7 +19,9 @@ cp -r ${DIR}/../../permissions-audit ${APPDIR}
 cp -r ${DIR}/../../permissions-maintenance ${APPDIR}
 cp -r ${DIR}/../../permissions-migration ${APPDIR}
 cp -r ${DIR}/../../teams ${APPDIR}
-cp -r ${DIR}/../../folders ${APPDIR}
+cp -r ${DIR}/../../directories ${APPDIR}
+cp -r ${DIR}/../../names ${APPDIR}
+cp -r ${DIR}/../../idp-helper-functions ${APPDIR}
 
 
 # Get all of our dependencies and make sure NPM gets their dependencies
