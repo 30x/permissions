@@ -93,35 +93,6 @@ function updateTeamThen(req, id, selfURL, patchedTeam, scopes, etag, callback) {
   })
 }
 
-function withTeamMiscDo(req, id, callback) {
-  pool.query('SELECT data FROM teams_misc WHERE id = $1', [id], function (err, pg_res) {
-    if (err) {
-      callback(500)
-    }
-    else {
-      if (pg_res.rowCount === 0) { 
-        callback(404)
-      }
-      else {
-        var row = pg_res.rows[0]
-        callback(null, row.data)
-      }
-    }
-  })
-}
-
-function updateTeamMiscThen(req, id, patchedMisc, callback) {
-  var key = lib.internalizeURL(id, req.headers.host)
-  var query = 'UPDATE teams_misc SET (data) = ($1) WHERE id = $2'
-  var args = [JSON.stringify(patchedMisc), key]
-  pool.query(query, args, function (err, pgResult) {
-    if (err) 
-      callback({msg: `unable to read database entry for ${id} err: ${err}`})
-    else
-      callback(null)
-  })
-}
-
 function init(callback, aPool) {
   pool = aPool || new Pool(config)
   eventProducer = new pge.eventProducer(pool)
@@ -141,30 +112,9 @@ function init(callback, aPool) {
               release()
               console.error('error creating inmembers index on teams', err)
             } else {
-              query = "CREATE TABLE IF NOT EXISTS teams_misc (id text primary key, data jsonb)"
-              client.query(query, function(err, pgResult) {
-                if(err) {
-                  release()
-                  console.error('error creating teams_misc table', err)
-                } else {
-                  query = "INSERT INTO teams_misc (id, data) values($1, $2)"
-                  client.query(query, ['/az-well-known-teams', {}], function(err, pgResult) {
-                    if (err) {
-                      release()
-                      if (err.code == '23505') {
-                        console.log('teams-pg: /az-well-known-teams already existed')
-                        console.log('teams-pg: connected to PG')
-                        eventProducer.init(callback)
-                      } else  
-                        console.error('error adding /az-well-known-teams to teams_misc table', err)
-                    } else {
-                      release()
-                      console.log('teams-pg: connected to PG')
-                      eventProducer.init(callback)
-                    }
-                  })
-                }
-              })
+              release()
+              console.log('teams-pg: connected to PG')
+              eventProducer.init(callback)
             }
           })
         }
@@ -181,6 +131,4 @@ exports.updateTeamThen = updateTeamThen
 exports.deleteTeamThen = deleteTeamThen
 exports.withTeamDo = withTeamDo
 exports.withTeamsForUserDo = withTeamsForUserDo
-exports.withTeamMiscDo = withTeamMiscDo
-exports.updateTeamMiscThen = updateTeamMiscThen
 exports.init = init

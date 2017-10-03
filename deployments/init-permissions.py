@@ -32,7 +32,7 @@ def get_headers(token):
     rslt['Authorization'] = 'Bearer %s' % token
     return rslt
 
-def post_team_headers(token):
+def post_headers(token):
     rslt = get_headers(token)
     rslt['Content-Type'] = 'application/json'
     return rslt
@@ -48,6 +48,38 @@ def patch_headers(token, if_match):
     rslt['Content-Type'] = 'application/merge-patch+json'
     rslt['If-Match'] = if_match
     return rslt
+
+def create_directory(permissions):
+    directory = {
+        'kind': 'directory',
+        '_permissions': permissions,
+        }
+    headers = post_headers(USER_TOKEN)
+    directories_url = urljoin(BASE_URL, '/dir-directories')
+    r = requests.post(directories_url, headers=headers, json=directory)
+    if r.status_code == 201:
+        print 'correctly created directory %s, etag: %s' % (r.headers['location'], r.headers['Etag'])
+        return r.headers['location'], r.headers['etag']
+    else:
+        print 'failed to create directory %s %s %s - cannot continue' % (directories_url, r.status_code, r.text)
+        return None, None
+
+def create_entry(namespace, name, namedResource):
+    entry = {
+        'kind': 'Entry',
+        'namespace': namespace,
+        'name': name,
+        'namedResource': namedResource
+    }
+    headers = post_headers(USER_TOKEN)
+    entries_url = urljoin(BASE_URL, '/name-entries')
+    r = requests.post(entries_url, headers=headers, json=entry)
+    if r.status_code == 201:
+        print 'correctly created entry %s named %s, etag: %s' % (r.headers['location'], name, r.headers['Etag'])
+        return r.headers['location']
+    else:
+        print 'failed to create entry status_code: %s text: %s entry: %s - cannot continue' % (r.status_code, r.text, entry)
+        return None
 
 def main():
 
@@ -66,7 +98,7 @@ def main():
             },
         'members': GLOBAL_GOVS_IDS
         }
-    headers = post_team_headers(USER_TOKEN)
+    headers = post_headers(USER_TOKEN)
     teams_url = urljoin(BASE_URL, '/az-teams')
     r = requests.post(teams_url, headers=headers, json=team)
     if r.status_code == 201:
@@ -123,35 +155,22 @@ def main():
         print 'failed to patch permissions for / %s %s' % (r.status_code, r.text)
         sys.exit(1)
 
+    # Create the "etc" directory. This directory will be an immediate child of the directory tree root - it can be found at /name-resource?/etc
     permissions = {
-        '_subject': '/az-well-known-teams',
-        '_inheritsPermissionsOf': '/',
-        '_self': {
-            'read': [ANYONE]
-            }
+        '_inheritsPermissionsOf': '/'
         }
-    headers = post_permissions_headers(USER_TOKEN)
-    url = urljoin(PERMISSIONS_BASE, '/az-permissions')
-    r = requests.post(url, headers=headers, json=permissions)
-    if r.status_code == 201:
-        print 'correctly created permissions for /az-well-known-teams'
-    elif r.status_code == 409:
-        print 'permissions for /az-well-known-teams already exists'
-    else:
-        print 'failed to create permissions for /az-well-known-teams %s %s' % (r.status_code, r.text)
+    etc_directory_url, etc_directory_etag = create_directory(permissions)
+    if not etc_directory_url:
+        print 'failed to create "etc" directory'
         sys.exit(1)
 
-    well_known_teams_patch = {
-        'global-govs': GLOBAL_GOVS
-        }
-    headers = patch_headers(USER_TOKEN, None)
-    url = urljoin(PERMISSIONS_BASE, '/az-well-known-teams')
-    r = requests.patch(url, headers=headers, json=well_known_teams_patch)
-    if r.status_code == 200:
-        print 'correctly patched /az-well-known-teams'
-    else:
-        print 'failed to patch /az-well-known-teams %s %s' % (r.status_code, r.text)
+    # put the new directory in the directory '/' at the name 'desired'
+    etc_entry = create_entry('/', 'etc', etc_directory_url)
+    if not etc_entry:
+        print "failed to create 'desired' entry in '/'"
         sys.exit(1)
+
+    create_entry(etc_directory_url, 'sys-govs', GLOBAL_GOVS)
 
 if __name__ == '__main__':
     main()
