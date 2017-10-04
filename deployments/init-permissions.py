@@ -7,7 +7,7 @@ import sys
 
 ANYONE = 'http://apigee.com/users#anyone'
 
-BASE_URL = '%s://%s:%s' % (env['EXTERNAL_SCHEME'], env['EXTERNAL_SY_ROUTER_HOST'], env['EXTERNAL_SY_ROUTER_PORT']) if 'EXTERNAL_SY_ROUTER_PORT' in env else '%s://%s' % (EXTERNAL_SCHEME, env['EXTERNAL_SY_ROUTER_HOST'])
+PERMISSIONS_BASE = env['PERMISSIONS_BASE']
 
 def b64_decode(data):
     missing_padding = (4 - len(data) % 4) % 4
@@ -77,7 +77,7 @@ def main():
         sys.exit(1)
 
     headers = get_headers(USER_TOKEN)
-    url = urljoin(BASE_URL, '/az-permissions?/')
+    url = urljoin(PERMISSIONS_BASE, '/az-permissions?/')
     r = requests.get(url , headers=headers)
     if r.status_code == 200:
         print 'correctly retrieved /az-permissions?/ etg: %s' % r.headers['Etag']
@@ -131,7 +131,7 @@ def main():
             }
         }
     headers = post_permissions_headers(USER_TOKEN)
-    url = urljoin(BASE_URL, '/az-permissions')
+    url = urljoin(PERMISSIONS_BASE, '/az-permissions')
     r = requests.post(url, headers=headers, json=permissions)
     if r.status_code == 201:
         print 'correctly created permissions for /az-well-known-teams'
@@ -145,7 +145,7 @@ def main():
         'global-govs': GLOBAL_GOVS
         }
     headers = patch_headers(USER_TOKEN, None)
-    url = urljoin(BASE_URL, '/az-well-known-teams')
+    url = urljoin(PERMISSIONS_BASE, '/az-well-known-teams')
     r = requests.patch(url, headers=headers, json=well_known_teams_patch)
     if r.status_code == 200:
         print 'correctly patched /az-well-known-teams'

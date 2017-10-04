@@ -532,7 +532,7 @@ function requestHandler(req, res) {
 
 function init(callback, aPool) {
   db.init(function(){
-    log('start', `starting remigration on schedule of ${REMIGRATION_CHECK_INTERVAL/SPEEDUP} seconds`)
+    log('start', `starting remigration on schedule of ${REMIGRATION_CHECK_INTERVAL/SPEEDUP} milliseconds`)
     setInterval(remigrateOnSchedule, REMIGRATION_CHECK_INTERVAL / SPEEDUP)
     callback()
   }, aPool)
