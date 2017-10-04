@@ -88,7 +88,7 @@ function deleteEntry(req, res, id) {
         })
         entry.self = id
         addCalculatedProperties(entry)
-        rLib.found(res, entry, req.headers.accept, entry.self, entry.etag)
+        rLib.ok(res, entry, req.headers.accept, entry.self, entry.etag)
       })
     })
   })
@@ -101,7 +101,7 @@ function updateEntry(req, res, id, patch) {
         db.updateEntryThen(res, id, entry, patchedEntry, entry.etag, etag => {
           patchedEntry.self = id 
           addCalculatedProperties(patchedEntry)
-          rLib.found(res, patchedEntry, req.headers.accept, patchedEntry.self, etag)
+          rLib.ok(res, patchedEntry, req.headers.accept, patchedEntry.self, etag)
         })
       })
     })
@@ -140,7 +140,7 @@ function deleteEntries(req, res, query) {
         let rslt = {kind: 'Collection'}
         rslt.contents = entries
         rslt.self = req.url
-        rLib.found(res, rslt, req.headers.accept, rslt.self)
+        rLib.ok(res, rslt, req.headers.accept, rslt.self)
       })
     else
       rLib.badRequest(res, {msg: 'may only provide "namedResource" parameter', query: query})

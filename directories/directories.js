@@ -91,7 +91,7 @@ function deleteDirectory(req, res, id) {
       })
       directory.self = id
       addCalculatedProperties(directory)
-      rLib.found(res, directory, req.headers.accept, directory.self, etag)
+      rLib.ok(res, directory, req.headers.accept, directory.self, etag)
     })
   })
 }
@@ -103,7 +103,7 @@ function updateDirectory(req, res, id, patch) {
         db.updateResourceThen(res, id, directory, patchedDirectory, etag, etag => {
           patchedDirectory.self = id 
           addCalculatedProperties(patchedDirectory)
-          rLib.found(res, patchedDirectory, req.headers.accept, patchedDirectory.self, etag)
+          rLib.ok(res, patchedDirectory, req.headers.accept, patchedDirectory.self, etag)
         })
       })
     })

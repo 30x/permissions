@@ -901,7 +901,7 @@ function processEvent(event) {
 
 function processEventPost(req, res, event) {
   permissionsEventConsumer.processEvent(event)
-  rLib.found(res, req.headers.accept, req.url)
+  rLib.ok(res, req.headers.accept, req.url)
 }
 
 var IPADDRESS = process.env.PORT !== undefined ? `${process.env.IPADDRESS}:${process.env.PORT}` : process.env.IPADDRESS

@@ -193,7 +193,7 @@ function deletePermissions(req, res, subject) {
   pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'govern', function() {
     db.deletePermissionsThen(req, res, subject, function(permissions, etag) {
       addCalculatedProperties(req, permissions)
-      rLib.found(res, permissions, req.headers.accept, `/permsissions?${subject}`, etag)
+      rLib.ok(res, permissions, req.headers.accept, `/permsissions?${subject}`, etag)
       var hrend = process.hrtime(hrstart)
       log('deletePermissions', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
     })
@@ -247,7 +247,7 @@ function updatePermissions(req, res, subject, patch) {
               patchedPermissions._metadata.modifier = lib.getUser(req.headers.authorization)
               patchedPermissions._metadata.modified = new Date().toISOString()
               db.updatePermissionsThen(req, res, subject, patchedPermissions, scopes, etag, function(etag) {
-                rLib.found(res, patchedPermissions, req.headers.accept, `/permsissions?${subject}`, etag)
+                rLib.ok(res, patchedPermissions, req.headers.accept, `/permsissions?${subject}`, etag)
                 var hrend = process.hrtime(hrstart)
                 log('updatePermissions', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
               })
@@ -273,7 +273,7 @@ function putPermissions(req, res, subject, permissions) {
         permissions._metadata.modified = new Date().toISOString()
         db.putPermissionsThen(req, res, subject, permissions, scopes, function(etag) {
           addCalculatedProperties(req, permissions) 
-          rLib.found(res, permissions, req.headers.accept, `/permsissions?${subject}`, etag)
+          rLib.ok(res, permissions, req.headers.accept, `/permsissions?${subject}`, etag)
           var hrend = process.hrtime(hrstart)
           log('putPermissions', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
         })

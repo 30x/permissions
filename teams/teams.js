@@ -143,7 +143,7 @@ function deleteTeam(req, res, id) {
       })
       team.self = makeSelfURL(req, id)
       addCalculatedProperties(team)
-      rLib.found(res, team, req.headers.accept, team.self, etag)
+      rLib.ok(res, team, req.headers.accept, team.self, etag)
     })
   }, true)
 }
@@ -166,7 +166,7 @@ function patchTeam(req, res, id, patch) {
                 db.updateTeamThen(req, res, id, selfURL, patchedTeam, allowed.scopes[selfURL], etag, function (etag) {
                   patchedTeam.self = selfURL
                   addCalculatedProperties(patchedTeam)
-                  rLib.found(res, patchedTeam, req.headers.accept, patchedTeam.self, etag)
+                  rLib.ok(res, patchedTeam, req.headers.accept, patchedTeam.self, etag)
                 })
               }
             }
@@ -194,7 +194,7 @@ function putTeam(req, res, id, team) {
           db.updateTeamThen(req, res, id, makeSelfURL(req, id), team, allowed.scopes, null, function (etag) {
             team.self = makeSelfURL(req, id)
             addCalculatedProperties(team)
-            rLib.found(res, team, req.headers.accept, team.self, etag)
+            rLib.ok(res, team, req.headers.accept, team.self, etag)
           })
         }
       }
@@ -215,19 +215,6 @@ function getTeamsForUser(req, res, user) {
     })
   } else
     rLib.forbidden(res)
-}
-
-function getTeamsMisc(req, res) {
-  pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, req.url, '_self', 'read', function(err, reason) {
-    db.withTeamMiscDo(req, res, req.url, function(misc , etag) {
-      misc.self = req.url
-      rLib.found(res, misc, req.headers.accept, misc.self, etag)
-    })
-  })  
-}
-
-function verifyWellKnownTeams(wellKnownTeams, callback) {
-  callback()
 }
 
 function requestHandler(req, res) {
