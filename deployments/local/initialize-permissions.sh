@@ -14,7 +14,7 @@ export PERMISSIONS_CLIENTSECRET=$(cat "$SOURCE_DIR/../../secrets/permissions_cli
 export BOOTSTRAP_USER_ID="mnally@apigee.com"
 export BOOTSTRAP_USER_SECRET=$(cat "$SOURCE_DIR/../../secrets/user1_secret.txt")
 
-export PERMISSIONS_BASE="https://permissions-allinone.e2e.apigee.net"
+export PERMISSIONS_BASE=${PERMISSIONS_BASE:-"https://permissions-allinone.e2e.apigee.net"}
 export GLOBAL_GOVS=`cat global-governors.txt`
 export AUTH_BASIC_CREDENTIALS="ZWRnZWNsaTplZGdlY2xpc2VjcmV0" #$(echo -n 'desiredcli:desiredclisecret' | base64)
 export USER_TOKEN=$(curl -s -d "grant_type=password" --data-urlencode "username=${BOOTSTRAP_USER_ID}" --data-urlencode "password=${BOOTSTRAP_USER_SECRET}" $AUTH_URL -H "Authorization: Basic ${AUTH_BASIC_CREDENTIALS}" -H "Content-Type: application/x-www-form-urlencoded;charset=utf-8" -H "accept: application/json;charset=utf-8" | jq -r ."access_token")

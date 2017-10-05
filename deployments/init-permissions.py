@@ -55,7 +55,7 @@ def create_directory(permissions):
         '_permissions': permissions,
         }
     headers = post_headers(USER_TOKEN)
-    directories_url = urljoin(BASE_URL, '/dir-directories')
+    directories_url = urljoin(PERMISSIONS_BASE, '/dir-directories')
     r = requests.post(directories_url, headers=headers, json=directory)
     if r.status_code == 201:
         print 'correctly created directory %s, etag: %s' % (r.headers['location'], r.headers['Etag'])
@@ -72,7 +72,7 @@ def create_entry(namespace, name, namedResource):
         'namedResource': namedResource
     }
     headers = post_headers(USER_TOKEN)
-    entries_url = urljoin(BASE_URL, '/name-entries')
+    entries_url = urljoin(PERMISSIONS_BASE, '/name-entries')
     r = requests.post(entries_url, headers=headers, json=entry)
     if r.status_code == 201:
         print 'correctly created entry %s named %s, etag: %s' % (r.headers['location'], name, r.headers['Etag'])
@@ -99,7 +99,7 @@ def main():
         'members': GLOBAL_GOVS_IDS
         }
     headers = post_headers(USER_TOKEN)
-    teams_url = urljoin(BASE_URL, '/az-teams')
+    teams_url = urljoin(PERMISSIONS_BASE, '/az-teams')
     r = requests.post(teams_url, headers=headers, json=team)
     if r.status_code == 201:
         GLOBAL_GOVS = r.headers['location']
