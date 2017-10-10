@@ -57,7 +57,7 @@ function requestHandler(req, res) {
   if (parsedRequestURL.pathname == OAUTH_CALLBACK_PATHNAME)
     lib.authorize(req, res)
   else
-    lib.validateTokenThen(req, res, null, (isValid, reason) => {
+    lib.validateTokenThen(req, res, null, null, (isValid, reason) => {
       if (isValid)
         primRequestHandler(req, res, parsedRequestURL)
       else
