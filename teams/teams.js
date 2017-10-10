@@ -55,6 +55,7 @@ function verifyMembers(req, res, team, callback) {
         if (member)
           members[i] = member
       }
+      team.members = [...(new Set(members))]
       callback()
     })  
   else
