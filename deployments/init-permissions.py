@@ -170,7 +170,7 @@ def main():
         print "failed to create 'desired' entry in '/'"
         sys.exit(1)
 
-    create_entry(etc_directory_url, 'sys-govs', GLOBAL_GOVS)
+    create_entry(etc_directory_url, 'global-govs', GLOBAL_GOVS)
 
 if __name__ == '__main__':
     main()
