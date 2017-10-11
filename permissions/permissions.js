@@ -149,16 +149,43 @@ function getAllowedActions(req, res, queryString) {
   var user = queryParts.user
   var property = queryParts.property || '_self'
   log('getAllowedActions', `resource: ${resource} user: ${user} property: ${property}`)
-  let userFromToken = lib.getUser(req.headers.authorization)
-  if (user == userFromToken) 
+  ifUserMatchesRequestTokenThen(req, res, user, () => {
     // In the API getAllowedActions, we assume that the resource value could be either a resourceID
-    // or a concatenation of a base resource and a path. We pass the resource to withAllowedActionsDo
-    // as both, so that it will be checked both ways
-    withAllowedActionsDo(req, res, resource, resource, property, user, function(allowedActions) {
+    // or a concatenation of a base resource and a path. WithAllowedActionsDo
+    // will checked it both ways
+    withAllowedActionsDo(req, res, resource, property, user, function(allowedActions) {
       rLib.found(res, allowedActions, req.headers.accept, req.url)
     })
-  else
-    rLib.forbidden(res, {msg: 'user in query string must match user credentials', queryStringUser: user, credentialsUser: userFromToken}, req.headers.accept, req.url)
+  })
+}
+
+function getAllowedActionsForResource(req, res, queryString) {
+  var queryParts = querystring.parse(queryString)
+  var resource = queryParts.resource
+  if (resource !==undefined)
+    resource = lib.internalizeURL(resource, req.headers.host)
+  var user = queryParts.user
+  var property = queryParts.property || '_self'
+  log('getAllowedActionsForResource', `resource: ${resource} user: ${user} property: ${property}`)
+  ifUserMatchesRequestTokenThen(req, res, user, () => {
+    withAllowedActionsForResourceDo(req, res, resource, property, user, function(allowedActions) {
+      rLib.found(res, allowedActions, req.headers.accept, req.url)
+    })
+  })
+}
+
+function getAllowedActionsForBaseAndPath(req, res, queryString) {
+  var queryParts = querystring.parse(queryString)
+  var baseAndPath = queryParts.baseAndPath
+  if (baseAndPath !==undefined)
+    baseAndPath = lib.internalizeURL(baseAndPath, req.headers.host)
+  var user = queryParts.user
+  log('getAllowedActionsForBaseAndPath', `baseAndPath: ${baseAndPath} user: ${user}`)
+  ifUserMatchesRequestTokenThen(req, res, user, () => {
+    withAllowedActionsForBaseAndPathDo(req, res, baseAndPath, user, function(allowedActions) {
+      rLib.found(res, allowedActions, req.headers.accept, req.url)
+    })
+  })
 }
 
 function collateAllowedActions(permissionsObject, property, actors) {
@@ -467,119 +494,89 @@ function withAncestorPermissionsTreeDo(req, res, subject, callback, errorCallbac
   withAncestorPermissionsSubtreeDo(subject, tree, callback, errorCallback)
 }
 
-function withAllowedActionsDo(req, res, resource, baseAndPath, property, user, callback) {
-  withActorsForUserDo(req, res, user, function(actors) {
-    function calculateAllRoleActions(actions) {
-      if (baseAndPath) {
-        for (let i=1; i<actors.length; i++) {
-          let roles = retrieveFromTeamsCache(actors[i]).roles
-          if (roles != null) {
-            let [roleActions, base] = calculateRoleActions(roles, baseAndPath)
-            if (roleActions !== null)
-              for (let roleAction of roleActions)
-                actions[roleAction] = true
-          }
-        }
+function calculateAllRoleActions(baseAndPath, actors, actions, callback) {
+  if (baseAndPath) {
+    for (let i=1; i<actors.length; i++) {
+      let roles = retrieveFromTeamsCache(actors[i]).roles
+      if (roles != null) {
+        let [roleActions, base] = calculateRoleActions(roles, baseAndPath)
+        if (roleActions !== null)
+          for (let roleAction of roleActions)
+            actions[roleAction] = true
       }
-      callback(Object.keys(actions))
     }
-    if (resource === undefined)
-      calculateAllRoleActions({})
+  }
+  callback(Object.keys(actions))
+}
+
+function calculateEntityActions(node, actors, property) {
+  var permissions = node[0]
+  if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
+    if (actors.length == 0 || permissions._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) { // user's issuer not in the list
+      return [[], true]
+    }
+  var actions = {}
+  var wideningForbidden = false
+  for (var i = 1; i < node.length; i++) {
+    var [ancestorActions, ancestorWideningForbidden] = calculateEntityActions(node[i], actors, property)
+    if (ancestorWideningForbidden)
+      if (wideningForbidden) 
+        for (var key in actions) {
+          if (!key in ancestorActions)
+            delete actions[key]
+        }
+      else 
+        actions = ancestorActions
     else
-      withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
-        var entityCalculations = calculateEntityActions(tree, actors)
-        var entityActions = entityCalculations[0]
-        var wideningForbidden = entityCalculations[1]
-        if (wideningForbidden || actors.length <=1)
+      if (!wideningForbidden)
+        Object.assign(actions, ancestorActions)
+    wideningForbidden = wideningForbidden || ancestorWideningForbidden
+  }
+  if (!wideningForbidden)
+    Object.assign(actions, collateAllowedActions(permissions, property, actors))
+  return [actions, wideningForbidden || (permissions._constraints !== undefined && permissions._constraints.wideningForbidden)]
+}
+
+function withAllowedActionsDo(req, res, resourceOrBaseAndPath, property, user, callback) {
+  withActorsForUserDo(req, res, user, function(actors) {
+    if (resourceOrBaseAndPath === undefined)
+      callback([])
+    else
+      withAncestorPermissionsTreeDo(req, res, resourceOrBaseAndPath, function(tree) {
+        let [entityActions, wideningForbidden] = calculateEntityActions(tree, actors, property)
+        if (wideningForbidden || property != '_self')
           callback(Object.keys(entityActions))
         else 
-          calculateAllRoleActions(entityActions)
+          calculateAllRoleActions(resourceOrBaseAndPath, actors, entityActions, callback)
       }, function(err) {
         if (err == 404)
-          calculateAllRoleActions({})
+          calculateAllRoleActions(resourceOrBaseAndPath, actors, {}, callback)
+        else
+          rLib.internalError(res, err)
+      })
+  })
+}
+
+function withAllowedActionsForResourceDo(req, res, resource, property, user, callback) {
+  withActorsForUserDo(req, res, user, function(actors) {
+    if (resource === undefined)
+      callback([])
+    else
+      withAncestorPermissionsTreeDo(req, res, resource, function(tree) {
+        let [entityActions, wideningForbidden] = calculateEntityActions(tree, actors, property)
+        callback(Object.keys(entityActions))
+      }, function(err) {
+        if (err == 404)
+          callback([])
         else
           rLib.internalError(res, err) 
       }) 
   })
-  function calculateEntityActions(node, actors) {
-    var permissions = node[0]
-    if (permissions._constraints && permissions._constraints.validIssuers) // only users validated with these issuers allowed
-      if (actors.length == 0 || permissions._constraints.validIssuers.indexOf(actors[0].split('#')[0]) < 0) { // user's issuer not in the list
-        return [[], true]
-      }
-    var actions = {}
-    var wideningForbidden = false
-    for (var i = 1; i < node.length; i++) {
-      var [ancestorActions, ancestorWideningForbidden] = calculateEntityActions(node[i], actors)
-      if (ancestorWideningForbidden)
-        if (wideningForbidden) 
-          for (var key in actions) {
-            if (!key in ancestorActions)
-              delete actions[key]
-          }
-        else 
-          actions = ancestorActions
-      else
-        if (!wideningForbidden)
-          Object.assign(actions, ancestorActions)
-      wideningForbidden = wideningForbidden || ancestorWideningForbidden
-    }
-    if (!wideningForbidden)
-      Object.assign(actions, collateAllowedActions(permissions, property, actors))
-    return [actions, wideningForbidden || (permissions._constraints !== undefined && permissions._constraints.wideningForbidden)]
-  }
 }
 
-/**
- * This jsdoc defines the callback parameter to buildQueryResult
- * @callback isAllowedCallback
- * @param {boolean or object} - see 'isAllowed' for explanation
- */
-/**
- * See 'isAllowed for explanations
- * 
- * @param {object} req 
- * @param {object} res 
- * @param {url-string} user 
- * @param {[url-string]} resources 
- * @param {boolean} withScopes 
- * @param {boolean} withIndividualAnswers 
- * @param {isAllowedCallback} callback 
- */
-function _isAllowed(req, res, user, resources, withScopes, withIndividualAnswers, permissionsFunction, callback) {
-  let result = {
-    scopes: withScopes ? {} : null,
-    answers: withIndividualAnswers ? {} : null
-  }
-  var count = 0
-  var responded = false
-  // Multiple resources is interpreted to mean that the user must have access to all of them. 
-  // For an API that returns true if the user has access to any one of the resources, see areAnyAllowed.  
-  withActorsForUserDo(req, res, user, function(actors) {    
-    for (let resource of resources) {
-      permissionsFunction(actors, resource, processResult)
-      function processResult(answer, scopes) {
-        if (!responded) {
-          // If result.allowed is already false, then it must remain false, regardless of the value of answer
-          result.allowed = result.allowed === undefined ? answer : result.allowed && answer
-          if (withScopes)
-            result.scopes[resource] = Array.from(new Set(scopes))
-          if (withIndividualAnswers)
-            result.answers[resources[i]] = answer
-            // in the simples case, we stop looking if result.allowed is false. However, if the user asked for
-          // the scopes, or asked for an individual answer for each resource, then we need to continue
-          if (!result.allowed && !withScopes && !withIndividualAnswers) {
-            callback(result.allowed)
-            responded = true
-          } else if (++count == resources.length) {
-            if (withScopes || withIndividualAnswers) 
-              callback(result)
-            else
-              callback(result.allowed)
-          }
-        }
-      }
-    }
+function withAllowedActionsForBaseAndPathDo(req, res, baseAndPath, user, callback) {
+  withActorsForUserDo(req, res, user, function(actors) {
+    calculateAllRoleActions(baseAndPath, actors, {}, callback)
   })
 }
 
@@ -600,24 +597,36 @@ function ifUserMatchesRequestTokenThen(req, res, user, callback) {
     callback()
   else if (user && req.headers['x-client-authorization']) {
     let client = lib.getUser(req.headers['x-client-authorization'])
-    _isAllowed(req, res, client, ['/'], withScopes, withIndividualAnswers, permissionsFunction, (answer) => {
-      if (answer)
-        callback()
-      else
-        rLib.unauthorized(res, {msg: 'client in x-client-authorization token does not have permission to read permissions', client: client})
+    withActorsForUserDo(req, res, client, function(actors) {    
+      withPermissionFlagDo(req, res, client, actors, '/', 'az-permissions', 'read', null, (answer) => {
+        if (answer)
+          callback()
+        else
+          rLib.unauthorized(res, {msg: 'client in x-client-authorization token does not have permission to read permissions', client: client})
+      })
     }) 
   } else
     if (req.headers.authorization)
       rLib.forbidden(res, {msg: 'user must be provided in querystring and must match user in token', querystringUser: user, tokenUser: lib.getUser(req.headers.authorization)})
     else
       rLib.unauthorized(res, {msg: 'bearer token missing or expired'})
-  function permissionsFunction (actors, resource, processResult) {
-    withPermissionFlagDo(req, res, user, actors, resource, 'az-permissions', 'read', withScopes, processResult)
-  }
 }
 
 /**
- * 'isAllowed' implements one of the primary APIs of the permissions runt-time. It is used to check
+ * This jsdoc defines the callback parameters to permissionsFunction of _isAllowed
+ * @callback permissionsFunction
+ * @param {string} user
+ * @param {Array} actors. An array where the first entry is the URL of the user, and the subsequent entries are the
+ *                        URLs of the teams of which the user is a member
+ * @param {any} resource. May be anything. In the currently-implemented cases, it will be either
+ *                        the URL of a resource, or the concatenation of a base resource URL and a path
+ * @param {string or Array of strings} property
+ * @param {string or Array of strings} action
+ * @param {boolean or null or undefined} withscopes 
+ * @param {function} processResult
+/**
+/** 
+ * '_isAllowed' implements one of the primary APIs of the permissions runt-time. It is used to check
  * whether a particular user has permission to perform a particular action on a partocular set of resources
  * 
  * @param {object} req. An HTTP request object 
@@ -635,6 +644,7 @@ function ifUserMatchesRequestTokenThen(req, res, user, callback) {
  *                             to see Pepsi's audit log records unless they pertain to resoures they have agreed to share.
  *                             (ToDo: consider renaming this parameter to 'withAncestors')
  *     withIndividualAnswers - the client wants to know the permissions result for each individual resource, in addition to the aggregate
+ * @param {function} permissionsFunction. A function that checks permissions for a particular resource and actor array
  * @returns the body of the request response depends on the query parameters.
  *     {boolean} - if neither withScopes nor withIndividualAnswers was specified in the querystring, 
  *                 the response will be either the string true, or the string false
@@ -648,7 +658,7 @@ function ifUserMatchesRequestTokenThen(req, res, user, callback) {
  *                  }
  *                 }
  */
-function isAllowed(req, res, query) {
+function _isAllowed(req, res, query, parameterName, permissionsFunction) {
   // In the API isAllowe, we assume that each resource value could be either a resourceID
   // or a concatenation of a base resource and a path.
   let queryParts =  querystring.parse(query)
@@ -658,24 +668,62 @@ function isAllowed(req, res, query) {
   var property = queryParts.property || '_self'
   var withScopes = queryParts.withScopes == '' || queryParts.withScopes
   var withIndividualAnswers = queryParts.withIndividualAnswers == '' || queryParts.withIndividualAnswers
-  var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
+  var resources = Array.isArray(queryParts[parameterName]) ? queryParts[parameterName] : [queryParts[parameterName]]
   if (queryParts.resource !== undefined) 
     resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
-  log('isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
+  log('_isAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources} withScopes: ${withScopes} withIndividualAnswers: ${withIndividualAnswers}`)
   ifUserMatchesRequestTokenThen(req, res, user, () => {
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
     else {
-      _isAllowed(req, res, user, resources, withScopes, withIndividualAnswers, permissionsFunction, (result) => {
+      let result = {
+        scopes: withScopes ? {} : null,
+        answers: withIndividualAnswers ? {} : null
+      }
+      var count = 0
+      var responded = false
+      // Multiple resources is interpreted to mean that the user must have access to all of them. 
+      // For an API that returns true if the user has access to any one of the resources, see areAnyAllowed.  
+      withActorsForUserDo(req, res, user, function(actors) {    
+        for (let resource of resources) {
+          permissionsFunction(user, actors, resource, property, action, withScopes, processResult)
+          function processResult(answer, scopes) {
+            if (!responded) {
+              // If result.allowed is already false, then it must remain false, regardless of the value of answer
+              result.allowed = result.allowed === undefined ? answer : result.allowed && answer
+              if (withScopes)
+                result.scopes[resource] = Array.from(new Set(scopes))
+              if (withIndividualAnswers)
+                result.answers[resources[i]] = answer
+                // in the simples case, we stop looking if result.allowed is false. However, if the user asked for
+              // the scopes, or asked for an individual answer for each resource, then we need to continue
+              if (!result.allowed && !withScopes && !withIndividualAnswers) {
+                respond(result.allowed)
+                responded = true
+              } else if (++count == resources.length) {
+                if (withScopes || withIndividualAnswers) 
+                  respond(result)
+                else
+                  respond(result.allowed)
+              }
+            }
+          }
+        }
+      })
+    function respond(result) {
         // result will be true (allowed), false (forbidden) or null (no informaton, which callers normally interpret to mean no)
         // if withScopes or withIndividualAnswers is set, the result will be wrapped in an object    
         rLib.found(res, result, req.headers.accept, req.url)  
         var hrend = process.hrtime(hrstart)
-        log('isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${typeof result == 'string' ? result : JSON.stringify(result)} resources: ${resources}`)    
-      })
+        log('_isAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${typeof result == 'string' ? result : JSON.stringify(result)} resources: ${resources}`)    
+      }
     }
   })
-  function permissionsFunction (actors, resource, processResult) {
+}
+
+function isAllowed(req, res, query) {
+  _isAllowed(req, res, query, 'resource', permissionsFunction)
+  function permissionsFunction (user, actors, resource, property, action, withScopes, processResult) {
     withPermissionFlagDo(req, res, user, actors, resource, property, action, withScopes, (answer, scopes) => {
       if (answer == null && (!property || property == '_self'))
         checkRoles(actors, resource, action, answer, scopes, (answer, scopes) => {
@@ -683,6 +731,22 @@ function isAllowed(req, res, query) {
         })
       else
         processResult(answer, scopes)
+    })
+  }
+}
+
+function isAllowedForResource(req, res, query) {
+  _isAllowed(req, res, query, 'resource', permissionsFunction)
+  function permissionsFunction (user, actors, resource, property, action, withScopes, processResult) {
+    withPermissionFlagDo(req, res, user, actors, resource, property, action, withScopes, processResult)
+  }
+}
+
+function isAllowedForBaseAndPath(req, res, query) {
+  _isAllowed(req, res, query, 'baseAndPath', permissionsFunction)
+  function permissionsFunction (user, actors, baseAndPath, property, action, withScopes, processResult) {
+    checkRoles(actors, baseAndPath, action, null, [], (answer, scopes) => {
+      processResult(answer, scopes)
     })
   }
 }
@@ -701,18 +765,18 @@ function isAllowed(req, res, query) {
  *                             If multiple resources are provided, each one is checked, and the answer is an AND of them all
  * @returns {boolean} - 'return' is in the form of an HTTP response, not a function return
  */
-function areAnyAllowed(req, res, queryParts) {
+function _areAnyAllowed(req, res, queryParts, parameterName, permissionsFunction) {
   var hrstart = process.hrtime()
   var user = queryParts.user
   var action = queryParts.action
   var property = queryParts.property || '_self'
-  var resources = Array.isArray(queryParts.resource) ? queryParts.resource : [queryParts.resource]
+  var resources = Array.isArray(queryParts[parameterName]) ? queryParts[parameterName] : [queryParts[parameterName]]
   log('areAnyAllowed', `user: ${user} action: ${action} property: ${property} resources: ${resources}`)
   if (user == null || user == lib.getUser(req.headers.authorization))
     if (action === undefined)
       rLib.badRequest(res, 'action query parameter must be provided: ' + req.url)
     else
-      if (queryParts.resource === undefined)
+      if (queryParts[parameterName] === undefined)
         rLib.badRequest(res, 'must provide at least one resource')
       else {
         resources = resources.map(x => lib.internalizeURL(x, req.headers.host))
@@ -721,15 +785,7 @@ function areAnyAllowed(req, res, queryParts) {
         withActorsForUserDo(req, res, user, function(actors) {
           for (let resource of resources)
             if (!responded)
-              // In the API areAnyAllowed, we assume that each resource value could be either a resourceID
-              // or a concatenation of a base resource and a path. We pass the resource to withPermissionFlagDo
-              // as both, so that it will be checked both ways
-              withPermissionFlagDo(req, res, user, actors, resource, property, action, null, (answer) => {
-                if (answer == null && (!property || property == '_self'))
-                  checkRoles(actors, resource, action, answer, null, processResult)
-                else
-                  processResult(answer)                      
-              })
+              permissionsFunction(user, actors, resource, property, action, processResult)
         })
       }
     else  
@@ -740,11 +796,42 @@ function areAnyAllowed(req, res, queryParts) {
         rLib.found(res, answer, req.headers.accept, req.url)  // answer will be true (allowed), false (forbidden) or null (no informaton, which means no)  
         responded = true
         var hrend = process.hrtime(hrstart)
-        log('areAnyAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
+        log('_areAnyAllowed', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms answer: ${answer} resources: ${resources}`)            
       }
     }
   }
 }
+
+function areAnyAllowed(req, res, queryParts, permissionsFunction) {
+  _areAnyAllowed(req, res, queryParts, 'resource', (user, actors, resource, property, action, processResult) => {
+    // In the API areAnyAllowed, we assume that each resource value could be either a resourceID
+    // or a concatenation of a base resource and a path. We pass the resource to withPermissionFlagDo
+    // as both, so that it will be checked both ways
+    withPermissionFlagDo(req, res, user, actors, resource, property, action, null, (answer) => {
+      if (answer == null && (!property || property == '_self'))
+        checkRoles(actors, resource, action, answer, null, processResult)
+      else
+        processResult(answer)                      
+    })
+  })
+}  
+
+function areAnyResourcesAllowed(req, res, queryParts, permissionsFunction) {
+  _areAnyAllowed(req, res, queryParts, 'resource', (user, actors, resource, property, action, processResult) => {
+    withPermissionFlagDo(req, res, user, actors, resource, property, action, null, (answer) => {
+      processResult(answer)                      
+    })
+  })
+}  
+
+function areAnyBaseAndPathsAllowed(req, res, queryParts, permissionsFunction) {
+  _areAnyAllowed(req, res, queryParts, 'baseAndPath', (user, actors, resource, property, action, processResult) => {
+    if ((!property || property == '_self'))
+      checkRoles(actors, resource, action, null, null, processResult)
+    else
+      processResult(null)
+  })
+}  
 
 function isAllowedToInheritFrom(req, res, queryString) {
   function withExistingAncestorsDo(resource, callback) {
@@ -920,6 +1007,16 @@ function requestHandler(req, res) {
         getAllowedActions(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else
         rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/az-allowed-actions-for-resource' && req_url.search !== null)
+      if (req.method == 'GET')
+        getAllowedActionsForResource(req, res, lib.internalizeURL(req_url.query, req.headers.host))
+      else
+        rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/az-allowed-actions-for-base-and-path' && req_url.search !== null)
+      if (req.method == 'GET')
+        getAllowedActionsForBaseAndPath(req, res, lib.internalizeURL(req_url.query, req.headers.host))
+      else
+        rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-is-allowed' && req_url.search == null)
       if (req.method == 'POST')
         lib.getServerPostObject(req, res, (body) => isAllowed(req, res, body))
@@ -930,14 +1027,44 @@ function requestHandler(req, res) {
         isAllowed(req, res, req_url.query)
       else
         rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/az-is-allowed-for-resource' && req_url.search !== null)
+      if (req.method == 'GET')
+        isAllowedForResource(req, res, req_url.query)
+      else
+        rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/az-is-allowed-for-base-and-path' && req_url.search !== null)
+      if (req.method == 'GET')
+        isAllowedForBaseAndPath(req, res, req_url.query)
+      else
+        rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-are-any-allowed' && req_url.search == null)
       if (req.method == 'POST')
         lib.getServerPostObject(req, res, (body) => areAnyAllowed(req, res, body))
       else
-        rLib.methodNotAllowed(res, ['GET'])
+        rLib.methodNotAllowed(res, ['POST'])
     else if (req_url.pathname == '/az-are-any-allowed' && req_url.search !== null)
       if (req.method == 'GET')
         areAnyAllowed(req, res, querystring.parse(req_url.query))
+      else
+        rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/az-are-any-resources-allowed' && req_url.search !== null)
+      if (req.method == 'GET')
+        areAnyAllowed(req, res, querystring.parse(req_url.query))
+      else
+        rLib.methodNotAllowed(res, ['GET'])
+    else if (req_url.pathname == '/az-are-any-resources-allowed' && req_url.search == null)
+      if (req.method == 'POST')
+        lib.getServerPostObject(req, res, (body) => areAnyResourcesAllowed(req, res, body))
+      else
+        rLib.methodNotAllowed(res, ['POST'])
+    else if (req_url.pathname == '/az-are-any-base-and-paths-allowed' && req_url.search == null)
+      if (req.method == 'POST')
+        lib.getServerPostObject(req, res, (body) => areAnyBaseAndPathsAllowed(req, res, body))
+      else
+        rLib.methodNotAllowed(res, ['POST'])
+    else if (req_url.pathname == '/az-are-any-base-and-paths-allowed' && req_url.search !== null)
+      if (req.method == 'GET')
+        areAnyBaseAndPathsAllowed(req, res, querystring.parse(req_url.query))
       else
         rLib.methodNotAllowed(res, ['GET'])
     else if (req_url.pathname == '/az-is-allowed-to-inherit-from' && req_url.search !== null)
@@ -971,7 +1098,7 @@ function start() {
   else
     module.exports = {
       requestHandler:requestHandler,
-      paths: ['/az-events', '/az-allowed-actions' , '/az-is-allowed', '/az-are-any-allowed', '/az-is-allowed-to-inherit-from'],
+      paths: ['/az-events', '/az-allowed-actions' , '/az-is-', '/az-are-'],
       init: init
     }
 }

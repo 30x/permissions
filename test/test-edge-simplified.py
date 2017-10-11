@@ -176,7 +176,12 @@ def main():
             print 'failed to retrieve /az-permissions?/ %s %s' % (r.status_code, r.text)
             return
 
-        permissions_patch = {"az-permissions":  {"read": [PERMISSIONS_CLIENT_FULL_ID], "create": [PERMISSIONS_CLIENT_FULL_ID]}}
+        permissions_patch = {
+            'az-permissions':  {
+                'read': [PERMISSIONS_CLIENT_FULL_ID],
+                'create': [PERMISSIONS_CLIENT_FULL_ID]
+                }
+            }
         patch_headers1 = patch_headers(TOKEN1, slash_etag)
         r = requests.patch(urljoin(BASE_URL, '/az-permissions?/'), headers=patch_headers1, json=permissions_patch)
         if r.status_code == 200:
@@ -783,6 +788,34 @@ def main():
         print 'failed to return is-allowed actions of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
         return
 
+    url = urljoin(BASE_URL, '/az-is-allowed-for-base-and-path?baseAndPath=http://apigee.com/o/acme/environments/test&user=%s&action=read' % (USER3_E))
+    start = timer()
+    r = requests.get(url, headers=get_headers3)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned is-allowed-for-base-and-path (%s) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned is-allowed-for-base-and-path of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
+    else:
+        print 'failed to return is-allowed-for-base-and-path actions of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
+
+    url = urljoin(BASE_URL, '/az-is-allowed-for-resource?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read' % (USER3_E))
+    start = timer()
+    r = requests.get(url, headers=get_headers3)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if not answer:
+            print 'correctly returned is-allowed-for-resource (%s) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned is-allowed-for-resource of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
+    else:
+        print 'failed to return is-allowed-for-resource actions of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
+
     # Retrieve are-any-allowed for USER3 on http://apigee.com/o/acme for property environments/test
 
     url = urljoin(BASE_URL, '/az-are-any-allowed?resource=http://apigee.com/o/acme/environments/test&resource=http://apigee.com/o/acme&user=%s&action=read' % (USER3_E))
@@ -824,7 +857,71 @@ def main():
 
     # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property /environments/test
 
-    url = urljoin(BASE_URL, '/az-allowed-actions?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read&base=http://apigee.com/o/acme&path=/environments/test' % (USER3_E))
+    url = urljoin(BASE_URL, '/az-are-any-base-and-paths-allowed?baseAndPath=http://apigee.com/o/acme/environments/test&baseAndPath=http://apigee.com/o/acme&user=%s&action=read' % (USER3_E))
+    start = timer()
+    r = requests.get(url, headers=get_headers3)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned are-any-base-and-paths-allowed (%s) of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned are-any-base-and-paths-allowed of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 %s' % answer
+    else:
+        print 'failed to return are-any-base-and-paths-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
+
+    # Retrieve are-any-allowed for USER3 on http://apigee.com/o/acme for property environments/test
+
+    url = urljoin(BASE_URL, '/az-are-any-resources-allowed?resource=http://apigee.com/o/acme/environments/test&resource=http://apigee.com/o/acme&user=%s&action=read' % (USER3_E))
+    start = timer()
+    r = requests.get(url, headers=get_headers3)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer:
+            print 'correctly returned are-any-resources-allowed (%s) of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned are-any-resources-allowed of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 %s' % answer
+    else:
+        print 'failed to return are-any-resources-allowed actions of http://apigee.com/o/acme/environments/test & http://apigee.com/o/acme for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
+
+    url = urljoin(BASE_URL, '/az-allowed-actions-for-base-and-path?baseAndPath=http://apigee.com/o/acme/environments/test&user=%s&action=read' % (USER3_E))
+    start = timer()
+    r = requests.get(url, headers=get_headers3)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if 'read' in answer:
+            print 'correctly returned allowed-actions-for-base-and-path (%s) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned allowed-actions-for-base-and-path of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
+            return
+    else:
+        print 'failed to return allowed-actions-for-base-and-path of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
+
+    # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property /environments/test
+
+    url = urljoin(BASE_URL, '/az-allowed-actions-for-resource?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read' % (USER3_E))
+    start = timer()
+    r = requests.get(url, headers=get_headers3)
+    end = timer()
+    if r.status_code == 200:
+        answer = r.json()
+        if answer == []:
+            print 'correctly returned allowed-actions-for-resource (%s) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = %sms' % (answer, ((end-start) * 1000))
+        else:
+            print 'incorrect returned allowed-actions-for-resource of http://apigee.com/o/acme/environments/test for USER3 %s' % answer
+            return
+    else:
+        print 'failed to return allowed-actions-for-resource of http://apigee.com/o/acme/environments/test for USER3 status_code: %s text: %s' % (r.status_code, r.text)
+        return
+
+    # Retrieve allowed-actions for USER3 on http://apigee.com/o/acme for property /environments/test
+
+    url = urljoin(BASE_URL, '/az-allowed-actions?resource=http://apigee.com/o/acme/environments/test&user=%s&action=read' % (USER3_E))
     start = timer()
     r = requests.get(url, headers=get_headers3)
     end = timer()
