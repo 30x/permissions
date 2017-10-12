@@ -87,7 +87,7 @@ def main():
         'kind': 'Directory',
         '_permissions': {
             '_inheritsPermissionsOf': '/',
-            'name-entries': {
+            'nym-entries': {
                 'read': [GOVERNOR],
                 'create': [GOVERNOR],
                 'remove': [GOVERNOR],
@@ -120,7 +120,7 @@ def main():
             'Accept': 'application/json',
             'Authorization': 'Bearer %s' % GOVERNOR_TOKEN}
     conn = httplib.HTTPConnection(AUTHORITY)
-    conn.request('POST', '/name-entries', json.dumps(entry), headers)
+    conn.request('POST', '/nym-entries', json.dumps(entry), headers)
     response = conn.getresponse()
     data = response.read()
     if response.status == 201:
@@ -141,7 +141,7 @@ def main():
             'Accept': 'application/json',
             'Authorization': 'Bearer %s' % GOVERNOR_TOKEN}
     conn = httplib.HTTPConnection(AUTHORITY)
-    conn.request('POST', '/name-entries', json.dumps(entry), headers)
+    conn.request('POST', '/nym-entries', json.dumps(entry), headers)
     response = conn.getresponse()
     data = response.read()
     if response.status == 201:
@@ -156,7 +156,7 @@ def main():
             'Accept': 'application/json',
             'Authorization': 'Bearer %s' % GOVERNOR_TOKEN}
     conn = httplib.HTTPConnection(AUTHORITY)
-    url = '/name-entry?/SystemResources/Google'
+    url = '/nym-entry?/SystemResources/Google'
     conn.request('GET', url, headers=headers)
     response = conn.getresponse()
     if response.status == 200:
@@ -173,7 +173,7 @@ def main():
             'Accept': 'application/json',
             'Authorization': 'Bearer %s' % GOVERNOR_TOKEN}
     conn = httplib.HTTPConnection(AUTHORITY)
-    url = '/name-resource?/SystemResources'
+    url = '/nym-resource?/SystemResources'
     conn.request('GET', url, headers=headers)
     response = conn.getresponse()
     if response.status == 200:

@@ -72,7 +72,7 @@ def create_entry(namespace, name, namedResource):
         'namedResource': namedResource
     }
     headers = post_headers(USER_TOKEN)
-    entries_url = urljoin(PERMISSIONS_BASE, '/name-entries')
+    entries_url = urljoin(PERMISSIONS_BASE, '/nym-entries')
     r = requests.post(entries_url, headers=headers, json=entry)
     if r.status_code == 201:
         print 'correctly created entry %s named %s, etag: %s' % (r.headers['location'], name, r.headers['Etag'])
@@ -80,6 +80,57 @@ def create_entry(namespace, name, namedResource):
     else:
         print 'failed to create entry status_code: %s text: %s entry: %s - cannot continue' % (r.status_code, r.text, entry)
         return None
+
+def patch_permissions_of_slash(global_govs_url):
+
+    headers = get_headers(USER_TOKEN)
+    url = urljoin(PERMISSIONS_BASE, '/az-permissions?/')
+    r = requests.get(url , headers=headers)
+    if r.status_code == 200:
+        print 'correctly retrieved /az-permissions?/ etg: %s' % r.headers['Etag']
+        slash_etag = r.headers['Etag']
+        slash_permissions = r.json()
+    else:
+        print 'failed to retrieve /az-permissions?/ %s %s' % (r.status_code, r.text)
+        sys.exit(1)
+
+    permissions_patch = {
+        '_self': {
+            'update': [global_govs_url],
+            'read': [global_govs_url],
+            'admin': [global_govs_url],
+            'govern': [global_govs_url]
+            },
+        '_permissionsHeirs': {
+            'read': [global_govs_url],
+            'add': [global_govs_url],
+            'remove': [global_govs_url]
+            },
+        'az-permissions': {
+            'read': [CLIENT_ID, global_govs_url],
+            'create': [CLIENT_ID, global_govs_url]
+            },
+        'az-teams': {
+            'read': [global_govs_url]
+            # create is not mentioned because anyone can make one
+            },
+        'dir-directories': {
+            'read': [global_govs_url],
+            'create': [global_govs_url]
+            },
+        'nym-entries': {
+            'read': [global_govs_url],
+            'create': [global_govs_url]
+            }        
+        }
+
+    headers = patch_headers(USER_TOKEN, slash_etag)
+    r = requests.patch(url, headers=headers, json=permissions_patch)
+    if r.status_code == 200:
+        print 'correctly patched permissions for /'
+    else:
+        print 'failed to patch permissions for / %s %s' % (r.status_code, r.text)
+        sys.exit(1)
 
 def create_global_governors():
 
@@ -102,60 +153,15 @@ def create_global_governors():
     teams_url = urljoin(PERMISSIONS_BASE, '/az-teams')
     r = requests.post(teams_url, headers=headers, json=team)
     if r.status_code == 201:
-        global_govs_team = r.headers['location']
-        print 'correctly created "global governors" team %s etag: %s' % (global_govs_team, r.headers['Etag'])
+        global_govs_url = r.headers['location']
+        print 'correctly created "global governors" team %s etag: %s' % (global_govs_url, r.headers['Etag'])
     else:
         print 'failed to create global governors team %s %s %s - cannot continue' % (teams_url, r.status_code, r.text)
         sys.exit(1)
 
-    headers = get_headers(USER_TOKEN)
-    url = urljoin(PERMISSIONS_BASE, '/az-permissions?/')
-    r = requests.get(url , headers=headers)
-    if r.status_code == 200:
-        print 'correctly retrieved /az-permissions?/ etg: %s' % r.headers['Etag']
-        slash_etag = r.headers['Etag']
-    else:
-        print 'failed to retrieve /az-permissions?/ %s %s' % (r.status_code, r.text)
-        sys.exit(1)
+    patch_permissions_of_slash(global_govs_url)
 
-    permissions_patch = {
-        '_self': {
-            'update': [global_govs_team],
-            'read': [global_govs_team],
-            'admin': [global_govs_team],
-            'govern': [global_govs_team]
-        },
-        '_permissionsHeirs': {
-            'read': [global_govs_team],
-            'add': [global_govs_team],
-            'remove': [global_govs_team]
-        },
-        'az-permissions': {
-            'read': [CLIENT_ID, global_govs_team],
-            'create': [CLIENT_ID, global_govs_team]
-        },
-        'az-teams': {
-            'read': [global_govs_team]
-            # create is not mentioned because anyone can make one
-        },
-        'dir-directories': {
-            'read': [global_govs_team],
-            'create': [global_govs_team]
-        },
-        'name-entries': {
-            'read': [global_govs_team],
-            'create': [global_govs_team]
-        }        
-    }
-    headers = patch_headers(USER_TOKEN, slash_etag)
-    r = requests.patch(url, headers=headers, json=permissions_patch)
-    if r.status_code == 200:
-        print 'correctly patched permissions for /'
-    else:
-        print 'failed to patch permissions for / %s %s' % (r.status_code, r.text)
-        sys.exit(1)
-
-    # Create the "etc" directory. This directory will be an immediate child of the directory tree root - it can be found at /name-resource?/etc
+    # Create the "etc" directory. This directory will be an immediate child of the directory tree root - it can be found at /nym-resource?/etc
     permissions = {
         '_inheritsPermissionsOf': '/'
         }
@@ -170,10 +176,9 @@ def create_global_governors():
         print "failed to create 'desired' entry in '/'"
         sys.exit(1)
 
-    create_entry(etc_directory_url, 'global-govs', global_govs_team)
+    create_entry(etc_directory_url, 'global-govs', global_govs_url)
 
 def update_global_govs(global_govs, global_govs_etag):
-    print json.dumps(global_govs, indent=2)
     team_patch = []
     for gov_id in GLOBAL_GOVS_IDS:
         team_patch.append({
@@ -184,17 +189,16 @@ def update_global_govs(global_govs, global_govs_etag):
     url = urljoin(PERMISSIONS_BASE, global_govs['self'])
     headers = patch_headers(USER_TOKEN, global_govs_etag)
     headers['Content-Type'] = 'application/json-patch+json'
-    print headers
     r = requests.patch(url, headers=headers, json=team_patch)
     if r.status_code == 200:
-        print 'correctly patched global govs %s' % json.dumps(team_patch, indent=2)
+        print 'correctly patched global govs'
     else:
         print 'failed to patch global govs %s %s %s' % (url, r.status_code, r.text)
         sys.exit(1)
 
 def main():
     headers = get_headers(USER_TOKEN)
-    url = urljoin(PERMISSIONS_BASE, '/name-resource?/etc/global-govs')
+    url = urljoin(PERMISSIONS_BASE, '/nym-resource?/etc/global-govs')
     r = requests.get(url , headers=headers)
     if r.status_code == 404:
         create_global_governors()

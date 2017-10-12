@@ -55,10 +55,10 @@ function verifyEntry(req, res, entry, callback) {
 function createEntry(req, res, entry) {
   // entries don't have their own permissions documents — permissions are derived from the enclosing namespace
   verifyEntry(req, res, entry, () => {
-    ifAllowedThen(lib.flowThroughHeaders(req), res, entry.namespace, 'name-entries', 'create', () => {
+    ifAllowedThen(lib.flowThroughHeaders(req), res, entry.namespace, 'nym-entries', 'create', () => {
       var user = lib.getUser(req.headers.authorization)
       lib.setStandardCreationProperties(req, entry, user)
-      var id = `${'/name-ety-'}${rLib.uuidw()}`
+      var id = `${'/nym-ety-'}${rLib.uuidw()}`
       var selfURL = id
       db.createEntryThen(res, id, entry, etag => {
         entry.self = id 
@@ -81,7 +81,7 @@ function getEntry(req, res, id) {
 
 function deleteEntry(req, res, id) {
   db.withEntryDo(res, id, entry => {
-    ifAllowedThen(lib.flowThroughHeaders(req), res, entry.namespace, 'name-entries', 'remove', (err, reason) => {
+    ifAllowedThen(lib.flowThroughHeaders(req), res, entry.namespace, 'nym-entries', 'remove', (err, reason) => {
       db.deleteEntryThen(res, id, entry => {
         pLib.deletePermissionsThen(lib.flowThroughHeaders(req), res, id, () => {
           console.log(`correctly deleted permissions for ${id}`)
@@ -150,12 +150,12 @@ function deleteEntries(req, res, query) {
 
 function requestHandler(req, res) {
   var parsedURL = url.parse(req.url)
-  if (req.url == '/name-entries') 
+  if (req.url == '/nym-entries' || req.url == '/name-entries') 
     if (req.method == 'POST') 
       lib.getServerPostObject(req, res, entry => createEntry(req, res, entry))
     else 
       rLib.methodNotAllowed(res, ['POST'])
-  else if (parsedURL.pathname.startsWith('/name-ety-')) {
+  else if (parsedURL.pathname.startsWith('/nym-ety-') || parsedURL.pathname.startsWith('/name-ety-')) {
     var id = parsedURL.pathname
     if (req.method == 'GET')
       getEntry(req, res, id)
@@ -165,8 +165,8 @@ function requestHandler(req, res) {
       lib.getServerPostObject(req, res, (jso) => updateEntry(req, res, id, jso))
     else
       rLib.methodNotAllowed(res, ['GET', 'DELETE', 'PATCH'])
-  } else if (parsedURL.pathname == '/name-entry' && parsedURL.query) 
-    // something like /name-entry?/a/b/c, where a, b and c are entry names, 
+  } else if ((parsedURL.pathname == '/nym-entry' || parsedURL.pathname == '/name-entry') && parsedURL.query) 
+    // something like /nym-entry?/a/b/c, where a, b and c are entry names, 
     // a is an entry in root, b is an entry in the namespace identified by a, 
     // and c is an entry in the namespace identified by /a/b
     if (req.method == 'GET')
@@ -185,8 +185,8 @@ function requestHandler(req, res) {
       })
       findEntryByPath(req, newRes, parsedURL.query)
     }
-  else if (parsedURL.pathname == '/name-resource' && parsedURL.query)
-    // something like /name-resource?/a/b/c, where a, b and c are entry names, 
+  else if ((parsedURL.pathname == '/nym-resource' || parsedURL.pathname == '/name-resource') && parsedURL.query)
+    // something like /nym-resource?/a/b/c, where a, b and c are entry names, 
     // a is an entry in root, b is an entry in the namespace identified by /a, 
     // and c is an entry in the namespace identified by /a/b
     lib.getServerPostBuffer(req, (buff) => {
@@ -205,8 +205,8 @@ function requestHandler(req, res) {
       })
       findEntryByPath(req, newRes, parsedURL.query)
     })
-  else if (parsedURL.pathname == '/name-entries' && parsedURL.query) 
-    // something like /name-entries?namedResource='/xxxxx'
+  else if ((parsedURL.pathname == '/nym-entries' || parsedURL.pathname == '/name-entries') && parsedURL.query) 
+    // something like /nym-entries?namedResource='/xxxxx'
     if (req.method == 'GET')
       findEntries(req, res, parsedURL.query)
     else if (req.method == 'DELETE') {
@@ -236,7 +236,7 @@ function start() {
   else
     module.exports = {
       requestHandler:requestHandler,
-      paths: ['/name-'],
+      paths: ['/nym-', '/name-'],
       init: init
     }
 }

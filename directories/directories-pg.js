@@ -4,7 +4,7 @@ var lib = require('@apigee/http-helper-functions')
 const rLib = require('@apigee/response-helper-functions')
 const MAX_ENTITY_SIZE = 1e4
 var DIRECTORY = '/dir-dir-'
-var ENTRY = '/name-entry-'
+var ENTRY = '/nym-entry-'
 
 var config = {
   host: process.env.PG_HOST,
