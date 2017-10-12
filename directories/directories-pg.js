@@ -4,7 +4,6 @@ var lib = require('@apigee/http-helper-functions')
 const rLib = require('@apigee/response-helper-functions')
 const MAX_ENTITY_SIZE = 1e4
 var DIRECTORY = '/dir-dir-'
-var ENTRY = '/nym-entry-'
 
 var config = {
   host: process.env.PG_HOST,
@@ -14,17 +13,6 @@ var config = {
 }
 
 var pool
-
-const randomBytes = require('crypto').randomBytes
-const letters16 = 'abcdefghijklmnopqrst'
-function generateDelimiter() {
-  var buf = randomBytes(4), rslt = ''
-  for (var i = 0; i < 4; i++) {
-    rslt += letters16[buf[i] >>> 4]
-    rslt += letters16[buf[i] & 0xf]
-  }
-  return rslt
-}
 
 function createDirectoryThen(res, id, directory, callback) {
   directory.etag = rLib.uuid4()

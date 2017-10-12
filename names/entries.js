@@ -193,11 +193,11 @@ function requestHandler(req, res) {
       let newRes = rLib.errorHandler(err => {
         if ((err.statusCode / 100 || 0) == 2) {
           let entry = JSON.parse(err.body)
-          lib.sendInternalRequestThen(res, req.method, entry.namedResource, req.headers, err.body, (clientRes) => {
-            lib.getClientResponseBuffer(clientRes, (body) => {
+          lib.sendInternalRequestThen(res, req.method, entry.namedResource, req.headers, buff, (clientRes) => {
+            lib.getClientResponseBuffer(clientRes, (buff2) => {
               delete clientRes.headers.connection
               delete clientRes.headers['content-length']
-              rLib.respond(res, clientRes.statusCode, clientRes.headers, body)  
+              rLib.respond(res, clientRes.statusCode, clientRes.headers, buff2)  
             })
           })
         } else
