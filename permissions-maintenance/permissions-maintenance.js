@@ -55,6 +55,19 @@ function verifySharingSets(req, res, permissions, callback) {
   }
 }
 
+function eliminateDuplicatePrincipals(permissions) {
+  for (let propertyName in permissions)
+    if (!propertyName.startsWith('_') || propertyName == '_self') {
+      let propertyPermissions = permissions[propertyName]
+      if (typeof propertyPermissions == 'object')
+        for (let actionName in propertyPermissions) {
+          let principals = propertyPermissions[actionName]
+          if (Array.isArray(principals))
+            propertyPermissions[actionName] = principals.filter((item, pos, self) => self.indexOf(item) == pos)
+        }
+    }    
+}
+
 function verifyPropertyPrincipals(req, res, permissions, callback) {
   function iteratePrincipals(callback) {
     for (let propertyName in permissions)
@@ -65,7 +78,18 @@ function verifyPropertyPrincipals(req, res, permissions, callback) {
             let principals = propertyPermissions[actionName]
             if (Array.isArray(principals))
               for (let i = 0; i<principals.length; i++)
-                callback(principals, i)
+                if (typeof principals[i] == 'string')
+                  callback(principals, i)
+                else
+                  rLib.badRequest(res, {msg: 'principals must be strings',
+                                        action: actionName,
+                                        principals: principals,
+                                        index: i})
+
+            else
+              rLib.badRequest(res, {msg: 'permissions for an action must be an array of users or teams',
+                                    action: actionName,
+                                    principals: principals})
           }
       }    
   }
@@ -158,6 +182,7 @@ function createPermissions(req, res, permissions) {
     })
   }
   pLib.ifAllowedThen(headers, errorHandler, '/', 'az-permissions', 'create', function() {
+    eliminateDuplicatePrincipals(permissions)
     verifyPermissions(req, res, permissions, () => {
       var ancestors = permissions._inheritsPermissionsOf
       if (ancestors)
@@ -243,6 +268,7 @@ function updatePermissions(req, res, subject, patch) {
             for (let i=0; i<newScopes.length; i++)
               if (scopes.indexOf(newScopes[i]) == -1)
                 scopes.push(newScopes[i])
+            eliminateDuplicatePrincipals(patchedPermissions)
             verifyPermissions(req, res, patchedPermissions, function() {
               patchedPermissions._metadata.modifier = lib.getUser(req.headers.authorization)
               patchedPermissions._metadata.modified = new Date().toISOString()
@@ -268,6 +294,7 @@ function putPermissions(req, res, subject, permissions) {
   pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'govern', function() {
     var new_ancestors = '_inheritsPermissionsOf' in permissions ? permissions._inheritsPermissionsOf : []
     ifAllowedToInheritFromThen(req, res, subject, new_ancestors, function(scopes) {
+      eliminateDuplicatePrincipals(permissions)
       verifyPermissions(req, res, permissions, function () {
         permissions._metadata.modifier = lib.getUser(req.headers.authorization)
         permissions._metadata.modified = new Date().toISOString()
