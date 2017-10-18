@@ -17,63 +17,8 @@ Here are the steps I went through to get this going on my new Google machine:
 ### Clone and initialize the permissions service
 * git clone sso://edge-internal/permissions
 * execute `npm install` in the root directory of the repository
-* optionally clone 30x/http-helper-functions, execute `npm link` in that directory, and execute `npm link http-helper-functions` where it is used. Repeat for 30x/response-helper-functions, 30x/permissions-helper-functions, 30x/pg-event-producer and 30x/pg-event-consumer 
-* create local-export-pg-connection-variables.sh will set up environment variables for PG
-* create local-export-system-variables.sh
+* create a /secrets directory, with a file for each secret. To do this, copy the entire /secrets-valentine-links directory as /secrets. Then use the link in each file to get the value from valentine. Replave the link with the value.
 * execute ./test/run-permissions-allinone.sh in the root directory
-
-An example local-export-pg-connection-variables.sh looks loime this:
-```bash
-export PG_HOST="127.0.0.1"
-export PG_USER="martinnally"
-export PG_PASSWORD="martinnally"
-export PG_DATABASE="permissions" 
-```
-
-An example local-export-system-variables.sh looks like this:
-```bash
-export IPADDRESS="127.0.0.1"
-export PORT=3200
-export COMPONENT_NAME="permissions"
-export SPEEDUP=10
-export EXTERNAL_SY_ROUTER_HOST="localhost"
-export EXTERNAL_SY_ROUTER_PORT="3200"
-export INTERNAL_SY_ROUTER_HOST="localhost"
-export INTERNAL_SY_ROUTER_PORT="3200"
-export EXTERNAL_SCHEME="http"
-
-export AUTH_URL="https://login.e2e.apigee.net/oauth/token"
-export AUTH_BASIC_CREDENTIALS="ZGVzaXJlZGNsaTpkZXNpcmVkY2xpc2VjcmV0"
-export ISSUER="https://login.e2e.apigee.net"
-export OAUTH_CALLBACK_URL="http://localhost:3200/oauth-callback"
-export SSO_CLIENT_ID="permissionsclientlocal"
-export SSO_CLIENT_SECRET="permissionsclientlocal"
-export SSO_AUTHORIZATION_URL="https://login.e2e.apigee.net/oauth/authorize"
-
-export PERMISSIONS_CLIENTID="permissions-client"
-export PERMISSIONS_CLIENTSECRET="*****"
-export PERMISSIONS_CLIENT_GRANT_TYPE="client_credentials"
-
-export USER1_ID="mnally@apigee.com"
-export USER1_SECRET="*****"
-export USER1_GRANT_TYPE="password"
-
-export USER2_ID="mnally+1@apigee.com"
-export USER2_SECRET="*****"
-export USER2_GRANT_TYPE="password"
-
-export USER3_ID="mnally+2@apigee.com"
-export USER3_SECRET="*****"
-export USER3_GRANT_TYPE="password"
-
-export USER4_ID="mnally@google.com"
-export USER4_SECRET="*****"
-export USER4_GRANT_TYPE="password"
-
-export AZ_READ_CLIENT_ID="notifications-client"
-export AZ_READ_CLIENT_SECRET="*****"
-export AZ_READ_CLIENT_GRANT_TYPE="client_credentials"
-```
 
 ### install prereqs and run the tests
 * sudo easy_install requests (this python egg is used by the test script)
@@ -81,30 +26,33 @@ export AZ_READ_CLIENT_GRANT_TYPE="client_credentials"
 
 If the tests execute correctly, you should see output like this:
 
-Sourcing in /Users/mnally/source/permissions/test/../local-export-pg-connection-variables.sh
-Sourcing in file /Users/mnally/source/permissions/test/../local-export-system-variables.sh
-start delete test data: host: 127.0.0.1 user: martinnally password: martinnally database: permissions
+start delete test data: host: 127.0.0.1 database: permissions
 setConsumers: consumers: [ '127.0.0.1:3200' ]
+2017-10-18T19:34:11.512Z test-edge-simplified script http-helper-functions:sendRequest id: lhdgfgpfjnoeanaf method: POST hostname: undefined url: /oauth/token
+2017-10-18T19:34:12.200Z test-edge-simplified script http-helper-functions:sendRequest id: lhdgfgpfjnoeanaf received response after 687 millisecs. method: POST hostname: google.login.apigee.com url: /oauth/token
+2017-10-18T19:34:12.203Z test-edge-simplified script withValidClientToken retrieved token for: permissions-client
 removed all test data from permissions table on 127.0.0.1
+2017-10-18T19:34:12.269Z test-edge-simplified script http-helper-functions:sendRequest id: okegjcfmabdgdjhd method: POST hostname: undefined url: /oauth/token
+2017-10-18T19:34:12.365Z test-edge-simplified script http-helper-functions:sendRequest id: okegjcfmabdgdjhd received response after 96 millisecs. method: POST hostname: google.login.apigee.com url: /oauth/token
+2017-10-18T19:34:12.366Z test-edge-simplified script withValidClientToken retrieved token for: permissions-client
 removed all test data from teams table on 127.0.0.1
 pg-event-producer finalizing
-failed to send event 2693 to 127.0.0.1:3200 err: unable to send event to: 127.0.0.1:3200 statusCode: 401
-failed to send event 2692 to 127.0.0.1:3200 err: unable to send event to: 127.0.0.1:3200 statusCode: 401
+component: test-edge-simplified script, sent event 7531 to 127.0.0.1:3200 index: 7531
+component: test-edge-simplified script, sent event 7532 to 127.0.0.1:3200 index: 7532
 retrieved password token for mnally@apigee.com
 retrieved password token for mnally+1@apigee.com
 retrieved password token for mnally+2@apigee.com
-retrieved password token for mnally@google.com
+retrieved password token for mnally+3@apigee.com
 retrieved client_credentials token for permissions-client
-retrieved client_credentials token for notifications-client
-correctly retrieved /az-permissions?/ etg: 71fdcc14-f377-4dfa-aa11-53c177948948
+correctly retrieved /az-permissions?/ etg: 1
 correctly patched /az-permissions?/
 sending requests to http://localhost:3200
-correctly created permissions url: http://localhost:3200/az-permissions?http://apigee.com/o/acme etag: deb282d2-bab2-4e72-b69b-383d641ab36b
-correctly retrieved allowed-actions for https://login.e2e.apigee.net#6ff95057-7b80-4f57-bfec-c23ec5609c77 on http://apigee.com/o/acme
-correctly retrieved allowed-actions for https://login.e2e.apigee.net#81325ff1-32e9-4f50-b5c5-8923e3dc244a on http://apigee.com/o/acme
+correctly created permissions url: http://localhost:3200/az-permissions?http://apigee.com/o/acme etag: ba4e38c5-8e74-4f7f-8708-984c68c226e8
+correctly retrieved allowed-actions for https://google.login.apigee.com#67b0350f-45dd-4309-8b36-36e707624f90 on http://apigee.com/o/acme
+correctly retrieved allowed-actions for https://google.login.apigee.com#1254db5c-e5af-45e1-b8b5-ea06610356b2 on http://apigee.com/o/acme
 ...
-correctly returned allowed-actions ([u'read']) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = 12.7611160278ms
-correctly created team /az-tm-fleabane-ceremony-32fe1e8aa88d5bd491e23791 etag: 9a63fc53-668e-4f6f-bcb9-367aa137e690
+correctly returned allowed-actions ([u'read']) of http://apigee.com/o/acme/environments/test for USER3 after update of role. Elapsed time = 14.6858692169ms
+correctly created team /az-tm-biotype-dogy-7cc6254f32286345a6f87102 etag: 3cb80056-023d-4916-b1f0-be275c609e2a
 correctly patched Email Team team to add user2
 finished test suite
 

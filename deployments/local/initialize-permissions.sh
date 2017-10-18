@@ -9,7 +9,7 @@ export AUTH_URL="https://google.login.apigee.com/oauth/token"
 export ISSUER="https://google.login.apigee.com"
 
 export PERMISSIONS_CLIENTID="permissions-client"
-export PERMISSIONS_CLIENTSECRET=$(cat "$SOURCE_DIR/../../secrets/permissions_client_secret.txt")
+export PERMISSIONS_CLIENTSECRET=$(cat "$SOURCE_DIR/../../secrets/permissions_clientsecret.txt")
 
 export BOOTSTRAP_USER_ID="mnally@apigee.com"
 export BOOTSTRAP_USER_SECRET=$(cat "$SOURCE_DIR/../../secrets/user1_secret.txt")

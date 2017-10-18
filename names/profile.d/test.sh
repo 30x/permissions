@@ -33,7 +33,3 @@ export USER3_GRANT_TYPE="password"
 export USER4_ID="mnally+3@apigee.com"
 export USER4_SECRET=$(cat "$HERE/secrets/user4_secret.txt")
 export USER4_GRANT_TYPE="password"
-
-export AZ_READ_CLIENT_ID="notifications-client"
-export AZ_READ_CLIENT_SECRET="QsQpuuXBnmZUH5XT"
-export AZ_READ_CLIENT_GRANT_TYPE="client_credentials"

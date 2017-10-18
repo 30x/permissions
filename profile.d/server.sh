@@ -12,7 +12,7 @@ export SSO_CLIENT_SECRET=$(cat "$HERE/secrets/sso_client_secret.txt")
 export SSO_AUTHORIZATION_URL="https://google.login.apigee.com/oauth/authorize"
 
 export PERMISSIONS_CLIENTID="permissions-client"
-export PERMISSIONS_CLIENTSECRET=$(cat "$HERE/secrets/permissions_client_secret.txt")
+export PERMISSIONS_CLIENTSECRET=$(cat "$HERE/secrets/permissions_clientsecret.txt")
 export PERMISSIONS_CLIENT_GRANT_TYPE="client_credentials"
 export AUTH_URL="https://google.login.apigee.com/oauth/token"
 

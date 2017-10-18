@@ -25,6 +25,7 @@ function deleteTestDataThen(eventTopic, table, callback) {
   // interface of Node's HTTP response object 
   let errorHandler = rLib.errorHandler((err) => {
     console.log('deleteTestDataThen - error', err)
+    process.exit(1)
   })
   lib.withValidClientToken(errorHandler, null, process.env.PERMISSIONS_CLIENTID, process.env.PERMISSIONS_CLIENTSECRET, process.env.AUTH_URL, newToken => {
     var query = `DELETE FROM ${table} WHERE data @> '{"test-data": true}'`
