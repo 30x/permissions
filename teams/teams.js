@@ -2,7 +2,7 @@
 const http = require('http')
 const url = require('url')
 const lib = require('@apigee/http-helper-functions')
-const db = require('./teams-db.js')
+const db = require('./teams-pg.js')
 const pLib = require('@apigee/permissions-helper-functions')
 const rLib = require('@apigee/response-helper-functions')
 const idpLib = require('../idp-helper-functions/index.js')
@@ -164,7 +164,7 @@ function patchTeam(req, res, id, patch) {
               if (rslt)
                 rLib.badRequest(res, {msg: rslt})
               else {
-                db.updateTeamThen(req, res, id, selfURL, patchedTeam, allowed.scopes[selfURL], etag, function (etag) {
+                db.updateTeamThen(req, res, id, selfURL, team, patchedTeam, allowed.scopes[selfURL], etag, function (etag) {
                   patchedTeam.self = selfURL
                   addCalculatedProperties(patchedTeam)
                   rLib.ok(res, patchedTeam, req.headers.accept, patchedTeam.self, etag)
@@ -176,28 +176,6 @@ function patchTeam(req, res, id, patch) {
       } else {
         var err = (req.headers['if-match'] === undefined) ? 'missing If-Match header' : 'If-Match header does not match etag ' + req.headers['If-Match'] + ' ' + etag
         rLib.preconditionFailed(res, err)
-      }
-    })
-  }, true)
-}
-
-function putTeam(req, res, id, team) {
-  pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, req.url, '_self', 'put', function(allowed) {
-    verifyTeam(req, res, team, function(err) {
-      if (err)
-        rLib.badRequest(res, err)
-      else {
-        let user = lib.getUser(req.headers.authorization)
-        let rslt = lib.setStandardModificationProperties(req, team, user)
-        if (rslt)
-          rLib.badRequest(res, {msg: rslt})
-        else {
-          db.updateTeamThen(req, res, id, makeSelfURL(req, id), team, allowed.scopes, null, function (etag) {
-            team.self = makeSelfURL(req, id)
-            addCalculatedProperties(team)
-            rLib.ok(res, team, req.headers.accept, team.self, etag)
-          })
-        }
       }
     })
   }, true)
@@ -234,8 +212,6 @@ function requestHandler(req, res) {
         deleteTeam(req, res, id)
       else if (req.method == 'PATCH') 
         lib.getServerPostObject(req, res, (jso) => patchTeam(req, res, id, jso))
-      else if (req.method == 'PUT') 
-        lib.getServerPostObject(req, res, (jso) => putTeam(req, res, id, jso))
       else
         rLib.methodNotAllowed(res, ['GET', 'DELETE', 'PATCH', 'PUT'])
     } else if (req_url.pathname == '/az-teams' && req_url.search !== null)

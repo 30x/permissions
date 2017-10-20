@@ -12,7 +12,7 @@ const querystring = require('querystring')
 const lib = require('@apigee/http-helper-functions')
 const pLib = require('@apigee/permissions-helper-functions')
 const rLib = require('@apigee/response-helper-functions')
-const db = require('./permissions-maintenance-db.js')
+const db = require('./permissions-maintenance-pg.js')
 const idpLib = require('../idp-helper-functions/index.js')
 
 const INTERNAL_SCHEME = process.env.INTERNAL_SCHEME || 'http'
@@ -202,7 +202,7 @@ function getPermissions(req, res, subject) {
   var hrstart = process.hrtime()
   subject = lib.internalizeURL(subject)
   log('getPermissions:', `start subject: ${subject}`)
-  db.withPermissionsDo(req, res, subject, function(permissions, etag) {
+  db.withPermissionsDo(res, subject, function(permissions, etag) {
     pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'admin', function() {
       addCalculatedProperties(req, permissions)
       rLib.found(res, permissions, req.headers.accept, `/permsissions?${subject}`, etag)
@@ -258,7 +258,7 @@ function ifAllowedToInheritFromThen(req, res, subject, sharingSets, callback) {
 function updatePermissions(req, res, subject, patch) {
   var hrstart = process.hrtime()
   log('updatePermissions', `start subject: ${subject}`)
-  db.withPermissionsDo(req, res, subject, function(permissions, etag) {
+  db.withPermissionsDo(res, subject, function(permissions, etag) {
     pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'govern', function(allowed) {
       var scopes = allowed.scopes[subject]
       lib.applyPatch(req.headers, res, permissions, patch, function(patchedPermissions) {
@@ -272,7 +272,7 @@ function updatePermissions(req, res, subject, patch) {
             verifyPermissions(req, res, patchedPermissions, function() {
               patchedPermissions._metadata.modifier = lib.getUser(req.headers.authorization)
               patchedPermissions._metadata.modified = new Date().toISOString()
-              db.updatePermissionsThen(req, res, subject, patchedPermissions, scopes, etag, function(etag) {
+              db.updatePermissionsThen(req, res, subject, permissions, patchedPermissions, scopes, etag, function(etag) {
                 rLib.ok(res, patchedPermissions, req.headers.accept, `/permsissions?${subject}`, etag)
                 var hrend = process.hrtime(hrstart)
                 log('updatePermissions', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
@@ -288,27 +288,6 @@ function updatePermissions(req, res, subject, patch) {
   })
 }
 
-function putPermissions(req, res, subject, permissions) {
-  var hrstart = process.hrtime()
-  log('putPermissions', `start subject: ${subject}`)
-  pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'govern', function() {
-    var new_ancestors = '_inheritsPermissionsOf' in permissions ? permissions._inheritsPermissionsOf : []
-    ifAllowedToInheritFromThen(req, res, subject, new_ancestors, function(scopes) {
-      eliminateDuplicatePrincipals(permissions)
-      verifyPermissions(req, res, permissions, function () {
-        permissions._metadata.modifier = lib.getUser(req.headers.authorization)
-        permissions._metadata.modified = new Date().toISOString()
-        db.putPermissionsThen(req, res, subject, permissions, scopes, function(etag) {
-          addCalculatedProperties(req, permissions) 
-          rLib.ok(res, permissions, req.headers.accept, `/permsissions?${subject}`, etag)
-          var hrend = process.hrtime(hrstart)
-          log('putPermissions', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
-        })
-      })
-    })
-  })
-}
-
 function getUsersWhoCanAccess(req, res, subject) {
   function addUsersWhoCanAcess(req, res, permissions, result, callback) {
     var sharedWith = permissions._metadata.sharedWith
@@ -319,7 +298,7 @@ function getUsersWhoCanAccess(req, res, subject) {
     if (sharingSets !== undefined) {
       var count = 0
       for (let j = 0; j < sharingSets.length; j++) 
-        db.withPermissionsDo(req, res, sharingSets[j], function(permissions, etag) {
+        db.withPermissionsDo(res, sharingSets[j], function(permissions, etag) {
           pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, sharingSets[j], '_self', 'admin', function() {
             addUsersWhoCanAcess(req, res, permissions, result, function() {
               if (++count == sharingSets.length) {callback()}
@@ -331,7 +310,7 @@ function getUsersWhoCanAccess(req, res, subject) {
   }
   var result = {}
   subject = lib.internalizeURL(subject, req.headers.host)
-  db.withPermissionsDo(req, res, subject, function(permissions, etag) {
+  db.withPermissionsDo(res, subject, function(permissions, etag) {
     pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'admin', function() {
       addUsersWhoCanAcess(req, res, permissions, result, function() {
         rLib.found(res, Object.keys(result), req.headers.accept, req.url)
@@ -347,7 +326,7 @@ function getResourcesSharedWith(req, res, user) {
   user = decodeURIComponent(user)
   if (user == requestingUser || user == INCOGNITO || (requestingUser !== null && user == ANYONE))
     withTeamsDo(req, res, user, function(actors) {
-      db.withResourcesSharedWithActorsDo(req, res, actors, function(resources) {
+      db.withResourcesSharedWithActorsDo(res, actors, function(resources) {
         rLib.found(res, resources, req.headers.accept, req.url)
         var hrend = process.hrtime(hrstart)
         log('getResourcesSharedWith', `success, time: ${hrend[0]}s ${hrend[1]/1000000}ms`)
@@ -361,7 +340,7 @@ function getResourcesSharedWithTeamTransitively(req, res, team) {
   var hrstart = process.hrtime()
   log('getResourcesSharedWithTeamTransitively', `start team: ${team}`)
   function withHeirsRecursive(req, res, resources, result, callback) {
-      db.withHeirsDo(req, res, resources, function(heirs) {
+      db.withHeirsDo(res, resources, function(heirs) {
         // result is a list heirs that will be returns back to the query'er
         heirs = heirs.filter(heir => result.indexOf(heir) == -1)
         // Need to do a length check here to hop out on an empty array
@@ -376,7 +355,7 @@ function getResourcesSharedWithTeamTransitively(req, res, team) {
       })
   }
   pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, team, '_self', 'update', function() {
-    db.withResourcesSharedWithActorsDo(req, res, [team], function(resources) {
+    db.withResourcesSharedWithActorsDo(res, [team], function(resources) {
       var envelope = {
         kind: 'Collection',
         self: req.url
@@ -401,7 +380,7 @@ function getResourcesSharedWithTeamTransitively(req, res, team) {
 
 function getPermissionsHeirs(req, res, subject) {
   pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'read', function() {
-    db.withHeirsDo(req, res, subject, function(heirs) {
+    db.withHeirsDo(res, subject, function(heirs) {
       var body = {
         kind: "Collection",
         self: req.url,
@@ -421,7 +400,7 @@ function getPermissionsHeirsDetails(req, res, queryString) {
     getPermissionsHeirs(req, res, subject)
   else
     pLib.ifAllowedThen(lib.flowThroughHeaders(req), res, subject, '_self', 'read', function() {
-      db.withHeirsDo(req, res, subject, function(heirs) {
+      db.withHeirsDo(res, subject, function(heirs) {
         var heirsDetails = []
         var result = {
           kind: "Collection",
@@ -436,7 +415,7 @@ function getPermissionsHeirsDetails(req, res, queryString) {
             let heir = lib.externalizeURLs(url.resolve(`http://${req.headers.host}${req.url}`, heirs[i]))
             heirsDetails[i] = {self: heir}
             if (includeSharedWith)
-              db.db.withPermissionsDo(req, subject, function(err, permissions) {
+              db.withPermissionsDo(res, subject, function(err, permissions) {
                 if (!err) {
                   if (properties.indexOf('_sharedWith') > -1)
                     heirsDetails[i]._sharedWith = permissions._metadata.sharedWith
@@ -513,10 +492,8 @@ function requestHandler(req, res) {
         deletePermissions(req, res, lib.internalizeURL(req_url.query, req.headers.host))
       else if (req.method == 'PATCH')  
         lib.getServerPostObject(req, res, (body) => updatePermissions(req, res, lib.internalizeURL(req_url.query, req.headers.host), body))
-      else if (req.method == 'PUT')  
-        lib.getServerPostObject(req, res, (body) => putPermissions(req, res, lib.internalizeURL(req_url.query, req.headers.host), body))
       else 
-        rLib.methodNotAllowed(res, ['GET', 'PATCH', 'PUT'])
+        rLib.methodNotAllowed(res, ['GET', 'PATCH'])
     else if (req_url.pathname == '/az-resources-accessible-by-team-members' && req_url.search !== null)
       if (req.method == 'GET')
         getResourcesSharedWithTeamTransitively(req, res, lib.internalizeURL(req_url.query, req.headers.host))

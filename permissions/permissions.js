@@ -84,6 +84,9 @@ function invalidateCachedUsers(teamURL, team) {
 }
 
 function addToTeamsCache(teamURL, team) {
+  let cachedTeam = teamsCache[teamURL]
+  if (cachedTeam && cachedTeam.eventSequenceNumber >= team.eventSequenceNumber)
+    return 'more recent revision in cache'
   invalidateCachedUsers(teamURL, team)
   team.lastAccess = Date.now()
   teamsCache[teamURL] = team
@@ -96,7 +99,7 @@ function retrieveFromTeamsCache(teamURL) {
   return team
 }
 
-function deleteFromTeamsCache(teamURL) {
+function deleteFromTeamsCache(teamURL) {process.exit()
   invalidateCachedUsers(teamURL)
   delete teamsCache[teamURL]
 }
@@ -340,7 +343,12 @@ function sortAndSplitRoles(roles) {
 }
 
 function withActorsForUserDo(req, res, user, callback) {
-  if (user !== null) {
+  let retryCount = 0
+  if (user == null)
+    callback([])
+  else
+    _withActorsForUserDo(req, res, user, callback)
+  function _withActorsForUserDo() {
     var actors = actorsForUserCache[user] 
     if (actors !== undefined)
       callback(actors)
@@ -352,6 +360,17 @@ function withActorsForUserDo(req, res, user, callback) {
         else {
           // We cache both teams and the list of teams for a user. These caches must be coherent.
           var actors = [user]
+          for (let row of rows) {
+            let teamURL = `${TEAMS}${row.id}`
+            let team = row.data
+            let cachedTeam = retrieveFromTeamsCache(teamURL)
+            if (cachedTeam && cachedTeam.eventSequenceNumber > team.eventSequenceNumber)
+              // Unusual race condition. A more recent version of the team is already in the cache. Try again
+              if (++retryCount > 5) // this isn't working
+                return rLib.internalError(res, {msg: 'unable to get up-to-date teams for user', team: team, cachedTeam: cachedTeam})
+              else
+                return _withActorsForUserDo()
+          }
           for (let row of rows) {
             var teamURL = `${TEAMS}${row.id}`
             var team = row.data
@@ -366,8 +385,7 @@ function withActorsForUserDo(req, res, user, callback) {
         }
       })
     }
-  } else
-    callback([])
+  }
 }
 
 function pathPatternMatch(pathPatternParts, pathParts) {
@@ -974,7 +992,7 @@ function processEvent(event) {
       sortAndSplitRoles(team.roles) 
       addToTeamsCache(event.data.subject, team)    
     } else if (event.data.action == 'delete')
-      deleteFromTeamsCache(event.data.url)
+      deleteFromTeamsCache(event.subject)
     else if (event.data.action == 'create') {
       var members = event.data.team.members
       if (members !== undefined)

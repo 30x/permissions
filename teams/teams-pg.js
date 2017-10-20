@@ -1,6 +1,7 @@
 'use strict'
 const Pool = require('pg').Pool
 const lib = require('@apigee/http-helper-functions')
+const rLib = require('@apigee/response-helper-functions')
 const pge = require('@apigee/pg-event-producer')
 const randomBytes = require('crypto').randomBytes
 
@@ -16,86 +17,74 @@ const config = {
 var pool
 var eventProducer
 
-function createTeamThen(req, id, selfURL, team, scopes, callback) {
-  var query = 'INSERT INTO teams (id, etag, data) values($1, $2, $3) RETURNING etag'
-  function eventData(pgResult) {
-    return {subject: selfURL, action: 'create', etag: pgResult.rows[0].etag, team: team, scopes: scopes}
+function createTeamThen(req, errorHandler, id, selfURL, team, scopes, callback) {
+  let changeEvent = {
+    subject: selfURL, 
+    action: 'create',
+    team: team,
+    scopes: scopes
   }
-  eventProducer.queryAndStoreEvent(req, query, [id, lib.uuid4(), JSON.stringify(team)], 'teams', eventData, function(err, pgResult, pgEventResult) {
-    callback(err, pgResult.rows[0].etag)
+  eventProducer.createResourceThen(req, errorHandler, id, team, 'teams', changeEvent, (resourceRecord, eventRecord) => {
+    callback(team.etag)
   })
 }
 
-function withTeamDo(req, id, callback) {
+function withTeamDo(req, errorHandler, id, callback) {
   pool.query('SELECT etag, data FROM teams WHERE id = $1', [id], function (err, pg_res) {
     if (err) {
-      callback(500)
+      rLib.internalError(errorHandler, {msg: 'unable to query teams table', err: err, id: id})
     }
     else {
       if (pg_res.rowCount === 0) { 
-        callback(404)
+        rLib.notFound(errorHandler, {msg: 'unable to find team', id: id})
       }
       else {
         var row = pg_res.rows[0]
-        callback(null, row.data, row.etag)
+        callback(row.data, row.etag)
       }
     }
   })
 }
 
-function withTeamsForUserDo(req, user, callback) {
+function withTeamsForUserDo(req, errorHandler, user, callback) {
   //var query = "SELECT id FROM teams, jsonb_array_elements(teams.data->'members') AS member WHERE member = $1"
   var query = "SELECT id FROM teams WHERE data->'members' ? $1"
   pool.query(query, [user], function (err, pg_res) {
     if (err) {
-      callback(err)
+      rLib.internalError(errorHandler, {msg: 'unable to query teams table', err: err, user: user})
     }
     else {
-      callback(null, pg_res.rows.map(row => row.id))
+      callback(pg_res.rows.map(row => row.id))
     }
   })
 }
     
-function deleteTeamThen(req, id, selfURL, scopes, callback) {
-  var query = 'DELETE FROM teams WHERE id = $1 RETURNING *'
-  function eventData(pgResult) {
-    return {subject: TEAMS + id, action: 'delete', etag: pgResult.rows[0].etag, team: pgResult.rows[0].data, scopes: scopes}
+function deleteTeamThen(req, res, id, selfURL, scopes, callback) {
+  let changeEvent = {
+    subject: TEAMS + id, 
+    action: 'delete',
+    scopes: scopes
   }
-  eventProducer.queryAndStoreEvent(req, query, [id], 'teams', eventData, function(err, pgResult, pgEventResult) {
-    if (err)
-      callback(err)
-    else
-      callback(err, pgResult.rows[0].data, pgResult.rows[0].etag)
-  })
+  eventProducer.deleteResourceThen(req, res, id, 'teams', changeEvent, (deletedRecord) => 
+    callback(deletedRecord.data, deletedRecord.etag)
+  )
 }
 
-function updateTeamThen(req, id, selfURL, patchedTeam, scopes, etag, callback) {
-  var key = lib.internalizeURL(id, req.headers.host)
-  var query, args
-  if (etag) {
-    query = 'UPDATE teams SET (etag, data) = ($1, $2) WHERE id = $3 AND etag = $4 RETURNING etag'
-    args = [lib.uuid4(), JSON.stringify(patchedTeam), key, etag]
-  } else {
-    query = 'UPDATE teams SET (etag, data) = ($1, $2) WHERE id = $3 RETURNING etag'
-    args = [lib.uuid4(), JSON.stringify(patchedTeam), key]
+function updateTeamThen(req, errorHandler, id, selfURL, priorTeam, patchedTeam, scopes, ifMatch, callback) {
+  let changeEvent = {
+    subject: selfURL, 
+    action: 'update',
+    after: patchedTeam,
+    scopes: scopes
   }
-  function eventData(pgResult) {
-    return {subject: selfURL, action: 'update', etag: pgResult.rows[0].etag, after: patchedTeam, scopes: scopes}
-  }
-  eventProducer.queryAndStoreEvent(req, query, args, 'teams', eventData, function(err, pgResult, pgEventResult) {
-    if (err)
-      callback(err)
-    else
-      if (pgResult.rowCount == 0)
-        callback(404)
-      else
-        callback(err, pgResult.rows[0].etag)
+  eventProducer.updateResourceThen(req, errorHandler, id, patchedTeam, ifMatch, priorTeam, 'teams', changeEvent, (eventRecord) => {
+    callback(patchedTeam.etag)
   })
 }
 
 function init(callback, aPool) {
   pool = aPool || new Pool(config)
-  eventProducer = new pge.eventProducer(pool)
+  eventProducer = new pge.eventProducer(pool, 'teams', 'id')
   var query = 'CREATE TABLE IF NOT EXISTS teams (id text primary key, etag text, data jsonb)'
   pool.connect(function(err, client, release) {
     if(err)

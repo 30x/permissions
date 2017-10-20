@@ -15,9 +15,9 @@
     "pg": "^6.0.3",
     "@apigee/http-helper-functions": "0.0.151",
     "@apigee/pg-event-consumer": "0.0.22",
-    "@apigee/pg-event-producer": "0.0.42",
+    "@apigee/pg-event-producer": "0.0.47",
     "@apigee/response-helper-functions": "0.0.23",
-    "@apigee/permissions-helper-functions": "0.0.64",
+    "@apigee/permissions-helper-functions": "0.0.65",
     "@apigee/logger": "*"
   },
   "devDependencies": {

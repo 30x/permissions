@@ -1,6 +1,7 @@
 'use strict';
 const Pool = require('pg').Pool;
 const lib = require('@apigee/http-helper-functions');
+const rLib = require('@apigee/response-helper-functions');
 const pge = require('@apigee/pg-event-producer');
 const randomBytes = require('crypto').randomBytes
 
@@ -27,100 +28,69 @@ function generateDelimiter() {
   return rslt
 }
 
-function withPermissionsDo(req, subject, callback) {
+function withPermissionsDo(res, subject, callback) {
   const query = 'SELECT etag, data FROM permissions WHERE subject = $1'
   pool.query(query,[subject], function (err, pgResult) {
     if (err)
-      callback(err)
+      rLib.internalError(res, {msg: 'unable to query permissions table', err: err, subject: subject})
     else {
       if (pgResult.rowCount === 0) 
-        callback(404)
+        rLib.notFound(res, {msg: 'permissions not found for subject', subject: subject})
       else {
         var row = pgResult.rows[0];
-        callback(null, row.data, row.etag)
+        callback(row.data, row.etag)
       }
     }
   })
 }
 
-function deletePermissionsThen(req, subject, callback) {
-  var query = 'DELETE FROM permissions WHERE subject = $1 RETURNING *'
-  function eventData(pgResult) {
-    return {subject: subject, action: 'delete', etag: pgResult.rows[0].etag}
+function deletePermissionsThen(req, res, subject, callback) {
+  let changeEvent = {
+    subject: subject, 
+    action: 'delete'
   }
-  eventProducer.queryAndStoreEvent(req, query, [subject], 'permissions', eventData, function(err, pgResult, pgEventResult) {
-    if (err) 
-      callback(err) 
-    else 
-      callback(err, pgResult.rows[0].data, pgResult.rows[0].etag)
-  });
+  eventProducer.deleteResourceThen(req, res, subject, 'permissions', changeEvent, (deletedRecord) => 
+    callback(deletedRecord.data, deletedRecord.etag)
+  )
 }
 
-function createPermissionsThen(req, permissions, scopes, callback) {
-  var subject = permissions._subject;
-  var newEtag = lib.uuid4()
-  var query = 'INSERT INTO permissions (subject, etag, data) values($1, $2, $3) RETURNING etag'
-  function eventData(pgResult) {
-    return {subject: permissions._subject, action: 'create', etag: pgResult.rows[0].etag, scopes: scopes}
+function createPermissionsThen(req, errorHandler, permissions, scopes, callback) {
+  let changeEvent = {
+    subject: permissions._subject, 
+    action: 'create',
+    resource: permissions,
+    scopes: scopes
   }
-  eventProducer.queryAndStoreEvent(req, query, [subject, newEtag, JSON.stringify(permissions)], 'permissions', eventData, function(err, pgResult, pgEventResult) {
-    if (err) 
-      if (err.code == 23505)
-        callback(409)
-      else
-        callback(err) 
-    else 
-      callback(err, pgResult.rows[0].etag)
+  eventProducer.createResourceThen(req, errorHandler, permissions._subject, permissions, 'permissions', changeEvent, (resourceRecord, eventRecord) => {
+    callback(permissions.etag)
   })
 }
 
-function updatePermissionsThen(req, subject, patchedPermissions, scopes, etag, callback) {
-  var newEtag = lib.uuid4()
-  var key = lib.internalizeURL(subject, req.headers.host);
-  var query = 'UPDATE permissions SET (etag, data) = ($1, $2) WHERE subject = $3 AND etag = $4 RETURNING etag'
-  var args = [newEtag, JSON.stringify(patchedPermissions), key, etag]
-  function eventData(pgResult) {
-    return {subject: patchedPermissions._subject, action: 'update', etag: pgResult.rows[0].etag, scopes: scopes}
+function updatePermissionsThen(req, errorHandler, subject, priorPermissions, patchedPermissions, scopes, ifMatch, callback) {
+  let changeEvent = {
+    subject: patchedPermissions._subject, 
+    action: 'update',
+    resource: patchedPermissions,
+    scopes: scopes
   }
-  eventProducer.queryAndStoreEvent(req, query, args, 'permissions', eventData, function(err, pgResult, pgEventResult) {
-    if (err) 
-      callback(err) 
-    else 
-      callback(err, pgResult.rows[0].etag)
+  eventProducer.updateResourceThen(req, errorHandler, subject, patchedPermissions, ifMatch, priorPermissions, 'permissions', changeEvent, (eventRecord) => {
+    callback(patchedPermissions.etag)
   })
 }
 
-function putPermissionsThen(req, subject, permissions, scopes, callback) {
-  var newEtag = lib.uuid4()
-  var key = lib.internalizeURL(subject, req.headers.host);
-  var query = 'UPDATE permissions SET (etag, data) = ($1, $2) WHERE subject = $3 RETURNING etag'
-  var args = [newEtag, JSON.stringify(permissions), key]
-  function eventData(pgResult) {
-    return {subject: permissions._subject, action: 'update', etag: pgResult.rows[0].etag, scopes: scopes}
-  }
-  eventProducer.queryAndStoreEvent(req, query, args, 'permissions', eventData, function(err, pgResult, pgEventResult) {
-    if (err) 
-      callback(err) 
-    else 
-      callback(err, pgResult.rows[0].etag)
-  })
-}
-
-function withResourcesSharedWithActorsDo(req, actors, callback) {
+function withResourcesSharedWithActorsDo(res, actors, callback) {
   actors = actors == null ? [INCOGNITO] : actors.concat([INCOGNITO, ANYONE]);
   const delim = generateDelimiter()
   var query = `SELECT DISTINCT subject FROM permissions WHERE data#>'{_metadata, sharedWith}' ?| array[${actors.map(x => `$${delim}$${x}$${delim}$`).join(',')}]`
-  console.log(query)
-  console.log(query)
   pool.query(query, function (err, pgResult) {
     if (err) 
-      callback(err) 
+    rLib.internalError(res, {msg:'unable to query permissions table', err: err}) 
     else 
-      callback(err, pgResult.rows.map(row => row.subject))
+      callback(pgResult.rows.map(row => row.subject))
   });
 }
 
-function withHeirsDo(req, securedObject, callback) {
+function withHeirsDo(res, securedObject, callback) {
   var query, args
   if (Array.isArray(securedObject)) {
     const delim = generateDelimiter()
@@ -131,15 +101,15 @@ function withHeirsDo(req, securedObject, callback) {
   }
   pool.query(query, args, function (err, pgResult) {
     if (err) 
-      callback(err) 
+      rLib.internalError(res, {msg:'unable to query permissions table', err: err, securedObject: securedObject}) 
     else 
-      callback(null, pgResult.rows.map(row => row.data._subject))
+      callback(pgResult.rows.map(row => row.data._subject))
   })
 }
 
 function init(callback, aPool) {
   pool = aPool || new Pool(config)
-  eventProducer = new pge.eventProducer(pool)
+  eventProducer = new pge.eventProducer(pool, 'permissions', 'subject')
   var query = 'CREATE TABLE IF NOT EXISTS permissions (subject text primary key, etag text, data jsonb);'
   pool.connect(function(err, client, release) {
     if(err) {
@@ -182,7 +152,6 @@ exports.withPermissionsDo = withPermissionsDo
 exports.createPermissionsThen = createPermissionsThen
 exports.deletePermissionsThen = deletePermissionsThen
 exports.updatePermissionsThen = updatePermissionsThen
-exports.putPermissionsThen = putPermissionsThen
 exports.withResourcesSharedWithActorsDo = withResourcesSharedWithActorsDo
 exports.withHeirsDo = withHeirsDo
 exports.init = init
